@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id        String     @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[] @relation("CategoryTree")
+  parts     Part[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([parentId])
+}
+
+model StorageLocation {
+  id        String            @id @default(cuid())
+  name      String
+  parentId  String?
+  parent    StorageLocation?  @relation("LocationTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  StorageLocation[] @relation("LocationTree")
+  partsDefault Part[]         @relation("PartDefaultLocation")
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([parentId])
+}
+
+model Part {
+  id                 String           @id @default(cuid())
+  internalSku        String?          @unique
+  name               String
+  mpn                String?
+  manufacturer       String?
+  description        String?
+  quantityOnHand     Int              @default(0)
+  reorderMin         Int?
+  unit               String           @default("pcs")
+  categoryId         String?
+  category           Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  defaultLocationId  String?
+  defaultLocation    StorageLocation? @relation("PartDefaultLocation", fields: [defaultLocationId], references: [id], onDelete: SetNull)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([categoryId])
+  @@index([defaultLocationId])
+  @@index([name])
+}

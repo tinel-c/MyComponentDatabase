@@ -34,15 +34,14 @@ export default function Home() {
               Next step
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-              Backend persistence (Prisma + database) and a real parts list
-              will connect here. Until then, use the Parts page as a UI
-              placeholder.
+              Prisma + SQLite store your data locally by default. Add categories,
+              storage locations, and parts from the navigation.
             </p>
             <Link
               href="/parts"
               className="mt-4 inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
             >
-              Open Parts
+              Parts
             </Link>
           </div>
         </section>

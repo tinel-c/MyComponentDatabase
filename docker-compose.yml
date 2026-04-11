@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: warehouse
+      POSTGRES_PASSWORD: warehouse
+      POSTGRES_DB: warehouse
+    ports:
+      - "5432:5432"
+    volumes:
+      - warehouse_pgdata:/var/lib/postgresql/data
+
+volumes:
+  warehouse_pgdata:

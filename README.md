@@ -10,15 +10,34 @@ Web application to **register and track parts and components** for a hobby wareh
 
 ## Application code
 
-The Next.js app lives in **`web/`**:
+The Next.js app lives in **`web/`**.
+
+### Setup
+
+1. Copy `web/.env.example` to `web/.env` (defaults to SQLite `file:./dev.db`).
+2. Install dependencies and apply migrations:
 
 ```bash
 cd web
 npm install
+npx prisma migrate dev
+```
+
+3. Optional sample data:
+
+```bash
+npx prisma db seed
+```
+
+4. Run the dev server:
+
+```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the app.
+Open [http://localhost:3000](http://localhost:3000). Use **Parts**, **Categories**, and **Locations** in the header to manage inventory.
+
+PostgreSQL is optional: use `docker compose up -d` from the repo root, then point `DATABASE_URL` at Postgres and set `provider = "postgresql"` in `web/prisma/schema.prisma` before running migrations.
 
 ## License
 
