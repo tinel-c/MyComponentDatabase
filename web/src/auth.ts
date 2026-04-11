@@ -1,6 +1,7 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { getGoogleClientId, getGoogleClientSecret } from "@/lib/oauth-config";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -8,8 +9,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   providers: [
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID ?? "",
-      clientSecret: process.env.AUTH_GOOGLE_SECRET ?? "",
+      clientId: getGoogleClientId() ?? "",
+      clientSecret: getGoogleClientSecret() ?? "",
     }),
   ],
   pages: {

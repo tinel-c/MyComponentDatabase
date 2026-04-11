@@ -21,9 +21,12 @@ const navBase = [
 
 export function DashboardChrome({
   session,
+  gravatarUrl,
   children,
 }: {
   session: Session;
+  /** Gravatar URL derived from the user email (see `getGravatarUrl`). */
+  gravatarUrl: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -70,17 +73,14 @@ export function DashboardChrome({
 
         <div className="border-t border-white/10 p-4">
           <div className="flex items-center gap-3 rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
-            {session.user.image ? (
-              <img
-                src={session.user.image}
-                alt=""
-                className="h-10 w-10 rounded-full object-cover ring-2 ring-amber-400/40"
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-700 text-sm font-semibold text-zinc-200">
-                {(session.user.name ?? session.user.email ?? "?").slice(0, 1).toUpperCase()}
-              </div>
-            )}
+            <img
+              src={gravatarUrl}
+              alt=""
+              width={40}
+              height={40}
+              referrerPolicy="no-referrer"
+              className="h-10 w-10 rounded-full object-cover ring-2 ring-amber-400/40"
+            />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-white">
                 {session.user.name ?? "User"}

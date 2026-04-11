@@ -1,5 +1,6 @@
 import { loginWithGoogle } from "@/app/login/actions";
 import { auth } from "@/auth";
+import { isGoogleOAuthConfigured } from "@/lib/oauth-config";
 import { ArrowRight, Shield, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -9,6 +10,9 @@ export default async function LoginPage() {
   if (session?.user) {
     redirect("/parts");
   }
+
+  const oauthConfigured = isGoogleOAuthConfigured();
+  const showMissingOauth = !oauthConfigured;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-50">
@@ -80,10 +84,34 @@ export default async function LoginPage() {
             <p className="mt-2 text-sm text-zinc-400">
               You will be redirected to Google, then back to your inventory.
             </p>
+            {showMissingOauth ? (
+              <div
+                className="mt-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+                role="alert"
+              >
+                <p className="font-medium text-amber-50">Google OAuth is not configured</p>
+                <p className="mt-2 text-amber-100/90">
+                  Add your Web client ID and secret to{" "}
+                  <code className="rounded bg-black/20 px-1 py-0.5 text-xs">web/.env</code> and restart
+                  the dev server. Use either{" "}
+                  <code className="text-xs">AUTH_GOOGLE_ID</code> /{" "}
+                  <code className="text-xs">AUTH_GOOGLE_SECRET</code> or{" "}
+                  <code className="text-xs">GOOGLE_CLIENT_ID</code> /{" "}
+                  <code className="text-xs">GOOGLE_CLIENT_SECRET</code>. In Google Cloud Console, set
+                  the authorized redirect URI to{" "}
+                  <code className="break-all text-xs">
+                    {(process.env.AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")}
+                    /api/auth/callback/google
+                  </code>
+                  .
+                </p>
+              </div>
+            ) : null}
             <form action={loginWithGoogle} className="mt-8">
               <button
                 type="submit"
-                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-sm font-semibold text-zinc-900 shadow-lg shadow-amber-500/10 transition hover:bg-zinc-100"
+                disabled={!oauthConfigured}
+                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-sm font-semibold text-zinc-900 shadow-lg shadow-amber-500/10 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
                   <path

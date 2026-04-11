@@ -1,5 +1,6 @@
 import { DashboardChrome } from "@/components/dashboard/DashboardChrome";
 import { auth } from "@/auth";
+import { getGravatarUrl } from "@/lib/gravatar";
 import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
@@ -11,5 +12,10 @@ export default async function DashboardLayout({
   if (!session?.user) {
     redirect("/login");
   }
-  return <DashboardChrome session={session}>{children}</DashboardChrome>;
+  const gravatarUrl = getGravatarUrl(session.user.email, { size: 80, defaultImage: "identicon" });
+  return (
+    <DashboardChrome session={session} gravatarUrl={gravatarUrl}>
+      {children}
+    </DashboardChrome>
+  );
 }
