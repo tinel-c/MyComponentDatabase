@@ -1,6 +1,6 @@
 "use client";
 
-import { createLocation } from "@/app/locations/actions";
+import { createLocation } from "@/app/(dashboard)/locations/actions";
 import { buttonPrimaryClass, inputClass, labelClass } from "@/components/forms/field-classes";
 import type { LocationFormState } from "@/lib/schemas";
 import { useActionState } from "react";

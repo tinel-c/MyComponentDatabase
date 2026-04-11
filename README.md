@@ -14,8 +14,8 @@ The Next.js app lives in **`web/`**.
 
 ### Setup
 
-1. Copy `web/.env.example` to `web/.env` (defaults to SQLite `file:./dev.db`).
-2. Install dependencies and apply migrations:
+1. Copy `web/.env.example` to `web/.env` and fill in values (see **Authentication** below).
+2. Install dependencies (Next.js 16 may need `npm install --legacy-peer-deps` if npm reports peer conflicts):
 
 ```bash
 cd web
@@ -23,7 +23,7 @@ npm install
 npx prisma migrate dev
 ```
 
-3. Optional sample data:
+3. Seed optional demo data **and** the first admin user (email from `ADMIN_EMAIL` in `.env`):
 
 ```bash
 npx prisma db seed
@@ -35,7 +35,21 @@ npx prisma db seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Use **Parts**, **Categories**, and **Locations** in the header to manage inventory.
+Open [http://localhost:3000](http://localhost:3000). Sign in from **Sign in** on the home page.
+
+### Authentication (Google)
+
+- Create an OAuth **Web application** client in [Google Cloud Console](https://console.cloud.google.com/apis/credentials) and set **Authorized redirect URI** to  
+  `{AUTH_URL}/api/auth/callback/google` (e.g. `http://localhost:3000/api/auth/callback/google`).
+- Put the client ID and secret in `.env` as `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
+- Set `AUTH_SECRET` to a long random string (e.g. `openssl rand -base64 32`).
+- Set `AUTH_URL` to your app’s public origin (local: `http://localhost:3000`).
+- **Invite-only sign-in:** only emails that already exist in the database may use Google sign-in. The seed creates an **admin** user for `ADMIN_EMAIL` — use that exact Google account first, or create users under **Team** after logging in as admin.
+
+### Roles
+
+- **Admin:** full CRUD on categories and locations; **Team** page to create users and assign **visible categories** (members see those categories and all subcategories).
+- **Member:** sees only parts whose **category** falls under assigned categories; categories/locations are read-only (locations shown for reference).
 
 PostgreSQL is optional: use `docker compose up -d` from the repo root, then point `DATABASE_URL` at Postgres and set `provider = "postgresql"` in `web/prisma/schema.prisma` before running migrations.
 

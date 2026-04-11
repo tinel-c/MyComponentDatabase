@@ -36,4 +36,8 @@ jobs:
       - name: Build
         env:
           DATABASE_URL: "file:./ci.db"
+          AUTH_SECRET: "ci-build-placeholder-secret-at-least-32-chars-long!!"
+          AUTH_URL: "http://localhost:3000"
+          AUTH_GOOGLE_ID: "ci-placeholder"
+          AUTH_GOOGLE_SECRET: "ci-placeholder"
         run: npm run build

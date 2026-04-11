@@ -1,6 +1,6 @@
 "use client";
 
-import { deleteLocation, updateLocation } from "@/app/locations/actions";
+import { deleteLocation, updateLocation } from "@/app/(dashboard)/locations/actions";
 import { buttonDangerClass, buttonPrimaryClass, inputClass, labelClass } from "@/components/forms/field-classes";
 import type { LocationFormState } from "@/lib/schemas";
 import { useActionState } from "react";

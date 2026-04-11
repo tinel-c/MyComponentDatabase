@@ -1,8 +1,22 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Role } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  const adminEmail = process.env.ADMIN_EMAIL ?? "admin@example.com";
+
+  await prisma.user.upsert({
+    where: { email: adminEmail },
+    create: {
+      email: adminEmail,
+      name: "Warehouse Admin",
+      role: Role.ADMIN,
+    },
+    update: {
+      role: Role.ADMIN,
+    },
+  });
+
   const resistors = await prisma.category.upsert({
     where: { id: "seed-resistors" },
     create: {
@@ -63,7 +77,9 @@ async function main() {
     update: {},
   });
 
-  console.log("Seed complete: categories, locations, sample part.");
+  console.log(
+    `Seed complete: admin user (${adminEmail}), categories, locations, sample part.`,
+  );
 }
 
 main()

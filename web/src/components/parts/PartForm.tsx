@@ -1,6 +1,6 @@
 "use client";
 
-import { createPart, deletePart, updatePart } from "@/app/parts/actions";
+import { createPart, deletePart, updatePart } from "@/app/(dashboard)/parts/actions";
 import { buttonDangerClass, buttonPrimaryClass, inputClass, labelClass } from "@/components/forms/field-classes";
 import type { PartFormState } from "@/lib/schemas";
 import { useActionState } from "react";
@@ -24,9 +24,11 @@ type PartValues = {
 export function PartCreateForm({
   categoryOptions,
   locationOptions,
+  requireCategory = false,
 }: {
   categoryOptions: SelectOption[];
   locationOptions: SelectOption[];
+  requireCategory?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     async (_: PartFormState, fd: FormData) => createPart(_, fd),
@@ -41,6 +43,7 @@ export function PartCreateForm({
       pending={pending}
       categoryOptions={categoryOptions}
       locationOptions={locationOptions}
+      requireCategory={requireCategory}
       defaultValues={{
         internalSku: null,
         name: "",
@@ -61,10 +64,12 @@ export function PartEditForm({
   part,
   categoryOptions,
   locationOptions,
+  requireCategory = false,
 }: {
   part: PartValues & { id: string };
   categoryOptions: SelectOption[];
   locationOptions: SelectOption[];
+  requireCategory?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(
     async (_: PartFormState, fd: FormData) => updatePart(_, fd),
@@ -80,6 +85,7 @@ export function PartEditForm({
         pending={pending}
         categoryOptions={categoryOptions}
         locationOptions={locationOptions}
+        requireCategory={requireCategory}
         defaultValues={part}
       />
       <form
@@ -105,6 +111,7 @@ function PartFormInner({
   pending,
   categoryOptions,
   locationOptions,
+  requireCategory,
   defaultValues,
 }: {
   mode: "create" | "edit";
@@ -113,6 +120,7 @@ function PartFormInner({
   pending: boolean;
   categoryOptions: SelectOption[];
   locationOptions: SelectOption[];
+  requireCategory: boolean;
   defaultValues: PartValues;
 }) {
   return (
@@ -223,14 +231,16 @@ function PartFormInner({
         <div>
           <label htmlFor="part-cat" className={labelClass}>
             Category
+            {requireCategory ? <span className="text-red-600"> *</span> : null}
           </label>
           <select
             id="part-cat"
             name="categoryId"
             className={inputClass}
             defaultValue={defaultValues.categoryId ?? ""}
+            required={requireCategory}
           >
-            <option value="">— None —</option>
+            {!requireCategory ? <option value="">— None —</option> : null}
             {categoryOptions.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.label}

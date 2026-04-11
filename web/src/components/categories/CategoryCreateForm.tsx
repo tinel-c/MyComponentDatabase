@@ -1,6 +1,6 @@
 "use client";
 
-import { createCategory } from "@/app/categories/actions";
+import { createCategory } from "@/app/(dashboard)/categories/actions";
 import { buttonPrimaryClass, inputClass, labelClass } from "@/components/forms/field-classes";
 import type { CategoryFormState } from "@/lib/schemas";
 import { useActionState } from "react";
