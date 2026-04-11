@@ -18,6 +18,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Google({
       clientId: getGoogleClientId() ?? "",
       clientSecret: getGoogleClientSecret() ?? "",
+      /** Required: users are created by seed/admin before Google; first OAuth sign-in must link to that User row. */
+      allowDangerousEmailAccountLinking: true,
       profile(profile) {
         return {
           id: profile.sub,

@@ -18,6 +18,10 @@ const ERROR_COPY: Record<string, { title: string; body: string }> = {
     title: "Could not start Google sign-in",
     body: "Check that Google OAuth credentials in web/.env are correct and the dev server was restarted.",
   },
+  OAuthAccountNotLinked: {
+    title: "Google account could not be linked",
+    body: "This is usually fixed by enabling email linking for OAuth (already on in current app versions). Restart the dev server and try again, or ask an admin to verify your user row in the database.",
+  },
 };
 
 export default async function LoginPage({
