@@ -5,14 +5,40 @@ import { ArrowRight, Shield, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-export default async function LoginPage() {
+const ERROR_COPY: Record<string, { title: string; body: string }> = {
+  "no-invite": {
+    title: "Your email is not registered yet",
+    body: "This app is invite-only. Ask an administrator to add your Google email under Team, or set ADMIN_EMAIL in .env to match your Google account and run npx prisma db seed.",
+  },
+  AccessDenied: {
+    title: "Sign-in was not allowed",
+    body: "Usually this means your Google email is not in the team list yet. Ask an admin to create your user, or align ADMIN_EMAIL with your account and re-seed the database.",
+  },
+  OAuthSignin: {
+    title: "Could not start Google sign-in",
+    body: "Check that Google OAuth credentials in web/.env are correct and the dev server was restarted.",
+  },
+};
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const session = await auth();
   if (session?.user) {
     redirect("/parts");
   }
 
+  const params = await searchParams;
   const oauthConfigured = isGoogleOAuthConfigured();
   const showMissingOauth = !oauthConfigured;
+  const authError = params.error
+    ? (ERROR_COPY[params.error] ?? {
+        title: "Sign-in error",
+        body: `Something went wrong (code: ${params.error}). Check web/.env, restart the server, and ensure your Google email exists under Team.`,
+      })
+    : undefined;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-50">
@@ -84,6 +110,15 @@ export default async function LoginPage() {
             <p className="mt-2 text-sm text-zinc-400">
               You will be redirected to Google, then back to your inventory.
             </p>
+            {authError ? (
+              <div
+                className="mt-6 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+                role="alert"
+              >
+                <p className="font-medium text-red-50">{authError.title}</p>
+                <p className="mt-2 text-red-100/90">{authError.body}</p>
+              </div>
+            ) : null}
             {showMissingOauth ? (
               <div
                 className="mt-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"

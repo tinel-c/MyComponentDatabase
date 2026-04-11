@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
+import { normalizeEmail } from "@/lib/email";
 import { requireAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
@@ -43,7 +44,7 @@ export async function createUserRecord(
   try {
     await prisma.user.create({
       data: {
-        email: data.email,
+        email: normalizeEmail(data.email),
         name: data.name || null,
         role: data.role,
         categoryAccess:
@@ -96,7 +97,7 @@ export async function updateUserRecord(
       await tx.user.update({
         where: { id },
         data: {
-          email: rest.email,
+          email: normalizeEmail(rest.email),
           name: rest.name || null,
           role: rest.role,
         },
