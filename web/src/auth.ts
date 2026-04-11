@@ -4,6 +4,12 @@ import Google from "next-auth/providers/google";
 import { normalizeEmail } from "@/lib/email";
 import { getGoogleClientId, getGoogleClientSecret } from "@/lib/oauth-config";
 import { prisma } from "@/lib/prisma";
+import { Role } from "@prisma/client";
+
+/** Same default as `prisma/seed.ts` — first Google sign-in with this email becomes admin if no row exists yet. */
+function bootstrapAdminEmail(): string {
+  return normalizeEmail(process.env.ADMIN_EMAIL ?? "tinel.c@gmail.com");
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -38,7 +44,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         where: { email },
       });
       if (!existing) {
-        return "/login?error=no-invite";
+        if (email === bootstrapAdminEmail()) {
+          await prisma.user.upsert({
+            where: { email },
+            create: {
+              email,
+              name: user.name ?? null,
+              role: Role.ADMIN,
+            },
+            update: {
+              name: user.name ?? null,
+              role: Role.ADMIN,
+            },
+          });
+        } else {
+          return "/login?error=no-invite";
+        }
       }
       return true;
     },

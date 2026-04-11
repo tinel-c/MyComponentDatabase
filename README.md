@@ -44,7 +44,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign in from **Sign in** on
 - Put the client ID and secret in `.env` as `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`.
 - Set `AUTH_SECRET` to a long random string (e.g. `openssl rand -base64 32`).
 - Set `AUTH_URL` to your app’s public origin (local: `http://localhost:3000`).
-- **Invite-only sign-in:** only emails that already exist in the database may use Google sign-in. The seed creates an **admin** user for `ADMIN_EMAIL` — use that exact Google account first, or create users under **Team** after logging in as admin.
+- **Invite-only sign-in:** the Google account matching **`ADMIN_EMAIL`** in `web/.env` (default `tinel.c@gmail.com`) is **auto-created as admin** on first sign-in if missing. Other emails must be added under **Team** by an admin (or run `npx prisma db seed`, which also ensures the admin user exists).
 
 ### Roles
 

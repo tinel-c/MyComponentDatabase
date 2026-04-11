@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 const ERROR_COPY: Record<string, { title: string; body: string }> = {
   "no-invite": {
     title: "Your email is not registered yet",
-    body: "This app is invite-only. Ask an administrator to add your Google email under Team, or set ADMIN_EMAIL in .env to match your Google account and run npx prisma db seed.",
+    body: "This app is invite-only for non-admin accounts. Ask an administrator to add your Google email under Team. (The address in ADMIN_EMAIL in web/.env can sign in without that — it becomes admin on first login.)",
   },
   AccessDenied: {
     title: "Sign-in was not allowed",
