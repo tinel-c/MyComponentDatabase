@@ -2,6 +2,8 @@
 
 Web application to **register and track parts and components** for a hobby warehouse (electronics, mechanical stock, tools, and related items).
 
+**GitHub:** [github.com/tinel-c/MyComponentDatabase](https://github.com/tinel-c/MyComponentDatabase)
+
 ## Documentation
 
 - **[IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)** — researched features, technology choices, data model outline, and phased implementation steps.
