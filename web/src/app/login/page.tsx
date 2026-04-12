@@ -6,6 +6,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 const ERROR_COPY: Record<string, { title: string; body: string }> = {
+  Configuration: {
+    title: "Auth configuration error",
+    body: "Usually AUTH_SECRET is missing or too short in production, or AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET are empty. Set them in your app .env (on the VPS: /opt/warehouse/shared/.env), then restart the server (e.g. sudo -u deploy pm2 restart warehouse-blue --update-env). Generate AUTH_SECRET with: openssl rand -base64 32",
+  },
   "no-invite": {
     title: "Your email is not registered yet",
     body: "This app is invite-only for non-admin accounts. Ask an administrator to add your Google email under Team. (The address in ADMIN_EMAIL in web/.env can sign in without that — it becomes admin on first login.)",
