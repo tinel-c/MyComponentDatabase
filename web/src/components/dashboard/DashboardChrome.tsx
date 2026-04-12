@@ -6,13 +6,13 @@ import type { Session } from "next-auth";
 import {
   Boxes,
   FolderTree,
-  LayoutDashboard,
   LogOut,
   MapPin,
   Menu,
   Users,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -85,30 +85,21 @@ export function DashboardChrome({
 
         {/* Logo / brand */}
         <div
-          className="flex h-16 items-center gap-2 border-b px-5 pr-12 md:pr-5"
+          className="flex h-20 shrink-0 items-center border-b px-4 pr-12 md:pr-4"
           style={{ borderBottomColor: "var(--rim-subtle)" }}
         >
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl ring-1 ring-rim/60"
-            style={{
-              background: "var(--overlay)",
-              boxShadow: `0 0 12px var(--glow-accent)`,
-            }}
-          >
-            <LayoutDashboard
-              className="h-5 w-5"
-              style={{ color: "var(--accent)" }}
-              aria-hidden
-            />
-          </div>
-          <div className="leading-tight">
-            <p className="text-sm font-semibold tracking-tight text-fg">
-              Hobby Warehouse
-            </p>
-            <p className="text-[11px]" style={{ color: "var(--fg-muted)" }}>
-              Parts &amp; stock
-            </p>
-          </div>
+          <Link href="/parts" className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl">
+            <div className="rounded-xl px-3 py-2" style={{ background: "rgba(255,255,255,1)" }}>
+              <Image
+                src="/logo.png"
+                alt="Hobby Warehouse"
+                width={2013}
+                height={597}
+                className="h-auto w-full object-contain"
+                priority
+              />
+            </div>
+          </Link>
         </div>
 
         {/* Navigation */}
@@ -248,9 +239,18 @@ export function DashboardChrome({
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="min-w-0 truncate font-semibold text-fg">
-            Hobby Warehouse
-          </span>
+          <div className="min-w-0 flex-1">
+            <div className="inline-flex rounded-lg px-2 py-1 bg-white">
+              <Image
+                src="/logo.png"
+                alt="Hobby Warehouse"
+                width={2013}
+                height={597}
+                className="h-7 w-auto object-contain"
+                priority
+              />
+            </div>
+          </div>
         </header>
 
         <main className="w-full min-w-0 flex-1 px-3 py-6 sm:px-6 md:px-8 lg:px-10 lg:py-8">
