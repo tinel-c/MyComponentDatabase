@@ -1,0 +1,29 @@
+# Deployment configuration — non-sensitive values only.
+# Sensitive credentials (SSH password, app secrets) belong in GitHub Secrets.
+# See deploy.secrets.example for the full list of required GitHub Secrets.
+
+server:
+  host: part-db.bogza.ro
+  user: deploy
+  port: 22
+  app_root: /opt/warehouse
+
+app:
+  # Used by setup-server.sh — replace with your repository clone URL (HTTPS or SSH).
+  repo: https://github.com/tinel-c/MyComponentDatabase.git
+  branch: main
+  node_version: "20"
+
+slots:
+  blue:
+    port: 3000
+    pm2_name: warehouse-blue
+  green:
+    port: 3001
+    pm2_name: warehouse-green
+
+paths:
+  shared: /opt/warehouse/shared
+  active_slot_file: /opt/warehouse/active_slot
+  nginx_site: /etc/nginx/sites-available/warehouse
+  nginx_upstream_include: /opt/warehouse/nginx-active-upstream.conf

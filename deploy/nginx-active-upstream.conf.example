@@ -1,0 +1,6 @@
+# Copied to /opt/warehouse/nginx-active-upstream.conf on first boot.
+# deploy.sh rewrites the server line to point at the active slot (3000 or 3001).
+
+upstream warehouse_app {
+    server 127.0.0.1:3000;
+}
