@@ -154,6 +154,14 @@ systemctl reload nginx
 log "PM2 systemd startup (run the printed command if needed)"
 sudo -u deploy env PATH="$PATH" pm2 startup systemd -u deploy --hp /home/deploy || true
 
+if [[ -f "${SCRIPT_DIR}/poll-deploy.sh" ]]; then
+  install -m 750 "${SCRIPT_DIR}/poll-deploy.sh" "${APP_ROOT}/poll-deploy.sh"
+  chown deploy:deploy "${APP_ROOT}/poll-deploy.sh"
+  mkdir -p "${APP_ROOT}/log"
+  chown deploy:deploy "${APP_ROOT}/log"
+  log "Installed ${APP_ROOT}/poll-deploy.sh — optional cron: */5 * * * * deploy ${APP_ROOT}/poll-deploy.sh >> ${APP_ROOT}/log/poll-deploy.log 2>&1"
+fi
+
 log "done."
 log "Next: edit $SHARED_ENV, set real AUTH_SECRET and Google keys."
 log "Then: set DEPLOY_SSH_PASSWORD (and DEPLOY_HOST, DEPLOY_USER) in GitHub Actions secrets and push to main."
