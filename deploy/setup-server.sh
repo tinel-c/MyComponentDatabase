@@ -83,6 +83,9 @@ for slot in blue green; do
 done
 DEPLOY_CLONE
 
+sudo -u deploy git config --global --add safe.directory "${APP_ROOT}/blue" 2>/dev/null || true
+sudo -u deploy git config --global --add safe.directory "${APP_ROOT}/green" 2>/dev/null || true
+
 SHARED_ENV="${APP_ROOT}/shared/.env"
 SHARED_DB="${APP_ROOT}/shared/warehouse.db"
 

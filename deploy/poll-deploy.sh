@@ -23,6 +23,19 @@ log() { printf '[poll-deploy] %s\n' "$*"; }
 
 die() { printf '[poll-deploy] ERROR: %s\n' "$*" >&2; exit 1; }
 
+ensure_git_safe_directories() {
+  local slot dir
+  for slot in blue green; do
+    dir="${APP_ROOT}/${slot}"
+    if [[ -d "${dir}/.git" ]]; then
+      if ! git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$dir"; then
+        git config --global --add safe.directory "$dir"
+      fi
+    fi
+  done
+}
+ensure_git_safe_directories
+
 for slot in blue green; do
   if [[ -d "${APP_ROOT}/${slot}/.git" ]]; then
     GIT_DIR="${APP_ROOT}/${slot}"

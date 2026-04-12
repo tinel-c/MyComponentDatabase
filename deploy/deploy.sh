@@ -13,6 +13,20 @@ log() { printf '[deploy] %s\n' "$*"; }
 
 die() { printf '[deploy] ERROR: %s\n' "$*" >&2; exit 1; }
 
+# Git 2.35+ blocks commands when the repo owner differs from the current user (e.g. root-owned trees, SSH as deploy).
+ensure_git_safe_directories() {
+  local slot dir
+  for slot in blue green; do
+    dir="${APP_ROOT}/${slot}"
+    if [[ -d "${dir}/.git" ]]; then
+      if ! git config --global --get-all safe.directory 2>/dev/null | grep -qxF "$dir"; then
+        git config --global --add safe.directory "$dir"
+      fi
+    fi
+  done
+}
+ensure_git_safe_directories
+
 [[ -f "$ACTIVE_FILE" ]] || die "missing $ACTIVE_FILE — run setup-server.sh first"
 
 ACTIVE="$(tr -d '[:space:]' < "$ACTIVE_FILE" | tr '[:upper:]' '[:lower:]')"
