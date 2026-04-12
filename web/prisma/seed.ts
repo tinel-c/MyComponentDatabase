@@ -1,5 +1,5 @@
 import path from "path";
-import { PrismaClient, Role } from "../src/generated/prisma-client";
+import { PrismaClient, Role } from "@prisma/client";
 import { seedComponentsFromFolder } from "./seed-components";
 
 const prisma = new PrismaClient();

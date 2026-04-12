@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import type { PrismaClient } from "../src/generated/prisma-client";
+import type { PrismaClient } from "@prisma/client";
 
 const DESCRIPTION_MAX = 100_000;
 const MAX_IMAGES_PER_PART = 48;
