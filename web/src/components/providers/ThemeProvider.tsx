@@ -12,7 +12,6 @@ import {
   DEFAULT_THEME,
   DARK_THEME_IDS,
   THEME_STORAGE_KEY,
-  THEMES,
   getTheme,
 } from "@/lib/themes";
 
@@ -47,8 +46,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem(THEME_STORAGE_KEY) as ThemeId | null;
     const initial = getTheme(stored).id;
-    setThemeState(initial);
-    applyTheme(initial);
+    queueMicrotask(() => {
+      setThemeState(initial);
+      applyTheme(initial);
+    });
   }, []);
 
   const setTheme = useCallback((newTheme: ThemeId) => {

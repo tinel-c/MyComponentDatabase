@@ -4,7 +4,7 @@ import { tdClass, thClass, tableClass } from "@/components/forms/field-classes";
 import { updatePartFromTable } from "@/app/(dashboard)/parts/actions";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { PartRowThumbnail } from "./PartRowThumbnail";
 
 const inputInline =
@@ -84,24 +84,6 @@ function EditablePartRow({
       defaultLocationId: initial.defaultLocationId ?? "",
     }),
   );
-
-  useEffect(() => {
-    setName(initial.name);
-    setInternalSku(initial.internalSku ?? "");
-    setQuantityOnHand(initial.quantityOnHand);
-    setUnit(initial.unit);
-    setCategoryId(initial.categoryId ?? "");
-    setDefaultLocationId(initial.defaultLocationId ?? "");
-    setError(null);
-    baseline.current = serializeRow({
-      name: initial.name,
-      internalSku: initial.internalSku ?? "",
-      quantityOnHand: initial.quantityOnHand,
-      unit: initial.unit,
-      categoryId: initial.categoryId ?? "",
-      defaultLocationId: initial.defaultLocationId ?? "",
-    });
-  }, [initial.updatedAt]);
 
   const unitChoices = Array.from(new Set([...unitOptions, unit])).sort((a, b) =>
     a.localeCompare(b, undefined, { sensitivity: "base" }),
@@ -321,7 +303,7 @@ export function PartsEditableTable({
           ) : (
             rows.map((r) => (
               <EditablePartRow
-                key={r.id}
+                key={`${r.id}-${r.updatedAt}`}
                 initial={r}
                 categoryOptions={categoryOptions}
                 locationOptions={locationOptions}

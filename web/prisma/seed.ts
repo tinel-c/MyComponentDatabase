@@ -229,7 +229,7 @@ async function main() {
     update: {},
   });
 
-  const bin = await prisma.storageLocation.upsert({
+  await prisma.storageLocation.upsert({
     where: { id: "seed-bin-3" },
     create: {
       id: "seed-bin-3",
