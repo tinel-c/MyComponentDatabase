@@ -1,0 +1,135 @@
+---
+description: Theme system rules for Hobby Warehouse. All new UI components and pages must use the semantic theme token classes.
+globs: web/src/**/*.tsx,web/src/**/*.ts,web/src/**/*.css
+alwaysApply: true
+---
+
+# Theme System — Agent Rules
+
+Hobby Warehouse uses a **CSS-variable-based multi-theme system** with 5 themes.
+Every new UI component or page MUST follow these rules to remain theme-aware.
+
+## 1. Use Semantic Token Classes — Never Hardcode Colors
+
+**Required** — use these Tailwind utilities (they map to CSS variables):
+
+| Purpose | Class(es) |
+|---|---|
+| Page background | `bg-canvas` |
+| Card / panel background | `bg-surface` |
+| Elevated (modal, dropdown) | `bg-overlay` |
+| Primary border | `border-rim` |
+| Subtle border | `border-rim-subtle` |
+| Primary text | `text-fg` |
+| Secondary text | `text-fg-muted` |
+| Tertiary / placeholder text | `text-fg-subtle` |
+| Primary action bg | `bg-accent` |
+| Primary action text | `text-accent-fg` |
+| Action hover | `bg-accent-hover` / `hover:bg-accent-hover` |
+| Subtle accent tint | `bg-accent-muted` / `text-accent` |
+| Error background | `bg-danger-muted` |
+| Error text | `text-danger-fg` / `text-danger` |
+| Success | `text-ok` / `bg-ok` |
+
+**Forbidden** — do not hardcode palette colors in new code:
+
+- `bg-zinc-*`, `text-zinc-*`, `border-zinc-*`
+- `bg-emerald-*`, `text-emerald-*` (use `bg-accent`, `text-accent` instead)
+- `bg-white`, `bg-black`, `text-white`, `text-black`
+- `dark:bg-*`, `dark:text-*`, `dark:border-*` (the theme system handles this)
+
+**Allowed exception:** Tailwind semantic utilities like `rounded-*`, `px-*`, `flex`, `grid`, `w-*`, `h-*`, `font-*`, `opacity-*`, `transition-*`, `z-*`, etc. are always fine.
+
+## 2. For Complex Dynamic Colors — Use CSS Variables Directly
+
+When you need opacity modifiers or gradients, use inline style with CSS variables:
+
+```tsx
+// Semi-transparent backgrounds
+<div style={{ background: "color-mix(in oklch, var(--surface) 60%, transparent)" }} />
+
+// Gradients
+<div style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-hover))" }} />
+
+// Glow effects
+<div style={{ boxShadow: "0 0 40px var(--glow-accent)" }} />
+```
+
+## 3. Adding a New Theme
+
+When you add a brand-new theme:
+
+1. **`web/src/lib/themes.ts`** — add a `ThemeConfig` entry to the `THEMES` array.
+   - Set `isDark: true` for dark themes, `false` for light.
+   - Fill in the `preview` swatches for the theme selector UI.
+
+2. **`web/src/app/globals.css`** — add a `[data-theme="your-id"]` block with **all** of the following CSS variables defined:
+
+   ```css
+   [data-theme="your-id"] {
+     --canvas:        /* page background */;
+     --surface:       /* card / panel */;
+     --overlay:       /* elevated elements */;
+     --rim:           /* primary border */;
+     --rim-subtle:    /* subtle border */;
+     --fg:            /* primary text */;
+     --fg-muted:      /* secondary text */;
+     --fg-subtle:     /* placeholder / tertiary */;
+     --accent:        /* primary CTA color */;
+     --accent-hover:  /* accent hover */;
+     --accent-fg:     /* text on accent bg */;
+     --accent-muted:  /* subtle accent tint */;
+     --danger:        /* error color */;
+     --danger-hover:  /* error hover */;
+     --danger-muted:  /* error bg tint */;
+     --danger-fg:     /* text on danger bg */;
+     --ok:            /* success color */;
+     --sidebar-from:  /* sidebar gradient start */;
+     --sidebar-via:   /* sidebar gradient mid */;
+     --sidebar-to:    /* sidebar gradient end */;
+     --glow-accent:   /* accent ambient glow */;
+     --glow-top:      /* top page radial glow */;
+   }
+   ```
+
+3. The theme will automatically appear in the **ThemeSelector** sidebar widget
+   (no further code changes needed there).
+
+## 4. Form Fields — Use `field-classes.ts`
+
+For inputs, labels, buttons, and tables, import from the shared class strings:
+
+```ts
+import {
+  inputClass,
+  labelClass,
+  buttonPrimaryClass,
+  buttonSecondaryClass,
+  buttonDangerClass,
+  tableClass,
+  thClass,
+  tdClass,
+  cardClass,
+  sectionHeadingClass,
+  sectionSubheadingClass,
+} from "@/components/forms/field-classes";
+```
+
+Never define one-off input/button styles for new form components.
+
+## 5. ThemeProvider is Already Available
+
+The `ThemeProvider` wraps the entire app at `web/src/app/layout.tsx`.
+If you need the active theme in a client component, use:
+
+```tsx
+"use client";
+import { useTheme } from "@/components/providers/ThemeProvider";
+
+const { theme, setTheme } = useTheme();
+```
+
+## 6. Icon Colors
+
+Use `style={{ color: "var(--accent)" }}` or `text-fg-muted` on Lucide icons.
+Do not use `text-zinc-400`, `text-emerald-500`, etc.

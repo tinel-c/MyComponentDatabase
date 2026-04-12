@@ -1,26 +1,298 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════════════════
+   SEMANTIC TOKEN SYSTEM — Hobby Warehouse Theme Engine
+   ═══════════════════════════════════════════════════════════════════════
+
+   HOW IT WORKS
+   ─────────────────────────────────────────────────────────────────────
+   Each [data-theme="id"] block defines the raw color values for that theme.
+   The @theme inline block maps them to Tailwind CSS utilities so you can
+   write:  bg-canvas  text-fg  bg-accent  border-rim  etc.
+
+   AGENT RULE — ADDING A NEW THEME
+   ─────────────────────────────────────────────────────────────────────
+   1. Add a ThemeConfig entry in  web/src/lib/themes.ts
+   2. Copy the [data-theme="midnight-zinc"] block below, rename the selector,
+      and update every CSS variable value.
+   3. If isDark=false, set variables appropriate for a light background.
+
+   SEMANTIC UTILITY CLASSES (use these in all new components)
+   ─────────────────────────────────────────────────────────────────────
+   Backgrounds:  bg-canvas  bg-surface  bg-overlay
+   Text:         text-fg  text-fg-muted  text-fg-subtle
+   Borders:      border-rim  border-rim-subtle   (use with border-*)
+   Accent:       bg-accent  text-accent  bg-accent-muted  text-accent-fg
+                 hover:bg-accent-hover
+   Danger:       bg-danger  text-danger  bg-danger-muted  text-danger-fg
+   Success:      text-ok  bg-ok
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Default / Fallback = Midnight Zinc ─────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --canvas:        #09090b;
+  --surface:       #18181b;
+  --overlay:       #27272a;
+  --rim:           #3f3f46;
+  --rim-subtle:    #27272a;
+
+  --fg:            #fafafa;
+  --fg-muted:      #a1a1aa;
+  --fg-subtle:     #71717a;
+
+  --accent:        #10b981;
+  --accent-hover:  #34d399;
+  --accent-fg:     #ffffff;
+  --accent-muted:  #052e16;
+
+  --danger:        #ef4444;
+  --danger-hover:  #f87171;
+  --danger-muted:  #1c0707;
+  --danger-fg:     #fecaca;
+
+  --ok:            #22c55e;
+
+  --sidebar-from:  #09090b;
+  --sidebar-via:   #111113;
+  --sidebar-to:    #09090b;
+  --glow-accent:   rgba(16, 185, 129, 0.12);
+  --glow-top:      rgba(255, 255, 255, 0.06);
+  --card-well:     #f0fdf4;
+  --card-accent:   #047857;
 }
 
+/* ─── Theme: Midnight Zinc ────────────────────────────────────────────
+   Refined dark zinc neutrals with emerald accent.
+   Premium developer tool aesthetic — the default.
+   ──────────────────────────────────────────────────────────────────── */
+[data-theme="midnight-zinc"] {
+  --canvas:        #09090b;
+  --surface:       #18181b;
+  --overlay:       #27272a;
+  --rim:           #3f3f46;
+  --rim-subtle:    #27272a;
+
+  --fg:            #fafafa;
+  --fg-muted:      #a1a1aa;
+  --fg-subtle:     #71717a;
+
+  --accent:        #10b981;
+  --accent-hover:  #34d399;
+  --accent-fg:     #ffffff;
+  --accent-muted:  #052e16;
+
+  --danger:        #ef4444;
+  --danger-hover:  #f87171;
+  --danger-muted:  #1c0707;
+  --danger-fg:     #fecaca;
+
+  --ok:            #22c55e;
+
+  --sidebar-from:  #09090b;
+  --sidebar-via:   #111113;
+  --sidebar-to:    #09090b;
+  --glow-accent:   rgba(16, 185, 129, 0.12);
+  --glow-top:      rgba(255, 255, 255, 0.06);
+  --card-well:     #f0fdf4;
+  --card-accent:   #047857;
+}
+
+/* ─── Theme: Nebula ───────────────────────────────────────────────────
+   Deep blue-indigo dark with violet accent.
+   Premium space-tech aesthetic inspired by Linear.
+   ──────────────────────────────────────────────────────────────────── */
+[data-theme="nebula"] {
+  --canvas:        #0d0f17;
+  --surface:       #141726;
+  --overlay:       #1d2035;
+  --rim:           #2e3252;
+  --rim-subtle:    #1d2035;
+
+  --fg:            #e8ecff;
+  --fg-muted:      #8b90c8;
+  --fg-subtle:     #5c6096;
+
+  --accent:        #8b5cf6;
+  --accent-hover:  #a78bfa;
+  --accent-fg:     #ffffff;
+  --accent-muted:  #1a0f3a;
+
+  --danger:        #f87171;
+  --danger-hover:  #fca5a5;
+  --danger-muted:  #2d0a0a;
+  --danger-fg:     #fecaca;
+
+  --ok:            #4ade80;
+
+  --sidebar-from:  #0d0f17;
+  --sidebar-via:   #11132a;
+  --sidebar-to:    #0d0f17;
+  --glow-accent:   rgba(139, 92, 246, 0.15);
+  --glow-top:      rgba(139, 92, 246, 0.07);
+  --card-well:     #f5f3ff;
+  --card-accent:   #6d28d9;
+}
+
+/* ─── Theme: Aurora ───────────────────────────────────────────────────
+   Deep teal-navy dark with cyan accent.
+   Inspired by deep-ocean data dashboards.
+   ──────────────────────────────────────────────────────────────────── */
+[data-theme="aurora"] {
+  --canvas:        #060d12;
+  --surface:       #0d1a24;
+  --overlay:       #132433;
+  --rim:           #1e3a50;
+  --rim-subtle:    #132433;
+
+  --fg:            #e0f2fe;
+  --fg-muted:      #67a8c7;
+  --fg-subtle:     #3d7a9a;
+
+  --accent:        #06b6d4;
+  --accent-hover:  #22d3ee;
+  --accent-fg:     #ffffff;
+  --accent-muted:  #042a36;
+
+  --danger:        #f87171;
+  --danger-hover:  #fca5a5;
+  --danger-muted:  #2d0a0a;
+  --danger-fg:     #fecaca;
+
+  --ok:            #4ade80;
+
+  --sidebar-from:  #060d12;
+  --sidebar-via:   #091520;
+  --sidebar-to:    #060d12;
+  --glow-accent:   rgba(6, 182, 212, 0.15);
+  --glow-top:      rgba(6, 182, 212, 0.07);
+  --card-well:     #ecfeff;
+  --card-accent:   #0e7490;
+}
+
+/* ─── Theme: Carbon ───────────────────────────────────────────────────
+   Pure warm dark with electric blue accent.
+   Timeless monochrome + bold accent palette.
+   ──────────────────────────────────────────────────────────────────── */
+[data-theme="carbon"] {
+  --canvas:        #111111;
+  --surface:       #1a1a1a;
+  --overlay:       #242424;
+  --rim:           #333333;
+  --rim-subtle:    #242424;
+
+  --fg:            #f5f5f5;
+  --fg-muted:      #a3a3a3;
+  --fg-subtle:     #737373;
+
+  --accent:        #3b82f6;
+  --accent-hover:  #60a5fa;
+  --accent-fg:     #ffffff;
+  --accent-muted:  #0c1d3d;
+
+  --danger:        #ef4444;
+  --danger-hover:  #f87171;
+  --danger-muted:  #1c0707;
+  --danger-fg:     #fecaca;
+
+  --ok:            #22c55e;
+
+  --sidebar-from:  #111111;
+  --sidebar-via:   #151515;
+  --sidebar-to:    #111111;
+  --glow-accent:   rgba(59, 130, 246, 0.12);
+  --glow-top:      rgba(255, 255, 255, 0.04);
+  --card-well:     #eff6ff;
+  --card-accent:   #1d4ed8;
+}
+
+/* ─── Theme: Light ────────────────────────────────────────────────────
+   Clean slate light mode with violet accent.
+   Warm neutrals — editorial, focused, accessible.
+   ──────────────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --canvas:        #f8fafc;
+  --surface:       #ffffff;
+  --overlay:       #f1f5f9;
+  --rim:           #e2e8f0;
+  --rim-subtle:    #f1f5f9;
+
+  --fg:            #0f172a;
+  --fg-muted:      #64748b;
+  --fg-subtle:     #94a3b8;
+
+  --accent:        #7c3aed;
+  --accent-hover:  #6d28d9;
+  --accent-fg:     #ffffff;
+  --accent-muted:  #ede9fe;
+
+  --danger:        #dc2626;
+  --danger-hover:  #b91c1c;
+  --danger-muted:  #fef2f2;
+  --danger-fg:     #7f1d1d;
+
+  --ok:            #16a34a;
+
+  --sidebar-from:  #ffffff;
+  --sidebar-via:   #fafbfc;
+  --sidebar-to:    #f8fafc;
+  --glow-accent:   rgba(124, 58, 237, 0.07);
+  --glow-top:      rgba(124, 58, 237, 0.04);
+  --card-well:     #f5f3ff;
+  --card-accent:   #5b21b6;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TAILWIND UTILITY MAPPINGS
+   These create Tailwind utility classes (bg-canvas, text-fg, etc.)
+   that automatically respond to the active [data-theme].
+   ═══════════════════════════════════════════════════════════════════════ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Backgrounds */
+  --color-canvas:         var(--canvas);
+  --color-surface:        var(--surface);
+  --color-overlay:        var(--overlay);
+
+  /* Borders */
+  --color-rim:            var(--rim);
+  --color-rim-subtle:     var(--rim-subtle);
+
+  /* Text */
+  --color-fg:             var(--fg);
+  --color-fg-muted:       var(--fg-muted);
+  --color-fg-subtle:      var(--fg-subtle);
+
+  /* Accent (primary interactive colour) */
+  --color-accent:         var(--accent);
+  --color-accent-hover:   var(--accent-hover);
+  --color-accent-fg:      var(--accent-fg);
+  --color-accent-muted:   var(--accent-muted);
+
+  /* Danger / error */
+  --color-danger:         var(--danger);
+  --color-danger-hover:   var(--danger-hover);
+  --color-danger-muted:   var(--danger-muted);
+  --color-danger-fg:      var(--danger-fg);
+
+  /* Success */
+  --color-ok:             var(--ok);
+
+  /* Legacy aliases kept for backward-compat */
+  --color-background:     var(--canvas);
+  --color-foreground:     var(--fg);
+
+  /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Base styles ─────────────────────────────────────────────────────── */
+body {
+  background: var(--canvas);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Smooth theme transitions on structural elements only */
+html {
+  transition: background-color 200ms ease, color 200ms ease;
 }

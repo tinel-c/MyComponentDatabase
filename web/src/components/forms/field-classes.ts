@@ -1,18 +1,47 @@
-export const inputClass =
-  "mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-600 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50";
+/**
+ * Shared Tailwind class strings for form elements and tables.
+ * All classes use the semantic theme tokens from globals.css so they
+ * automatically update when the user switches themes.
+ *
+ * AGENT RULE: New form primitives must use bg-canvas / bg-surface / bg-overlay
+ * for backgrounds, text-fg / text-fg-muted for text, and border-rim for borders.
+ * Use bg-accent / text-accent-fg for primary interactive elements.
+ */
 
-export const labelClass = "block text-sm font-medium text-zinc-700 dark:text-zinc-300";
+export const inputClass =
+  "mt-1 w-full rounded-lg border border-rim/80 bg-canvas/60 px-3 py-2 text-sm text-fg shadow-sm outline-none " +
+  "placeholder:text-fg-subtle " +
+  "focus:border-accent/60 focus:ring-1 focus:ring-accent/30 " +
+  "dark:bg-surface/50 transition-colors duration-150";
+
+export const labelClass = "block text-sm font-medium text-fg-muted";
 
 export const buttonPrimaryClass =
-  "inline-flex items-center justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white";
+  "inline-flex items-center justify-center rounded-full bg-accent px-4 py-2 text-sm font-medium text-accent-fg " +
+  "shadow-sm transition-all duration-150 hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed";
+
+export const buttonSecondaryClass =
+  "inline-flex items-center justify-center rounded-full border border-rim bg-surface px-4 py-2 text-sm font-medium text-fg " +
+  "transition-all duration-150 hover:bg-overlay hover:border-rim disabled:opacity-50 disabled:cursor-not-allowed";
 
 export const buttonDangerClass =
-  "inline-flex items-center justify-center rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50 dark:border-red-900 dark:bg-zinc-950 dark:text-red-400 dark:hover:bg-red-950/40";
+  "inline-flex items-center justify-center rounded-full border border-danger/40 bg-danger-muted px-4 py-2 text-sm font-medium text-danger-fg " +
+  "transition-all duration-150 hover:bg-danger/20 hover:border-danger/60 disabled:opacity-50";
 
 export const tableClass =
-  "w-full border-collapse text-left text-sm text-zinc-800 dark:text-zinc-200";
+  "w-full border-collapse text-left text-sm text-fg";
 
 export const thClass =
-  "border-b border-zinc-200 px-3 py-2 font-medium text-zinc-600 dark:border-zinc-800 dark:text-zinc-400";
+  "border-b border-rim/70 px-3 py-2.5 font-medium text-fg-muted bg-surface/40";
 
-export const tdClass = "border-b border-zinc-100 px-3 py-2 dark:border-zinc-800/80";
+export const tdClass =
+  "border-b border-rim-subtle/60 px-3 py-2.5 text-fg";
+
+export const cardClass =
+  "rounded-2xl border border-rim/60 bg-surface shadow-sm";
+
+export const sectionHeadingClass =
+  "text-2xl font-semibold tracking-tight text-fg";
+
+export const sectionSubheadingClass =
+  "mt-1 text-sm text-fg-muted";

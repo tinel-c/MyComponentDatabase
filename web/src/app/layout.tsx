@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider, themeFlashScript } from "@/components/providers/ThemeProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,16 +28,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    /*
+     * suppressHydrationWarning is required because the inline flash-prevention
+     * script mutates data-theme / class on <html> before React hydrates,
+     * causing a harmless attribute mismatch warning otherwise.
+     */
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme="midnight-zinc"
+      className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      {/* Suppress mismatch when extensions inject attributes on <body> (e.g. data-atm-ext-installed). */}
+      <head>
+        {/* Prevent theme flash: apply stored theme before first paint */}
+        <script dangerouslySetInnerHTML={{ __html: themeFlashScript }} />
+      </head>
       <body
-        className="min-h-full flex flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50"
+        className="min-h-full flex flex-col bg-canvas text-fg"
         suppressHydrationWarning
       >
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

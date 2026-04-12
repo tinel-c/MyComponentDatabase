@@ -45,100 +45,162 @@ export default async function LoginPage({
     : undefined;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-zinc-950 text-zinc-50">
+    <div className="relative min-h-screen overflow-hidden bg-canvas text-fg">
+      {/* Top glow */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(251,191,36,0.22),transparent)]"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 80% 60% at 50% -20%, var(--glow-top), transparent)",
+        }}
+        aria-hidden
+      />
+      {/* Side accent glows */}
+      <div
+        className="pointer-events-none absolute -left-32 top-1/3 h-96 w-96 rounded-full blur-3xl"
+        style={{ background: "var(--glow-accent)" }}
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -left-32 top-1/3 h-96 w-96 rounded-full bg-amber-500/10 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl"
+        className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full blur-3xl opacity-50"
+        style={{ background: "var(--glow-accent)" }}
         aria-hidden
       />
 
+      {/* ── Header ──────────────────────────────────────────────────── */}
       <header className="relative z-10 mx-auto flex max-w-5xl items-center justify-between px-6 py-8">
-        <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/15 ring-1 ring-amber-400/30">
-            <Warehouse className="h-5 w-5 text-amber-300" aria-hidden />
+        <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight text-fg">
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-xl ring-1 ring-rim/60"
+            style={{ background: "var(--overlay)" }}
+          >
+            <Warehouse
+              className="h-5 w-5"
+              style={{ color: "var(--accent)" }}
+              aria-hidden
+            />
           </span>
           Hobby Warehouse
         </Link>
         <Link
           href="/"
-          className="text-sm text-zinc-400 transition hover:text-white"
+          className="text-sm text-fg-muted transition-colors hover:text-fg"
         >
           Back home
         </Link>
       </header>
 
+      {/* ── Main ────────────────────────────────────────────────────── */}
       <main className="relative z-10 mx-auto flex max-w-5xl flex-col gap-12 px-6 pb-24 pt-4 lg:flex-row lg:items-center lg:justify-between lg:gap-16">
+        {/* Left: info */}
         <section className="max-w-xl space-y-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300/90">
+          <p
+            className="text-xs font-semibold uppercase tracking-[0.2em]"
+            style={{ color: "var(--accent)" }}
+          >
             Secure sign-in
           </p>
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-fg sm:text-5xl">
             Sign in with your{" "}
-            <span className="bg-gradient-to-r from-amber-200 to-amber-400 bg-clip-text text-transparent">
+            <span
+              className="bg-clip-text text-transparent"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, var(--fg) 0%, var(--fg-muted) 100%)",
+              }}
+            >
               Google
             </span>{" "}
             workspace account
           </h1>
-          <p className="text-lg leading-relaxed text-zinc-400">
+          <p className="text-lg leading-relaxed text-fg-muted">
             Access is invite-only: an administrator must create your account first.
             After that, use Google to authenticate — no separate password.
           </p>
-          <ul className="space-y-3 text-sm text-zinc-300">
+          <ul className="space-y-3 text-sm text-fg">
             <li className="flex gap-3">
-              <Shield className="mt-0.5 h-5 w-5 shrink-0 text-amber-400/90" aria-hidden />
+              <Shield
+                className="mt-0.5 h-5 w-5 shrink-0"
+                style={{ color: "var(--fg-muted)" }}
+                aria-hidden
+              />
               <span>
-                <strong className="text-white">Admins</strong> manage categories, locations, team
-                members, and who can see which categories.
+                <strong className="text-fg">Admins</strong>{" "}
+                manage categories, locations, team members, and who can see which
+                categories.
               </span>
             </li>
             <li className="flex gap-3">
-              <ArrowRight className="mt-0.5 h-5 w-5 shrink-0 text-amber-400/90" aria-hidden />
+              <ArrowRight
+                className="mt-0.5 h-5 w-5 shrink-0"
+                style={{ color: "var(--fg-muted)" }}
+                aria-hidden
+              />
               <span>
-                <strong className="text-white">Members</strong> see only the parts linked to
-                categories assigned to them.
+                <strong className="text-fg">Members</strong>{" "}
+                see only the parts linked to categories assigned to them.
               </span>
             </li>
           </ul>
         </section>
 
+        {/* Right: sign-in card */}
         <section className="w-full max-w-md">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/40 ring-1 ring-white/10 backdrop-blur">
-            <h2 className="text-lg font-medium text-white">Continue to the app</h2>
-            <p className="mt-2 text-sm text-zinc-400">
+          <div
+            className="rounded-3xl border p-8 shadow-2xl backdrop-blur"
+            style={{
+              borderColor: "var(--rim)",
+              background:
+                "color-mix(in oklch, var(--surface) 70%, transparent)",
+              boxShadow: `0 32px 80px rgba(0,0,0,0.3), inset 0 1px 0 var(--rim-subtle)`,
+            }}
+          >
+            <h2 className="text-lg font-medium text-fg">Continue to the app</h2>
+            <p className="mt-2 text-sm text-fg-muted">
               You will be redirected to Google, then back to your inventory.
             </p>
+
             {authError ? (
               <div
-                className="mt-6 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-100"
+                className="mt-6 rounded-2xl border px-4 py-3 text-sm"
                 role="alert"
+                style={{
+                  borderColor: "var(--danger)/40",
+                  background: "var(--danger-muted)",
+                  color: "var(--danger-fg)",
+                }}
               >
-                <p className="font-medium text-red-50">{authError.title}</p>
-                <p className="mt-2 text-red-100/90">{authError.body}</p>
+                <p className="font-medium">{authError.title}</p>
+                <p className="mt-2 opacity-90">{authError.body}</p>
               </div>
             ) : null}
+
             {showMissingOauth ? (
               <div
-                className="mt-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+                className="mt-6 rounded-2xl border px-4 py-3 text-sm"
                 role="alert"
+                style={{
+                  borderColor: "var(--rim)",
+                  background: "var(--overlay)",
+                  color: "var(--fg)",
+                }}
               >
-                <p className="font-medium text-amber-50">Google OAuth is not configured</p>
-                <p className="mt-2 text-amber-100/90">
+                <p className="font-medium">Google OAuth is not configured</p>
+                <p className="mt-2 text-fg-muted">
                   Add your Web client ID and secret to{" "}
-                  <code className="rounded bg-black/20 px-1 py-0.5 text-xs">web/.env</code> and restart
-                  the dev server. Use either{" "}
-                  <code className="text-xs">AUTH_GOOGLE_ID</code> /{" "}
-                  <code className="text-xs">AUTH_GOOGLE_SECRET</code> or{" "}
-                  <code className="text-xs">GOOGLE_CLIENT_ID</code> /{" "}
-                  <code className="text-xs">GOOGLE_CLIENT_SECRET</code>. In Google Cloud Console, set
-                  the authorized redirect URI to{" "}
-                  <code className="break-all text-xs">
+                  <code
+                    className="rounded px-1 py-0.5 text-xs"
+                    style={{ background: "var(--canvas)", color: "var(--accent)" }}
+                  >
+                    web/.env
+                  </code>{" "}
+                  and restart the dev server. Use either{" "}
+                  <code className="text-xs text-accent">AUTH_GOOGLE_ID</code> /{" "}
+                  <code className="text-xs text-accent">AUTH_GOOGLE_SECRET</code> or{" "}
+                  <code className="text-xs text-accent">GOOGLE_CLIENT_ID</code> /{" "}
+                  <code className="text-xs text-accent">GOOGLE_CLIENT_SECRET</code>. In
+                  Google Cloud Console, set the authorized redirect URI to{" "}
+                  <code className="break-all text-xs text-fg-muted">
                     {(process.env.AUTH_URL ?? "http://localhost:3000").replace(/\/$/, "")}
                     /api/auth/callback/google
                   </code>
@@ -146,11 +208,16 @@ export default async function LoginPage({
                 </p>
               </div>
             ) : null}
+
             <form action={loginWithGoogle} className="mt-8">
               <button
                 type="submit"
                 disabled={!oauthConfigured}
-                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-4 py-3.5 text-sm font-semibold text-zinc-900 shadow-lg shadow-amber-500/10 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold shadow-lg transition-all duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  background: "var(--fg)",
+                  color: "var(--canvas)",
+                }}
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
                   <path
@@ -173,8 +240,13 @@ export default async function LoginPage({
                 Sign in with Google
               </button>
             </form>
-            <p className="mt-6 text-center text-xs text-zinc-500">
-              Trouble signing in? Ask your admin to add your Google email to the team.
+
+            <p
+              className="mt-6 text-center text-xs"
+              style={{ color: "var(--fg-subtle)" }}
+            >
+              Trouble signing in? Ask your admin to add your Google email to the
+              team.
             </p>
           </div>
         </section>

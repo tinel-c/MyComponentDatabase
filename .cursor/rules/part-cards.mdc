@@ -1,0 +1,35 @@
+---
+description: Part card UI rules for Hobby Warehouse parts grid
+globs: web/src/components/parts/PartPokemonCard.tsx,web/src/components/parts/PartsPokemonGrid.tsx,web/src/components/parts/part-card-preview.ts,web/src/app/**/parts/page.tsx
+alwaysApply: false
+---
+
+# Part cards
+
+Before editing part cards in Cards view, read **`web/src/components/parts/PART_CARD_RULES.md`** end-to-end and keep changes aligned with it.
+
+## Layout (top → bottom — matches `Artwork/Part_card_artwork.png`)
+1. **Accent header band** — entry code `C-XXX` + subtitle (gradient `var(--accent)` → `var(--accent-hover)`)
+2. **Part name strip** — `bg-white`, `PART_NAME_H`, label + bold part name (`line-clamp-2`)
+3. **Illustration panel** — dark strip header + blueprint grid (`#fef9e7`, 10px grid) + component image
+4. **2-column meta strip** — Stock Status | Classification (dark `bg-zinc-900` headers + `bg-amber-50` value wells)
+5. **Description block** — white, `flex-1`, never collapses
+6. **Spec grid 2×2** — MPN | Manufacturer / Location | SKU (same dark-header + amber-well pattern)
+7. **Footer** — copyright, unique DB ID, QR code
+
+## Critical rules
+- **Equal card height:** fixed **`CARD_HEIGHT`** (`h-[52rem]`) on `<article>`; inner cells use `META_H`, `SPEC_HDR_H`, `SPEC_BODY_H`, `ILLUSTRATION_H` — **no scrollbars**.
+- **Part name strip:** `PART_NAME_H = h-[3.25rem]`, `bg-white`, sits directly below the header band; label `Part name` (8px bold uppercase zinc-500) + value (12–13px font-black zinc-900, `line-clamp-2`).
+- **2-col meta strip:** total height `META_H = h-[5.5rem]`; each `MetaCol` has a `META_HDR_H = h-7` dark label + `flex-1` amber value well with `ICON_BOX = h-5 w-5` icon on the left.
+- **Spec cells:** `SPEC_HDR_H = h-7` dark label + `SPEC_BODY_H = h-[3.25rem]` amber value well with `ICON_BOX` icon on the left.
+- **Icons in cells:** `h-5 w-5`, `var(--accent)` color, 50–55% opacity; monochrome SVGs using `currentColor`.
+- **Card color:** the card is always light/physical-card style. Accent comes from `var(--accent)`. Do NOT use theme dark backgrounds inside the card.
+- **Card border:** inline `style={{ borderColor: "var(--accent)" }}` — 3px. Hover intensifies to `var(--accent-hover)` with glow shadow.
+- **Header band:** gradient `var(--accent)` → `var(--accent-hover)`. Text: `var(--accent-fg)`.
+- **Amber value wells:** `bg-amber-50` (meta + spec cells). Description: `bg-white`.
+- **Dark strip headers:** `bg-zinc-900 text-white`.
+- **Part Name** is the FIRST column of the 3-column meta strip — **not** a separate strip above the illustration.
+- When you change layout tokens (`ILLUSTRATION_H`, `META_H`, etc.) or add/remove sections, update **`PART_CARD_RULES.md`** in the same change.
+- **Do not** move the Part name strip — it must stay directly below the header band (section 2), not inside the meta columns.
+- **Do not** add a logo row in the illustration panel.
+- **Branding:** footer `©2026 Hobby Warehouse`.

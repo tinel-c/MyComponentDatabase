@@ -1,6 +1,7 @@
 "use client";
 
 import { signOutAction } from "@/app/actions/auth";
+import { ThemeSelector } from "@/components/ui/ThemeSelector";
 import type { Session } from "next-auth";
 import {
   Boxes,
@@ -8,10 +9,13 @@ import {
   LayoutDashboard,
   LogOut,
   MapPin,
+  Menu,
   Users,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const navBase = [
   { href: "/parts", label: "Parts", icon: Boxes },
@@ -30,39 +34,123 @@ export function DashboardChrome({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const isAdmin = session.user.role === "ADMIN";
   const nav = isAdmin
     ? [...navBase, { href: "/admin/users", label: "Team", icon: Users }]
     : navBase;
 
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileNavOpen]);
+
+  const closeNav = () => setMobileNavOpen(false);
+
   return (
-    <div className="flex min-h-[calc(100vh-0px)] bg-zinc-100 dark:bg-zinc-950">
-      <aside className="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-zinc-200/80 bg-gradient-to-b from-zinc-950 via-zinc-900 to-zinc-950 text-zinc-100 shadow-xl dark:border-zinc-800">
-        <div className="flex h-16 items-center gap-2 border-b border-white/10 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/20 ring-1 ring-amber-400/30">
-            <LayoutDashboard className="h-5 w-5 text-amber-300" aria-hidden />
+    <div className="flex min-h-[calc(100vh-0px)] bg-canvas">
+      {mobileNavOpen ? (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          aria-label="Close menu"
+          onClick={closeNav}
+        />
+      ) : null}
+
+      {/* ── Sidebar ──────────────────────────────────────────────────── */}
+      <aside
+        style={{
+          background: `linear-gradient(to bottom, var(--sidebar-from), var(--sidebar-via), var(--sidebar-to))`,
+          borderRightColor: "var(--rim)",
+          boxShadow: `0 0 40px var(--glow-accent)`,
+        }}
+        className={`fixed inset-y-0 left-0 z-50 flex w-[min(100vw,16rem)] flex-col border-r text-fg shadow-xl transition-transform duration-200 ease-out md:translate-x-0 ${
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
+        {/* Close button (mobile) */}
+        <button
+          type="button"
+          onClick={closeNav}
+          className="absolute right-3 top-3 rounded-lg p-1.5 text-fg-muted hover:bg-fg/10 hover:text-fg md:hidden"
+          aria-label="Close menu"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        {/* Logo / brand */}
+        <div
+          className="flex h-16 items-center gap-2 border-b px-5 pr-12 md:pr-5"
+          style={{ borderBottomColor: "var(--rim-subtle)" }}
+        >
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-xl ring-1 ring-rim/60"
+            style={{
+              background: "var(--overlay)",
+              boxShadow: `0 0 12px var(--glow-accent)`,
+            }}
+          >
+            <LayoutDashboard
+              className="h-5 w-5"
+              style={{ color: "var(--accent)" }}
+              aria-hidden
+            />
           </div>
           <div className="leading-tight">
-            <p className="text-sm font-semibold tracking-tight">Hobby Warehouse</p>
-            <p className="text-[11px] text-zinc-400">Parts & stock</p>
+            <p className="text-sm font-semibold tracking-tight text-fg">
+              Hobby Warehouse
+            </p>
+            <p className="text-[11px]" style={{ color: "var(--fg-muted)" }}>
+              Parts &amp; stock
+            </p>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        {/* Navigation */}
+        <nav className="flex-1 space-y-0.5 px-3 py-4">
           {nav.map(({ href, label, icon: Icon }) => {
             const active =
               href === "/parts"
-                ? pathname === href || pathname.startsWith("/parts/")
+                ? pathname === href ||
+                  pathname.startsWith("/parts/") ||
+                  pathname.startsWith("/p/")
                 : pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                onClick={closeNav}
+                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150"
+                style={
                   active
-                    ? "bg-white/10 text-white shadow-inner ring-1 ring-white/10"
-                    : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
-                }`}
+                    ? {
+                        background: "var(--accent-muted)",
+                        color: "var(--accent)",
+                        boxShadow: `inset 0 0 0 1px var(--accent-muted)`,
+                      }
+                    : {
+                        color: "var(--fg-muted)",
+                      }
+                }
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLElement).style.background =
+                      "color-mix(in oklch, var(--fg) 5%, transparent)";
+                    (e.currentTarget as HTMLElement).style.color = "var(--fg)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLElement).style.background = "";
+                    (e.currentTarget as HTMLElement).style.color =
+                      "var(--fg-muted)";
+                  }
+                }}
               >
                 <Icon className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
                 {label}
@@ -71,30 +159,69 @@ export function DashboardChrome({
           })}
         </nav>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="flex items-center gap-3 rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
+        {/* Bottom: theme selector + user block + sign out */}
+        <div
+          className="border-t p-3 space-y-3"
+          style={{ borderTopColor: "var(--rim-subtle)" }}
+        >
+          {/* Theme selector */}
+          <ThemeSelector />
+
+          {/* User card */}
+          <div
+            className="flex items-center gap-3 rounded-xl p-3 ring-1 ring-rim-subtle/60"
+            style={{
+              background: "color-mix(in oklch, var(--fg) 4%, transparent)",
+            }}
+          >
             <img
               src={gravatarUrl}
               alt=""
               width={40}
               height={40}
               referrerPolicy="no-referrer"
-              className="h-10 w-10 rounded-full object-cover ring-2 ring-amber-400/40"
+              className="h-10 w-10 rounded-full object-cover ring-2 ring-rim/50"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">
+              <p className="truncate text-sm font-medium text-fg">
                 {session.user.name ?? "User"}
               </p>
-              <p className="truncate text-xs text-zinc-400">{session.user.email}</p>
-              <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-300/90">
+              <p
+                className="truncate text-xs"
+                style={{ color: "var(--fg-muted)" }}
+              >
+                {session.user.email}
+              </p>
+              <p
+                className="mt-0.5 text-[10px] font-medium uppercase tracking-wider"
+                style={{ color: "var(--accent)" }}
+              >
                 {session.user.role === "ADMIN" ? "Admin" : "Member"}
               </p>
             </div>
           </div>
-          <form action={signOutAction} className="mt-3">
+
+          {/* Sign out */}
+          <form action={signOutAction}>
             <button
               type="submit"
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-200 transition hover:bg-white/10"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm transition-all duration-150"
+              style={{
+                borderColor: "var(--rim)",
+                color: "var(--fg-muted)",
+                background: "transparent",
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.background =
+                  "color-mix(in oklch, var(--fg) 6%, transparent)";
+                el.style.color = "var(--fg)";
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.background = "transparent";
+                el.style.color = "var(--fg-muted)";
+              }}
             >
               <LogOut className="h-4 w-4" aria-hidden />
               Sign out
@@ -103,8 +230,32 @@ export function DashboardChrome({
         </div>
       </aside>
 
-      <div className="flex min-h-screen flex-1 flex-col pl-64">
-        <main className="flex-1 px-4 py-8 sm:px-8 lg:px-10">{children}</main>
+      {/* ── Main content ──────────────────────────────────────────────── */}
+      <div className="flex min-h-screen w-full min-w-0 flex-1 flex-col md:pl-64">
+        {/* Mobile header */}
+        <header
+          className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b px-4 backdrop-blur-md md:hidden"
+          style={{
+            background: "color-mix(in oklch, var(--canvas) 95%, transparent)",
+            borderBottomColor: "var(--rim)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            className="rounded-lg p-2 text-fg hover:bg-fg/8"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <span className="min-w-0 truncate font-semibold text-fg">
+            Hobby Warehouse
+          </span>
+        </header>
+
+        <main className="w-full min-w-0 flex-1 px-3 py-6 sm:px-6 md:px-8 lg:px-10 lg:py-8">
+          {children}
+        </main>
       </div>
     </div>
   );
