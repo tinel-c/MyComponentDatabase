@@ -29,7 +29,7 @@ export default async function EditLocationPage({ params }: PageProps) {
     <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 sm:px-6">
       <Link
         href="/locations"
-        className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-400"
+        className="text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:underline"
       >
         ← Storage locations
       </Link>

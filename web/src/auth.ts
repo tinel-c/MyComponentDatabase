@@ -1,4 +1,5 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import type { PrismaClient } from "@prisma/client";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { normalizeEmail } from "@/lib/email";
@@ -12,7 +13,8 @@ function bootstrapAdminEmail(): string {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  /** Adapter types target `@prisma/client`; client instance is generated from the same schema. */
+  adapter: PrismaAdapter(prisma as PrismaClient),
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   providers: [
     Google({

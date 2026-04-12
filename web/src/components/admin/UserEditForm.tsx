@@ -95,7 +95,7 @@ export function UserEditForm({
                   defaultChecked={user.categoryIds.includes(c.id)}
                   className="mt-1"
                 />
-                <span className="text-zinc-800 dark:text-zinc-200">{c.label}</span>
+                <span className="text-zinc-800 dark:text-zinc-100">{c.label}</span>
               </label>
             ))}
           </div>

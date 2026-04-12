@@ -46,3 +46,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Prisma (custom output — run `npx prisma generate` after clone or schema change)
+/src/generated/
+
+# Copied from repo Components/ during `prisma db seed`
+/public/part-assets/

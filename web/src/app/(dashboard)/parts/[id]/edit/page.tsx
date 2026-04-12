@@ -17,7 +17,13 @@ export default async function EditPartPage({ params }: PageProps) {
   const { id } = await params;
   await assertPartVisibleToUser(id);
 
-  const part = await prisma.part.findUnique({ where: { id } });
+  const part = await prisma.part.findUnique({
+    where: { id },
+    include: {
+      purchaseLinks: { orderBy: { sortOrder: "asc" } },
+      images: { orderBy: { sortOrder: "asc" } },
+    },
+  });
   if (!part) notFound();
 
   const locations = await prisma.storageLocation.findMany({ orderBy: { name: "asc" } });
@@ -60,24 +66,28 @@ export default async function EditPartPage({ params }: PageProps) {
     <div className="mx-auto max-w-3xl space-y-6">
       <Link
         href="/parts"
-        className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-400"
+        className="text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:underline"
       >
         ← Parts
       </Link>
       <PartEditForm
         part={{
           id: part.id,
+          partNumber: part.partNumber,
           internalSku: part.internalSku,
           name: part.name,
           mpn: part.mpn,
           manufacturer: part.manufacturer,
           description: part.description,
+          imageUrl: part.imageUrl,
           quantityOnHand: part.quantityOnHand,
           reorderMin: part.reorderMin,
           unit: part.unit,
           categoryId: part.categoryId,
           defaultLocationId: part.defaultLocationId,
+          purchaseLinks: part.purchaseLinks.map((l) => ({ label: l.label, url: l.url })),
         }}
+        partImages={part.images.map((img) => ({ id: img.id, url: img.url, sortOrder: img.sortOrder }))}
         categoryOptions={categoryOptions}
         locationOptions={locationOptions}
         requireCategory={session.user.role === Role.USER}

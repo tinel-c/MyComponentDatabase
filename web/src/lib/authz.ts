@@ -65,3 +65,31 @@ export async function partVisibilityWhere(
 export function isAdmin(role: Role): boolean {
   return role === Role.ADMIN;
 }
+
+/** Whether the user may edit a part (same rules as full part update). */
+export async function userCanEditPart(
+  userId: string,
+  role: Role,
+  partCategoryId: string | null,
+): Promise<boolean> {
+  if (role === Role.ADMIN) return true;
+  if (!partCategoryId) return false;
+  const assigned = await getVisibleCategoryIdsForUser(userId);
+  const expanded = await expandVisibleCategoryIds(assigned);
+  return expanded.includes(partCategoryId);
+}
+
+/** Redirects to /parts if the part is not visible to this user (by public part number). */
+export async function assertPartVisibleByPartNumber(
+  partNumber: number,
+  userId: string,
+  role: Role,
+) {
+  if (role === Role.ADMIN) return;
+  const vis = await partVisibilityWhere(userId, role);
+  const where = vis ? { AND: [{ partNumber }, vis] } : { partNumber };
+  const part = await prisma.part.findFirst({ where });
+  if (!part) {
+    redirect("/parts");
+  }
+}

@@ -18,8 +18,8 @@ import {
 } from "@/lib/parts-filters";
 import { prisma } from "@/lib/prisma";
 import { flatTreeForSelect } from "@/lib/tree";
-import type { Prisma } from "@/generated/prisma-client";
-import { Role } from "@/generated/prisma-client";
+import type { Prisma } from "@prisma/client";
+import { Role } from "@prisma/client";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 

@@ -5,6 +5,7 @@ import { ThemeSelector } from "@/components/ui/ThemeSelector";
 import type { Session } from "next-auth";
 import {
   Boxes,
+  ClipboardList,
   FolderTree,
   LogOut,
   MapPin,
@@ -37,7 +38,11 @@ export function DashboardChrome({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const isAdmin = session.user.role === "ADMIN";
   const nav = isAdmin
-    ? [...navBase, { href: "/admin/users", label: "Team", icon: Users }]
+    ? [
+        ...navBase,
+        { href: "/admin/users", label: "Team", icon: Users },
+        { href: "/admin/audit", label: "Audit log", icon: ClipboardList },
+      ]
     : navBase;
 
   useEffect(() => {

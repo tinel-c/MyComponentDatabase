@@ -59,8 +59,8 @@ export default async function AdminUsersPage() {
                     <span
                       className={
                         u.role === Role.ADMIN
-                          ? "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200"
-                          : "rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                          ? "rounded-full bg-zinc-900/70 px-2 py-0.5 text-xs font-medium text-zinc-100 ring-1 ring-zinc-600/40"
+                          : "rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
                       }
                     >
                       {u.role === Role.ADMIN ? "Admin" : "Member"}
@@ -70,7 +70,7 @@ export default async function AdminUsersPage() {
                     {u.role === Role.ADMIN ? (
                       <span className="text-zinc-400">All categories</span>
                     ) : u.categoryAccess.length === 0 ? (
-                      <span className="text-amber-700 dark:text-amber-400">No categories</span>
+                      <span className="text-zinc-500/90">No categories</span>
                     ) : (
                       <span className="line-clamp-2 text-sm">
                         {u.categoryAccess.map((a) => a.category.name).join(", ")}
@@ -80,7 +80,7 @@ export default async function AdminUsersPage() {
                   <td className={tdClass}>
                     <Link
                       href={`/admin/users/${u.id}/edit`}
-                      className="font-medium text-amber-800 hover:underline dark:text-amber-400"
+                      className="font-medium text-zinc-400 hover:text-zinc-200 hover:underline"
                     >
                       Edit
                     </Link>

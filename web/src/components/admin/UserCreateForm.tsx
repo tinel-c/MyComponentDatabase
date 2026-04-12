@@ -77,7 +77,7 @@ export function UserCreateForm({ categoryOptions }: { categoryOptions: Option[] 
                 className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1 hover:bg-zinc-50 dark:hover:bg-zinc-800/80"
               >
                 <input type="checkbox" name="categoryIds" value={c.id} className="mt-1" />
-                <span className="text-zinc-800 dark:text-zinc-200">{c.label}</span>
+                <span className="text-zinc-800 dark:text-zinc-100">{c.label}</span>
               </label>
             ))
           )}

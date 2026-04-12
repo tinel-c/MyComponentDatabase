@@ -89,6 +89,7 @@ const WATERMARK_BOX = "size-5";
 /** Equal inset from bottom and right — same distance on both edges */
 const WATERMARK_INSET = "bottom-1 right-1";
 
+
 /* ─── Typography ─────────────────────────────────────────────────────────── */
 const HDR = {
   /** Strip section labels — on accent-colored strips */

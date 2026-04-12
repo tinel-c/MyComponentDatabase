@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
+import { logAudit, serializeUserForAudit } from "@/lib/audit";
 import { normalizeEmail } from "@/lib/email";
 import { requireAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -26,7 +27,7 @@ export async function createUserRecord(
   _prev: UserAdminState,
   formData: FormData,
 ): Promise<UserAdminState> {
-  await requireAdmin();
+  const session = await requireAdmin();
   const categoryIds = formData.getAll("categoryIds").map(String).filter(Boolean);
   const parsed = createUserSchema.safeParse({
     email: formData.get("email"),
@@ -42,7 +43,7 @@ export async function createUserRecord(
     return { error: "Members need at least one visible category." };
   }
   try {
-    await prisma.user.create({
+    const created = await prisma.user.create({
       data: {
         email: normalizeEmail(data.email),
         name: data.name || null,
@@ -55,6 +56,20 @@ export async function createUserRecord(
             : undefined,
       },
     });
+    const full = await prisma.user.findUnique({
+      where: { id: created.id },
+      include: { categoryAccess: true },
+    });
+    if (full) {
+      await logAudit({
+        userId: session.user.id,
+        action: "CREATE",
+        model: "User",
+        recordId: full.id,
+        recordName: full.email ?? full.name ?? full.id,
+        after: serializeUserForAudit(full),
+      });
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
     if (msg.includes("Unique constraint")) {
@@ -63,6 +78,7 @@ export async function createUserRecord(
     return { error: "Could not create user." };
   }
   revalidatePath("/admin/users");
+  revalidatePath("/admin/audit");
   redirect("/admin/users");
 }
 
@@ -70,26 +86,34 @@ export async function updateUserRecord(
   _prev: UserAdminState,
   formData: FormData,
 ): Promise<UserAdminState> {
-  await requireAdmin();
-  const categoryIds = formData.getAll("categoryIds").map(String).filter(Boolean);
+  const adminSession = await requireAdmin();
+  const submittedCategoryIds = formData.getAll("categoryIds").map(String).filter(Boolean);
   const parsed = updateUserSchema.safeParse({
     id: formData.get("id"),
     email: formData.get("email"),
     name: formData.get("name"),
     role: formData.get("role"),
-    categoryIds,
+    categoryIds: submittedCategoryIds,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues.map((i) => i.message).join(" ") };
   }
-  const { id, categoryIds, ...rest } = parsed.data;
-  if (rest.role === Role.USER && categoryIds.length === 0) {
+  const { id, categoryIds: nextCategoryIds, ...rest } = parsed.data;
+  if (rest.role === Role.USER && nextCategoryIds.length === 0) {
     return { error: "Members need at least one visible category." };
   }
 
-  const session = await auth();
-  if (session?.user?.id === id && rest.role !== Role.ADMIN) {
+  const authSession = await auth();
+  if (authSession?.user?.id === id && rest.role !== Role.ADMIN) {
     return { error: "You cannot remove your own admin role here." };
+  }
+
+  const before = await prisma.user.findUnique({
+    where: { id },
+    include: { categoryAccess: true },
+  });
+  if (!before) {
+    return { error: "User not found." };
   }
 
   try {
@@ -103,9 +127,9 @@ export async function updateUserRecord(
         },
       });
       await tx.userCategoryAccess.deleteMany({ where: { userId: id } });
-      if (rest.role === Role.USER && categoryIds.length > 0) {
+      if (rest.role === Role.USER && nextCategoryIds.length > 0) {
         await tx.userCategoryAccess.createMany({
-          data: categoryIds.map((categoryId) => ({ userId: id, categoryId })),
+          data: nextCategoryIds.map((categoryId) => ({ userId: id, categoryId })),
         });
       }
     });
@@ -116,13 +140,29 @@ export async function updateUserRecord(
     }
     return { error: "Could not update user." };
   }
+  const after = await prisma.user.findUnique({
+    where: { id },
+    include: { categoryAccess: true },
+  });
+  if (after) {
+    await logAudit({
+      userId: adminSession.user.id,
+      action: "UPDATE",
+      model: "User",
+      recordId: id,
+      recordName: after.email ?? after.name ?? id,
+      before: serializeUserForAudit(before),
+      after: serializeUserForAudit(after),
+    });
+  }
   revalidatePath("/admin/users");
   revalidatePath(`/admin/users/${id}/edit`);
+  revalidatePath("/admin/audit");
   redirect("/admin/users");
 }
 
 export async function deleteUserRecord(formData: FormData) {
-  await requireAdmin();
+  const adminSession = await requireAdmin();
   const id = formData.get("id");
   if (typeof id !== "string" || !id) return;
 
@@ -131,7 +171,23 @@ export async function deleteUserRecord(formData: FormData) {
     redirect("/admin/users");
   }
 
+  const before = await prisma.user.findUnique({
+    where: { id },
+    include: { categoryAccess: true },
+  });
+  if (before) {
+    await logAudit({
+      userId: adminSession.user.id,
+      action: "DELETE",
+      model: "User",
+      recordId: before.id,
+      recordName: before.email ?? before.name ?? before.id,
+      before: serializeUserForAudit(before),
+    });
+  }
+
   await prisma.user.delete({ where: { id } }).catch(() => undefined);
   revalidatePath("/admin/users");
+  revalidatePath("/admin/audit");
   redirect("/admin/users");
 }

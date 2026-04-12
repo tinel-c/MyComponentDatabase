@@ -51,7 +51,7 @@ export default async function NewPartPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <Link
         href="/parts"
-        className="text-sm font-medium text-amber-800 hover:underline dark:text-amber-400"
+        className="text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:underline"
       >
         ← Parts
       </Link>

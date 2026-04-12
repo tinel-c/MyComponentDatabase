@@ -22,6 +22,26 @@ model User {
   accounts       Account[]
   sessions       Session[]
   categoryAccess UserCategoryAccess[]
+  auditLogs      AuditLog[]
+}
+
+/** Append-only change history for admin audit; optional revert for UPDATE rows. */
+model AuditLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  model      String
+  recordId   String
+  recordName String?
+  before     Json?
+  after      Json?
+  reverted   Boolean  @default(false)
+
+  @@index([createdAt])
+  @@index([model])
+  @@index([userId])
 }
 
 model Account {
@@ -97,11 +117,15 @@ model StorageLocation {
 
 model Part {
   id                String           @id @default(cuid())
+  /** Public short id for URLs /p/{partNumber} — sequential from 1 */
+  partNumber        Int              @unique
   internalSku       String?          @unique
   name              String
   mpn               String?
   manufacturer      String?
   description       String?
+  /** Optional image URL for cards / detail page */
+  imageUrl          String?
   quantityOnHand    Int              @default(0)
   reorderMin        Int?
   unit              String           @default("pcs")
@@ -111,8 +135,40 @@ model Part {
   defaultLocation   StorageLocation? @relation("PartDefaultLocation", fields: [defaultLocationId], references: [id], onDelete: SetNull)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
+  purchaseLinks     PartPurchaseLink[]
+  images            PartImage[]
 
   @@index([categoryId])
   @@index([defaultLocationId])
   @@index([name])
+  @@index([partNumber])
+}
+
+/** User-curated “where to buy” links (distributors, shops). */
+model PartPurchaseLink {
+  id        String   @id @default(cuid())
+  partId    String
+  part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  label     String
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partId])
+}
+
+/** Photos copied from local `Components/` folders or added later; URLs point under `/public/part-assets/`. */
+model PartImage {
+  id        String   @id @default(cuid())
+  partId    String
+  part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  /** App URL e.g. `/part-assets/comp-00036/00-photo.jpg` */
+  url       String
+  sortOrder Int      @default(0)
+  caption   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([partId])
 }

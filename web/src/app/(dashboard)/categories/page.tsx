@@ -91,7 +91,7 @@ export default async function CategoriesPage() {
                       <td className={tdClass}>
                         <Link
                           href={`/categories/${c.id}/edit`}
-                          className="font-medium text-amber-800 hover:underline dark:text-amber-400"
+                          className="font-medium text-zinc-400 hover:text-zinc-200 hover:underline"
                         >
                           Edit
                         </Link>
