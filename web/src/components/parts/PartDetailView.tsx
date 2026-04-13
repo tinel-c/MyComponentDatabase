@@ -1,4 +1,5 @@
 import { PartDescriptionInline } from "@/components/parts/PartDescriptionInline";
+import { PartFieldsInline } from "@/components/parts/PartFieldsInline";
 import { PartImageGallery } from "@/components/parts/PartImageGallery";
 import { PartSupplierLinks } from "@/components/parts/PartSupplierLinks";
 import type { Category, Part, PartImage, PartPurchaseLink, StorageLocation } from "@prisma/client";
@@ -17,9 +18,19 @@ type Props = {
   shortLinkUrl: string;
   /** When true, description can be edited inline on this page (Markdown). */
   canEditDescription?: boolean;
+  canEditDetails?: boolean;
+  categoryOptions?: { id: string; name: string }[];
+  locationOptions?: { id: string; name: string }[];
 };
 
-export function PartDetailView({ part, shortLinkUrl, canEditDescription = false }: Props) {
+export function PartDetailView({
+  part,
+  shortLinkUrl,
+  canEditDescription = false,
+  canEditDetails = false,
+  categoryOptions = [],
+  locationOptions = [],
+}: Props) {
   const low = part.reorderMin != null && part.quantityOnHand <= part.reorderMin;
   const gallerySorted = part.images
     ? [...part.images].sort((a, b) => a.sortOrder - b.sortOrder)
@@ -133,6 +144,13 @@ export function PartDetailView({ part, shortLinkUrl, canEditDescription = false 
           </ul>
         </section>
       ) : null}
+
+      <PartFieldsInline
+        part={part}
+        canEdit={canEditDetails}
+        categoryOptions={categoryOptions}
+        locationOptions={locationOptions}
+      />
 
       <PartDescriptionInline
         partId={part.id}

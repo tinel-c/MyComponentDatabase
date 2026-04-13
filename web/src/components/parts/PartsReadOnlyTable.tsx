@@ -8,9 +8,11 @@
  * No editing capabilities — every row links to the part detail page.
  */
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { PartCardModel } from "./PartPokemonCard";
+import { copyPartById, deletePartById } from "@/app/(dashboard)/parts/actions";
+import { useRouter } from "next/navigation";
 
 /* ─── Shared visual constants (mirrors PartPokemonCard) ──────────────────── */
 const THUMB_BORDER = "border-2 border-zinc-800";
@@ -19,6 +21,11 @@ const GRID_LINE = "rgba(0,0,0,0.07)";
 
 function formatEntryCode(n: number) {
   return `C-${String(n).padStart(3, "0")}`;
+}
+
+/** Keep long part names inside the name column without overlapping neighbors. */
+function wrappedNameClass() {
+  return "block max-w-full overflow-hidden break-words whitespace-normal [overflow-wrap:anywhere] [word-break:break-word]";
 }
 
 /* ─── Blueprint thumbnail (mirrors the illustration panel) ───────────────── */
@@ -109,8 +116,10 @@ export type PartsReadOnlyTableProps = {
 };
 
 export function PartsReadOnlyTable({ parts, emptyMessage }: PartsReadOnlyTableProps) {
+  const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>("entry");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [pending, startTransition] = useTransition();
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {
@@ -153,7 +162,7 @@ export function PartsReadOnlyTable({ parts, emptyMessage }: PartsReadOnlyTablePr
     >
       {/* Column header band — dark with accent text */}
       <div
-        className="hidden sm:grid sm:grid-cols-[3.5rem_5rem_1fr_9rem_9rem_9rem_9rem] items-center gap-x-2 px-3 py-1.5"
+        className="hidden sm:grid sm:grid-cols-[3.5rem_5rem_minmax(0,1.7fr)_8rem_8rem_8rem_8rem_auto] items-center gap-x-2 px-3 py-1.5"
         style={{ background: "#111111", borderBottom: "2px solid color-mix(in oklch, var(--accent) 40%, #000)" }}
       >
         {/* Subtle accent glow line at the very top */}
@@ -169,6 +178,7 @@ export function PartsReadOnlyTable({ parts, emptyMessage }: PartsReadOnlyTablePr
         {hdr("Category",  "category")}
         {hdr("MPN / Mfr", "mpn",      "hidden lg:flex")}
         {hdr("Loc / SKU", "location", "hidden xl:flex")}
+        <p className={`${HDR_TEXT} text-zinc-500`}>Actions</p>
       </div>
 
       {/* Rows */}
@@ -186,14 +196,9 @@ export function PartsReadOnlyTable({ parts, emptyMessage }: PartsReadOnlyTablePr
           const cat = part.categoryName?.trim() || "—";
 
           return (
-            <Link
-              key={part.id}
-              href={`/parts/${part.id}`}
-              className="group block focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-offset-0"
-              style={{ "--tw-ring-color": "var(--accent)" } as React.CSSProperties}
-            >
+            <div key={part.id} className="group block">
               <div
-                className="grid grid-cols-[3.5rem_1fr] sm:grid-cols-[3.5rem_5rem_1fr_9rem_9rem_9rem_9rem] items-center gap-x-2 gap-y-2 px-3 py-2 transition-colors duration-150"
+                className="grid grid-cols-[3.5rem_1fr] sm:grid-cols-[3.5rem_5rem_minmax(0,1.7fr)_8rem_8rem_8rem_8rem_auto] items-center gap-x-2 gap-y-2 px-3 py-2 transition-colors duration-150"
                 style={{
                   background: i % 2 === 0 ? "#ffffff" : "var(--card-well)",
                 }}
@@ -221,9 +226,12 @@ export function PartsReadOnlyTable({ parts, emptyMessage }: PartsReadOnlyTablePr
 
                 {/* Part name + low-stock badge */}
                 <div className="col-span-2 sm:col-span-1 min-w-0">
-                  <p className="truncate text-[13px] font-black leading-tight tracking-tight text-zinc-900 group-hover:underline decoration-1 underline-offset-2">
+                  <Link
+                    href={`/parts/${part.id}`}
+                    className={`${wrappedNameClass()} text-[13px] font-black leading-tight tracking-tight text-zinc-900 hover:underline decoration-1 underline-offset-2`}
+                  >
                     {part.name}
-                  </p>
+                  </Link>
                   {part.lowStock && (
                     <span className="mt-0.5 inline-block rounded border border-amber-600 bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-900">
                       Low stock
@@ -242,8 +250,53 @@ export function PartsReadOnlyTable({ parts, emptyMessage }: PartsReadOnlyTablePr
 
                 {/* Location / SKU */}
                 <DataCell label="Loc / SKU" value={loc} sub={sku} className="hidden xl:block" />
+
+                {/* Actions */}
+                <div className="col-span-2 sm:col-span-1 flex w-fit items-center justify-end gap-1">
+                  <Link
+                    href={`/parts/${part.id}/edit`}
+                    className="rounded-md border border-zinc-700 bg-zinc-900 px-1.5 py-1 text-[10px] font-semibold text-zinc-100 hover:bg-zinc-800"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        const r = await copyPartById(part.id);
+                        if (r.error) {
+                          window.alert(r.error);
+                          return;
+                        }
+                        router.refresh();
+                      })
+                    }
+                    className="rounded-md border border-zinc-700 bg-zinc-100 px-1.5 py-1 text-[10px] font-semibold text-zinc-900 hover:bg-zinc-200 disabled:opacity-50"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      if (!window.confirm(`Delete "${part.name}"?`)) return;
+                      startTransition(async () => {
+                        const r = await deletePartById(part.id);
+                        if (r.error) {
+                          window.alert(r.error);
+                          return;
+                        }
+                        router.refresh();
+                      });
+                    }}
+                    className="rounded-md border border-red-700 bg-red-50 px-1.5 py-1 text-[10px] font-semibold text-red-900 hover:bg-red-100 disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-            </Link>
+            </div>
           );
         })}
       </div>

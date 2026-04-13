@@ -1,0 +1,6 @@
+
+D:\part-db\Components\template_label>#echo off 
+
+D:\part-db\Components\template_label>echo f   | xcopy /f /y d:\part-db\Components\template_label\template.lbx "d:\part-db\Components\test\test.lbx" 
+D:\part-db\Components\template_label\template.lbx -> D:\part-db\Components\test\test.lbx
+1 File(s) copied

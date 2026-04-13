@@ -1,0 +1,29 @@
+Description
+If you want to place the bulk order that the stock is not enough, please contact with us.
+The module is a kind of simple MP3 player device which is based on a high-quality MP3 audio chip. It can support 8k Hz ~ 48k Hz sampling frequency MP3 and WAV file formats.
+
+There is a TF card socket on board, so you can plug the micro SD card that stores audio files. MCU can control the MP3 playback state by sending commands to the module via UART port, such as switch songs, change the volume and play mode and so on. You can also debug the module via USB to UART module.
+There is a TypeC-Compatible port on the board, so you can copy some MP3 files to the TF card you plug in the socket via the USB cable without extra TF card reader. The MP3 chip can help your PC to find the TF card via the Type C cable.
+The manufacturer's nominal capacity of the TF card is 256MB, but there is about 224MB available for the user, please know that.
+Features：
+- Support sampling frequency (kHz): 8 / 11.025 / 12 / 16 / 22.05 / 24 / 32 / 44.1 / 48;
+- Support file format: MP3 / WAV;
+- Support Micro SD card, Micro SDHC Card;
+- Onboard 3-watt mono amplifier;
+- On-board speaker interface XH2.54-2P, can connect to external speakers such as 8 ohm 3-watt, 8 ohm 2 watt, 8 ohm 1 watt;
+- 30 class adjustable volume;
+- UART TTL serial control playback mode, baud rate is 9600bps;
+- Serial communication format: 8N1;
+- Working voltage: 3.3 - 5.25VDC;
+- Logic level: 3.3V or 5V compatible;
+- On-board headphone jack, it can connect headphones or external amplifier;
+- On-board TF card connector;
+- On-board type C USB connector;
+- It is great for DIY;
+Paper Cone 8ohm 1W Speaker:
+- Can be directly plugged onto the Serial Control USB MP3 module to use;
+- Magnetic forms: inner magnetic;
+- Rated impedance: 8 ohm;
+- Rated Power: (1W or 0.5W);
+- Dimension: 50mmX13mm;
+- Great for speaker and amplifier projects DIY;

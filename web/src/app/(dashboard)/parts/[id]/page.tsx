@@ -40,12 +40,19 @@ export default async function PartByIdPage({ params }: PageProps) {
     session.user.role,
     part.categoryId,
   );
+  const [categoryOptions, locationOptions] = await Promise.all([
+    prisma.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.storageLocation.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
 
   return (
     <PartDetailView
       part={part}
       shortLinkUrl={shortLinkUrl}
       canEditDescription={canEditDescription}
+      canEditDetails={canEditDescription}
+      categoryOptions={categoryOptions}
+      locationOptions={locationOptions}
     />
   );
 }

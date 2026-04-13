@@ -35,6 +35,7 @@ import {
 import { Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 async function sessionUser() {
   const session = await auth();
@@ -278,6 +279,136 @@ export async function deletePart(formData: FormData) {
   redirect("/parts");
 }
 
+/** Row-level delete action for table/card views (no redirect). */
+export async function deletePartById(partId: string): Promise<{ error?: string }> {
+  const user = await sessionUser();
+  const id = partId.trim();
+  if (!id) return { error: "Missing part id." };
+
+  const existing = await prisma.part.findUnique({
+    where: { id },
+    include: { purchaseLinks: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (!existing) {
+    return { error: "Part not found." };
+  }
+
+  if (user.role === Role.USER) {
+    const ok = await mayEditCategory(user.id, user.role, existing.categoryId);
+    if (!ok) {
+      return { error: "You cannot delete this part." };
+    }
+  }
+
+  await logAudit({
+    userId: user.id,
+    action: "DELETE",
+    model: "Part",
+    recordId: existing.id,
+    recordName: existing.name,
+    before: serializePart(existing),
+  });
+
+  await prisma.part.delete({ where: { id } }).catch(() => undefined);
+  revalidatePath("/parts");
+  revalidatePath(`/parts/${id}`);
+  revalidatePath(`/parts/${id}/edit`);
+  revalidatePath(`/p/${existing.partNumber}`);
+  revalidatePath("/admin/audit");
+  return {};
+}
+
+/** Row-level duplicate action for table/card views. */
+export async function copyPartById(partId: string): Promise<{ error?: string; newId?: string }> {
+  const user = await sessionUser();
+  const id = partId.trim();
+  if (!id) return { error: "Missing part id." };
+
+  const existing = await prisma.part.findUnique({
+    where: { id },
+    include: {
+      purchaseLinks: { orderBy: { sortOrder: "asc" } },
+      images: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+  if (!existing) {
+    return { error: "Part not found." };
+  }
+
+  if (user.role === Role.USER) {
+    const ok = await mayEditCategory(user.id, user.role, existing.categoryId);
+    if (!ok) {
+      return { error: "You cannot copy this part." };
+    }
+  }
+
+  const duplicate = await prisma.$transaction(async (tx) => {
+    const nextPartNumber =
+      (await tx.part.aggregate({ _max: { partNumber: true } }))._max.partNumber ?? 0;
+    const created = await tx.part.create({
+      data: {
+        partNumber: nextPartNumber + 1,
+        name: `${existing.name} (copy)`.slice(0, 300),
+        internalSku: null,
+        mpn: existing.mpn,
+        manufacturer: existing.manufacturer,
+        description: existing.description,
+        imageUrl: existing.imageUrl,
+        quantityOnHand: existing.quantityOnHand,
+        reorderMin: existing.reorderMin,
+        unit: existing.unit,
+        categoryId: existing.categoryId,
+        defaultLocationId: existing.defaultLocationId,
+      },
+    });
+
+    if (existing.purchaseLinks.length > 0) {
+      await tx.partPurchaseLink.createMany({
+        data: existing.purchaseLinks.map((l) => ({
+          partId: created.id,
+          label: l.label,
+          url: l.url,
+          sortOrder: l.sortOrder,
+        })),
+      });
+    }
+
+    if (existing.images.length > 0) {
+      await tx.partImage.createMany({
+        data: existing.images.map((img) => ({
+          partId: created.id,
+          url: img.url,
+          sortOrder: img.sortOrder,
+          caption: img.caption,
+        })),
+      });
+    }
+
+    return created;
+  });
+
+  const after = await prisma.part.findUnique({
+    where: { id: duplicate.id },
+    include: { purchaseLinks: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (after) {
+    await logAudit({
+      userId: user.id,
+      action: "CREATE",
+      model: "Part",
+      recordId: after.id,
+      recordName: after.name,
+      after: serializePart(after),
+    });
+  }
+
+  revalidatePath("/parts");
+  revalidatePath(`/parts/${duplicate.id}`);
+  revalidatePath(`/parts/${duplicate.id}/edit`);
+  revalidatePath("/admin/audit");
+  return { newId: duplicate.id };
+}
+
 /** Update Markdown description from the part detail page (no full-form redirect). */
 export async function updatePartDescription(formData: FormData): Promise<{ error?: string }> {
   const user = await sessionUser();
@@ -332,6 +463,140 @@ export async function updatePartDescription(formData: FormData): Promise<{ error
 
   revalidatePath("/parts");
   revalidatePath(`/parts/${parsed.data.partId}`);
+  revalidatePath(`/p/${beforeFull.partNumber}`);
+  revalidatePath("/admin/audit");
+  return {};
+}
+
+const partInlineDetailsSchema = z.object({
+  partId: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(300),
+  internalSku: z
+    .string()
+    .transform((v) => v.trim())
+    .transform((v) => (v === "" ? null : v))
+    .nullable(),
+  mpn: z
+    .string()
+    .transform((v) => v.trim())
+    .transform((v) => (v === "" ? null : v))
+    .nullable(),
+  manufacturer: z
+    .string()
+    .transform((v) => v.trim())
+    .transform((v) => (v === "" ? null : v))
+    .nullable(),
+  imageUrl: z
+    .string()
+    .transform((v) => v.trim())
+    .transform((v) => (v === "" ? null : v))
+    .nullable(),
+  quantityOnHand: z.coerce.number().int().min(0),
+  reorderMin: z
+    .string()
+    .transform((v) => v.trim())
+    .transform((v) => (v === "" ? null : Number.parseInt(v, 10)))
+    .nullable(),
+  unit: z.string().trim().min(1).max(32),
+  categoryId: z
+    .string()
+    .transform((v) => v.trim())
+    .transform((v) => (v === "" ? null : v))
+    .nullable(),
+  defaultLocationId: z
+    .string()
+    .transform((v) => v.trim())
+    .transform((v) => (v === "" ? null : v))
+    .nullable(),
+});
+
+/** Update all core fields from part detail page inline editor. */
+export async function updatePartDetailsInline(formData: FormData): Promise<{ error?: string }> {
+  const user = await sessionUser();
+  const parsed = partInlineDetailsSchema.safeParse({
+    partId: String(formData.get("partId") ?? ""),
+    name: String(formData.get("name") ?? ""),
+    internalSku: String(formData.get("internalSku") ?? ""),
+    mpn: String(formData.get("mpn") ?? ""),
+    manufacturer: String(formData.get("manufacturer") ?? ""),
+    imageUrl: String(formData.get("imageUrl") ?? ""),
+    quantityOnHand: String(formData.get("quantityOnHand") ?? ""),
+    reorderMin: String(formData.get("reorderMin") ?? ""),
+    unit: String(formData.get("unit") ?? ""),
+    categoryId: String(formData.get("categoryId") ?? ""),
+    defaultLocationId: String(formData.get("defaultLocationId") ?? ""),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues.map((i) => i.message).join(" ") };
+  }
+
+  const data = parsed.data;
+  if (data.reorderMin != null && Number.isNaN(data.reorderMin)) {
+    return { error: "Reorder minimum must be a whole number." };
+  }
+
+  const beforeFull = await prisma.part.findUnique({
+    where: { id: data.partId },
+    include: { purchaseLinks: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (!beforeFull) return { error: "Part not found." };
+
+  const allowed = await userCanEditPart(user.id, user.role, beforeFull.categoryId);
+  if (!allowed) {
+    return { error: "You cannot edit this part." };
+  }
+
+  if (user.role === Role.USER) {
+    if (!data.categoryId) return { error: "Category is required." };
+    const oldOk = await mayEditCategory(user.id, user.role, beforeFull.categoryId);
+    if (!oldOk) return { error: "You cannot edit this part." };
+    const newOk = await mayEditCategory(user.id, user.role, data.categoryId);
+    if (!newOk) return { error: "You cannot move this part to that category." };
+  }
+
+  try {
+    await prisma.part.update({
+      where: { id: data.partId },
+      data: {
+        name: data.name,
+        internalSku: data.internalSku,
+        mpn: data.mpn,
+        manufacturer: data.manufacturer,
+        imageUrl: data.imageUrl,
+        quantityOnHand: data.quantityOnHand,
+        reorderMin: data.reorderMin,
+        unit: data.unit,
+        categoryId: data.categoryId,
+        defaultLocationId: data.defaultLocationId,
+      },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (msg.includes("Unique constraint")) {
+      return { error: "Internal SKU must be unique." };
+    }
+    return { error: "Could not update part details." };
+  }
+
+  const afterFull = await prisma.part.findUnique({
+    where: { id: data.partId },
+    include: { purchaseLinks: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (afterFull) {
+    await logAudit({
+      userId: user.id,
+      action: "UPDATE",
+      model: "Part",
+      recordId: afterFull.id,
+      recordName: afterFull.name,
+      before: serializePart(beforeFull),
+      after: serializePart(afterFull),
+    });
+  }
+
+  revalidatePath("/parts");
+  revalidatePath(`/parts/${data.partId}`);
+  revalidatePath(`/parts/${data.partId}/edit`);
   revalidatePath(`/p/${beforeFull.partNumber}`);
   revalidatePath("/admin/audit");
   return {};
