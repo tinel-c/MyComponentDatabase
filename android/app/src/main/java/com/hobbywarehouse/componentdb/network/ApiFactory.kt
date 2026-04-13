@@ -2,12 +2,12 @@ package com.hobbywarehouse.componentdb.network
 
 import com.hobbywarehouse.componentdb.BuildConfig
 import com.hobbywarehouse.componentdb.data.MobileApi
-import com.jakewharton.retrofit.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 object ApiFactory {
     private val json =
