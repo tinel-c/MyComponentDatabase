@@ -92,6 +92,16 @@ If you use SSH keys and normal `ssh` works without a password:
 ssh -p "${DEPLOY_SSH_PORT:-22}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' < deploy/reset-all-slots-to-origin.sh
 ```
 
+### Option D — Python + Paramiko (Windows-friendly)
+
+If `sshpass` is not available (typical on Windows), use the script that reads `deploy/deploy.secrets` and runs the same reset over SSH:
+
+```bash
+python deploy/ssh_reset_slots.py
+```
+
+Requires `pip install paramiko` once.
+
 ## Files in this directory
 
 | File | Role |
@@ -102,6 +112,7 @@ ssh -p "${DEPLOY_SSH_PORT:-22}" "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' < depl
 | `deploy.config.yml` | Non-sensitive host/paths/ports/repo URL. |
 | `deploy.secrets.example` | Template for GitHub Secrets and local `deploy.secrets`. |
 | `deploy.secrets` | **Local only** — real credentials; gitignored. |
+| `ssh_reset_slots.py` | Optional: reset both slots via SSH using Paramiko (no `sshpass`). |
 
 ## GitHub Actions
 
