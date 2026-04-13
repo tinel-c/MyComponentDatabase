@@ -1,6 +1,6 @@
-import { loginWithGoogle } from "@/app/login/actions";
+import { loginLocalDev, loginWithGoogle } from "@/app/login/actions";
 import { auth } from "@/auth";
-import { isGoogleOAuthConfigured } from "@/lib/oauth-config";
+import { isGoogleOAuthConfigured, isLocalDevAuthEnabled } from "@/lib/oauth-config";
 import { ArrowRight, Shield, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -40,6 +40,7 @@ export default async function LoginPage({
 
   const params = await searchParams;
   const oauthConfigured = isGoogleOAuthConfigured();
+  const localDevAuthEnabled = isLocalDevAuthEnabled();
   const showMissingOauth = !oauthConfigured;
   const authError = params.error
     ? (ERROR_COPY[params.error] ?? {
@@ -244,6 +245,17 @@ export default async function LoginPage({
                 Sign in with Google
               </button>
             </form>
+
+            {localDevAuthEnabled ? (
+              <form action={loginLocalDev} className="mt-3">
+                <button
+                  type="submit"
+                  className="w-full rounded-2xl border border-rim bg-surface px-4 py-3 text-sm font-semibold text-fg transition-all duration-150 hover:bg-overlay"
+                >
+                  Local dev login (no Google)
+                </button>
+              </form>
+            ) : null}
 
             <p
               className="mt-6 text-center text-xs"

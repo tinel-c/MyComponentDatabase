@@ -258,11 +258,30 @@ async function main() {
     update: {},
   });
 
+  await prisma.category.upsert({
+    where: { id: "seed-tools-library" },
+    create: {
+      id: "seed-tools-library",
+      name: "Bibliotecă Tools (import folder)",
+    },
+    update: {},
+  });
+
   await prisma.storageLocation.upsert({
     where: { id: "seed-components-bin" },
     create: {
       id: "seed-components-bin",
       name: "Components (foldere)",
+      parentId: shelf.id,
+    },
+    update: {},
+  });
+
+  await prisma.storageLocation.upsert({
+    where: { id: "seed-tools-bin" },
+    create: {
+      id: "seed-tools-bin",
+      name: "Tools (foldere)",
       parentId: shelf.id,
     },
     update: {},
@@ -309,10 +328,25 @@ async function main() {
   }
 
   const componentsRoot = path.resolve(process.cwd(), "..", "Components");
-  const folderPartsCount = await seedComponentsFromFolder(prisma, componentsRoot);
+  const folderPartsCount = await seedComponentsFromFolder(prisma, componentsRoot, {
+    idPrefix: "comp",
+    skuPrefix: "COMP",
+    categoryId: "seed-components-library",
+    locationId: "seed-components-bin",
+    sourceLabel: "Components",
+  });
+
+  const toolsRoot = path.resolve(process.cwd(), "..", "Tools");
+  const toolsPartsCount = await seedComponentsFromFolder(prisma, toolsRoot, {
+    idPrefix: "tool",
+    skuPrefix: "TOOL",
+    categoryId: "seed-tools-library",
+    locationId: "seed-tools-bin",
+    sourceLabel: "Tools",
+  });
 
   console.log(
-    `Seed complete: admin (${adminEmail}), categories, locations, ${TME_SAMPLE_PARTS.length} sample parts (TME.eu-style MPNs), ${folderPartsCount} parts from Components/ folder tree.`,
+    `Seed complete: admin (${adminEmail}), categories, locations, ${TME_SAMPLE_PARTS.length} sample parts (TME.eu-style MPNs), ${folderPartsCount} parts from Components/, ${toolsPartsCount} parts from Tools/.`,
   );
 }
 

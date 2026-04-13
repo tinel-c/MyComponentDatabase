@@ -4,7 +4,7 @@ import { buttonPrimaryClass } from "@/components/forms/field-classes";
 import { useState, useTransition } from "react";
 
 type PushResult =
-  | { ok: true; summary: Record<string, number> }
+  | { ok: true; summary: Record<string, number>; assets: { files: number } }
   | { ok: false; error: string };
 
 export function SyncPushButton({ pushAction }: { pushAction: () => Promise<PushResult> }) {
@@ -21,7 +21,7 @@ export function SyncPushButton({ pushAction }: { pushAction: () => Promise<PushR
           .join("\n");
         setMessage({
           kind: "ok",
-          text: lines ? `Imported counts:\n${lines}` : "Push completed.",
+          text: `${lines ? `Imported counts:\n${lines}\n` : ""}Uploaded asset files: ${r.assets.files}`,
         });
       } else {
         setMessage({ kind: "err", text: r.error });

@@ -1,9 +1,14 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { PrismaClient } from "@prisma/client";
 import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import { normalizeEmail } from "@/lib/email";
-import { getGoogleClientId, getGoogleClientSecret } from "@/lib/oauth-config";
+import {
+  getGoogleClientId,
+  getGoogleClientSecret,
+  isLocalDevAuthEnabled,
+} from "@/lib/oauth-config";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@prisma/client";
 
@@ -11,6 +16,12 @@ import { Role } from "@prisma/client";
 function bootstrapAdminEmail(): string {
   return normalizeEmail(process.env.ADMIN_EMAIL ?? "tinel.c@gmail.com");
 }
+
+function localDevEmail(): string {
+  return normalizeEmail(process.env.LOCAL_DEV_LOGIN_EMAIL ?? process.env.ADMIN_EMAIL ?? "tinel.c@gmail.com");
+}
+
+const localDevAuthEnabled = isLocalDevAuthEnabled();
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   /** Adapter types target `@prisma/client`; client instance is generated from the same schema. */
@@ -31,6 +42,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         };
       },
     }),
+    ...(localDevAuthEnabled
+      ? [
+          Credentials({
+            id: "local-dev",
+            name: "Local dev login",
+            credentials: {
+              email: { label: "Email", type: "text" },
+            },
+            async authorize(credentials) {
+              const email = normalizeEmail(String(credentials?.email ?? localDevEmail()));
+              if (!email) return null;
+              const user = await prisma.user.upsert({
+                where: { email },
+                create: {
+                  email,
+                  name: "Local Dev Admin",
+                  role: Role.ADMIN,
+                },
+                update: {
+                  role: Role.ADMIN,
+                },
+              });
+              return {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+              };
+            },
+          }),
+        ]
+      : []),
   ],
   pages: {
     signIn: "/login",
@@ -40,6 +83,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   callbacks: {
     async signIn({ user, account }) {
+      if (account?.provider === "local-dev") {
+        return localDevAuthEnabled ? true : "/login?error=AccessDenied";
+      }
       if (account?.provider !== "google" || !user.email) {
         return "/login?error=OAuthSignin";
       }

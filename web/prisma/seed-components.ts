@@ -241,6 +241,13 @@ function guessMpn(description: string | null): string | null {
 export async function seedComponentsFromFolder(
   prisma: PrismaClient,
   componentsRoot: string,
+  options?: {
+    idPrefix?: string;
+    skuPrefix?: string;
+    categoryId?: string;
+    locationId?: string;
+    sourceLabel?: string;
+  },
 ): Promise<number> {
   if (!fs.existsSync(componentsRoot)) {
     console.warn(`Components folder not found (${componentsRoot}), skipping folder import.`);
@@ -248,6 +255,11 @@ export async function seedComponentsFromFolder(
   }
 
   const dirents = fs.readdirSync(componentsRoot, { withFileTypes: true }).filter((d) => d.isDirectory());
+  const idPrefix = options?.idPrefix ?? "comp";
+  const skuPrefix = options?.skuPrefix ?? "COMP";
+  const categoryId = options?.categoryId ?? "seed-components-library";
+  const locationId = options?.locationId ?? "seed-components-bin";
+  const sourceLabel = options?.sourceLabel ?? path.basename(componentsRoot);
 
   let nextPartNumber =
     (await prisma.part.aggregate({ _max: { partNumber: true } }))._max.partNumber ?? 0;
@@ -258,15 +270,17 @@ export async function seedComponentsFromFolder(
     const dir = path.join(componentsRoot, folderName);
     const { folderNum, displayName } = parseFolderName(folderName);
 
-    const partId = folderNum ? `comp-${folderNum}` : `comp-${stableHash(folderName)}`;
-    const internalSku = folderNum ? `COMP-${folderNum}` : `COMP-${stableHash(folderName).slice(0, 12)}`;
+    const partId = folderNum ? `${idPrefix}-${folderNum}` : `${idPrefix}-${stableHash(folderName)}`;
+    const internalSku = folderNum
+      ? `${skuPrefix}-${folderNum}`
+      : `${skuPrefix}-${stableHash(folderName).slice(0, 12)}`;
 
     let description = findDescription(dir);
     if (description && description.length > DESCRIPTION_MAX) {
       description = description.slice(0, DESCRIPTION_MAX) + "\n\n…(truncated)";
     }
     if (!description?.trim()) {
-      description = `Imported from local folder \`${folderName.replace(/`/g, "'")}\`. Add notes in the app as needed.`;
+      description = `Imported from local folder \`${folderName.replace(/`/g, "'")}\` in ${sourceLabel}. Add notes in the app as needed.`;
     }
 
     const mpn = guessMpn(description);
@@ -293,8 +307,8 @@ export async function seedComponentsFromFolder(
           quantityOnHand: 1,
           reorderMin: null,
           unit: "pcs",
-          categoryId: "seed-components-library",
-          defaultLocationId: "seed-components-bin",
+          categoryId,
+          defaultLocationId: locationId,
           imageUrl: primaryImageUrl,
         },
         update: {
@@ -302,8 +316,8 @@ export async function seedComponentsFromFolder(
           internalSku,
           mpn,
           description,
-          categoryId: "seed-components-library",
-          defaultLocationId: "seed-components-bin",
+          categoryId,
+          defaultLocationId: locationId,
           imageUrl: primaryImageUrl,
         },
       });

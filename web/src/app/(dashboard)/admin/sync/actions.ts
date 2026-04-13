@@ -1,10 +1,10 @@
 "use server";
 
 import { requireAdmin } from "@/lib/authz";
-import { exportInventory } from "@/lib/sync";
+import { exportInventory, exportPartAssetsPayload } from "@/lib/sync";
 
 export type PushToProductionResult =
-  | { ok: true; summary: Record<string, number> }
+  | { ok: true; summary: Record<string, number>; assets: { files: number } }
   | { ok: false; error: string };
 
 export async function pushInventoryToProduction(): Promise<PushToProductionResult> {
@@ -43,8 +43,43 @@ export async function pushInventoryToProduction(): Promise<PushToProductionResul
 
   try {
     const j = JSON.parse(text) as { summary?: Record<string, number> };
-    return { ok: true, summary: j.summary ?? {} };
+    const assetPayload = await exportPartAssetsPayload();
+    const assetRes = await fetch(`${base}/api/admin/sync/assets`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${secret}`,
+      },
+      body: JSON.stringify(assetPayload),
+    });
+
+    const assetText = await assetRes.text();
+    if (!assetRes.ok) {
+      let assetError = assetText || `${assetRes.status} ${assetRes.statusText}`;
+      try {
+        const parsed = JSON.parse(assetText) as { error?: string };
+        if (parsed.error) assetError = parsed.error;
+      } catch {
+        /* keep string */
+      }
+      return { ok: false, error: `Database imported, but asset upload failed: ${assetError}` };
+    }
+
+    try {
+      const assetJson = JSON.parse(assetText) as { summary?: { files?: number } };
+      return {
+        ok: true,
+        summary: j.summary ?? {},
+        assets: { files: assetJson.summary?.files ?? assetPayload.files.length },
+      };
+    } catch {
+      return {
+        ok: true,
+        summary: j.summary ?? {},
+        assets: { files: assetPayload.files.length },
+      };
+    }
   } catch {
-    return { ok: true, summary: {} };
+    return { ok: true, summary: {}, assets: { files: 0 } };
   }
 }
