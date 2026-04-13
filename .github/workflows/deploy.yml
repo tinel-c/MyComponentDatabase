@@ -1,6 +1,8 @@
 name: Deploy
 
-# Runs only after CI succeeds on main (push). Keeps deploy SSH failures separate from lint/build status.
+# Runs only after CI succeeds on main (push).
+# The Ubuntu job only SSHs to your VPS and streams its logs. `npm run build` in deploy/deploy.sh runs ON THE SERVER,
+# not on GitHub Actions — so Turbopack errors in this workflow are from the VPS checkout, not from the CI runner.
 on:
   workflow_run:
     workflows: [CI]
@@ -25,7 +27,7 @@ jobs:
       - name: Install sshpass (SSH password auth for deploy)
         run: sudo apt-get update -y && sudo apt-get install -y sshpass
 
-      - name: Deploy over SSH (blue-green)
+      - name: SSH to VPS — deploy.sh (next build runs on server, not on Actions)
         env:
           SSHPASS: ${{ secrets.DEPLOY_SSH_PASSWORD }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
