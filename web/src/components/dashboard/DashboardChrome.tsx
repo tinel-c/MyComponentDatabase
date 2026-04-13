@@ -6,6 +6,7 @@ import type { Session } from "next-auth";
 import {
   Boxes,
   ClipboardList,
+  Database,
   FolderTree,
   LogOut,
   MapPin,
@@ -42,6 +43,7 @@ export function DashboardChrome({
         ...navBase,
         { href: "/admin/users", label: "Team", icon: Users },
         { href: "/admin/audit", label: "Audit log", icon: ClipboardList },
+        { href: "/admin/sync", label: "Database sync", icon: Database },
       ]
     : navBase;
 
