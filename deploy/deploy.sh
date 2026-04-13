@@ -59,9 +59,11 @@ SHARED_DB="${APP_ROOT}/shared/warehouse.db"
 
 log "active=$ACTIVE → deploy to inactive slot: $INACTIVE (port $PORT)"
 
+# Match remote exactly — `pull --ff-only` leaves local modifications to tracked files (e.g. bad edits on the VPS),
+# which can break builds. Deploy slots must not carry uncommitted drift from the server.
 git -C "$SLOT_DIR" fetch "$GIT_REMOTE"
 git -C "$SLOT_DIR" checkout "$BRANCH"
-git -C "$SLOT_DIR" pull --ff-only "$GIT_REMOTE" "$BRANCH"
+git -C "$SLOT_DIR" reset --hard "${GIT_REMOTE}/${BRANCH}"
 
 mkdir -p "${APP_ROOT}/shared"
 touch "$SHARED_DB"
