@@ -5,7 +5,7 @@ import type { PrismaClient } from "@prisma/client";
 
 const DESCRIPTION_MAX = 100_000;
 const MAX_IMAGES_PER_PART = 48;
-const IMAGE_RE = /\.(jpe?g|png|gif|webp)$/i;
+const IMAGE_RE = /\.(jpe?g|png|gif|webp|avif)$/i;
 
 function sanitizeImageBasename(fileName: string): string {
   const ext = path.extname(fileName);
