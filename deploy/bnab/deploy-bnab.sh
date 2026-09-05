@@ -69,7 +69,7 @@ export DATABASE_URL="file:${SHARED_DB}"
 cd "$APP_DIR"
 
 log "npm ci"
-npm ci --no-audit --no-fund
+npm ci --no-audit --no-fund --legacy-peer-deps
 
 log "prisma migrate deploy"
 npx prisma migrate deploy
