@@ -226,3 +226,201 @@ export async function setCategoryTarget(formData: FormData) {
   revalidatePath("/plan");
   return;
 }
+
+async function assertGroup(budgetId: string, groupId: string) {
+  return prisma.categoryGroup.findFirst({
+    where: { id: groupId, budgetId },
+  });
+}
+
+export async function createCategoryGroup(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name || name.length > 80) return;
+  const max = await prisma.categoryGroup.aggregate({
+    where: { budgetId: budget.id },
+    _max: { sortOrder: true },
+  });
+  await prisma.categoryGroup.create({
+    data: {
+      budgetId: budget.id,
+      name,
+      sortOrder: (max._max.sortOrder ?? 0) + 1,
+    },
+  });
+  revalidatePath("/more/categories");
+  revalidatePath("/plan");
+  revalidatePath("/transactions/new");
+  return;
+}
+
+export async function renameCategoryGroup(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!id || !name) return;
+  const g = await assertGroup(budget.id, id);
+  if (!g) return;
+  await prisma.categoryGroup.update({ where: { id }, data: { name } });
+  revalidatePath("/more/categories");
+  revalidatePath("/plan");
+  revalidatePath("/transactions/new");
+  return;
+}
+
+export async function toggleCategoryGroupHidden(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const g = await assertGroup(budget.id, id);
+  if (!g) return;
+  await prisma.categoryGroup.update({
+    where: { id },
+    data: { hidden: !g.hidden },
+  });
+  revalidatePath("/more/categories");
+  revalidatePath("/plan");
+  revalidatePath("/transactions/new");
+  return;
+}
+
+export async function moveCategoryGroup(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const dir = String(formData.get("dir") ?? "");
+  const groups = await prisma.categoryGroup.findMany({
+    where: { budgetId: budget.id },
+    orderBy: { sortOrder: "asc" },
+  });
+  const idx = groups.findIndex((g) => g.id === id);
+  if (idx < 0) return;
+  const swapWith = dir === "up" ? idx - 1 : idx + 1;
+  if (swapWith < 0 || swapWith >= groups.length) return;
+  const a = groups[idx];
+  const b = groups[swapWith];
+  await prisma.$transaction([
+    prisma.categoryGroup.update({
+      where: { id: a.id },
+      data: { sortOrder: b.sortOrder },
+    }),
+    prisma.categoryGroup.update({
+      where: { id: b.id },
+      data: { sortOrder: a.sortOrder },
+    }),
+  ]);
+  revalidatePath("/more/categories");
+  revalidatePath("/plan");
+  return;
+}
+
+export async function createCategory(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const groupId = String(formData.get("groupId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!groupId || !name || name.length > 80) return;
+  const g = await assertGroup(budget.id, groupId);
+  if (!g) return;
+  const max = await prisma.category.aggregate({
+    where: { groupId },
+    _max: { sortOrder: true },
+  });
+  await prisma.category.create({
+    data: {
+      groupId,
+      name,
+      isIncome: g.isIncome,
+      sortOrder: (max._max.sortOrder ?? 0) + 1,
+    },
+  });
+  revalidatePath("/more/categories");
+  revalidatePath("/plan");
+  revalidatePath("/transactions/new");
+  return;
+}
+
+export async function renameCategory(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!id || !name) return;
+  const cat = await prisma.category.findFirst({
+    where: { id, group: { budgetId: budget.id } },
+  });
+  if (!cat) return;
+  await prisma.category.update({ where: { id }, data: { name } });
+  revalidatePath("/more/categories");
+  revalidatePath("/plan");
+  revalidatePath("/transactions/new");
+  return;
+}
+
+export async function toggleCategoryHidden(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const cat = await prisma.category.findFirst({
+    where: { id, group: { budgetId: budget.id } },
+  });
+  if (!cat) return;
+  await prisma.category.update({
+    where: { id },
+    data: { hidden: !cat.hidden },
+  });
+  revalidatePath("/more/categories");
+  revalidatePath("/plan");
+  revalidatePath("/transactions/new");
+  return;
+}
+
+export async function moveCategory(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const dir = String(formData.get("dir") ?? "");
+  const cat = await prisma.category.findFirst({
+    where: { id, group: { budgetId: budget.id } },
+  });
+  if (!cat) return;
+  const siblings = await prisma.category.findMany({
+    where: { groupId: cat.groupId },
+    orderBy: { sortOrder: "asc" },
+  });
+  const idx = siblings.findIndex((c) => c.id === id);
+  if (idx < 0) return;
+  const swapWith = dir === "up" ? idx - 1 : idx + 1;
+  if (swapWith < 0 || swapWith >= siblings.length) return;
+  const a = siblings[idx];
+  const b = siblings[swapWith];
+  await prisma.$transaction([
+    prisma.category.update({
+      where: { id: a.id },
+      data: { sortOrder: b.sortOrder },
+    }),
+    prisma.category.update({
+      where: { id: b.id },
+      data: { sortOrder: a.sortOrder },
+    }),
+  ]);
+  revalidatePath("/more/categories");
+  revalidatePath("/plan");
+  return;
+}
+
+export async function hideOrDeleteCategory(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const cat = await prisma.category.findFirst({
+    where: { id, group: { budgetId: budget.id } },
+  });
+  if (!cat || cat.isSystem) return;
+
+  const used = await prisma.transaction.count({ where: { categoryId: id } });
+  if (used > 0) {
+    await prisma.category.update({ where: { id }, data: { hidden: true } });
+  } else {
+    await prisma.categoryTarget.deleteMany({ where: { categoryId: id } });
+    await prisma.monthlyCategoryBudget.deleteMany({ where: { categoryId: id } });
+    await prisma.category.delete({ where: { id } });
+  }
+  revalidatePath("/more/categories");
+  revalidatePath("/plan");
+  revalidatePath("/transactions/new");
+  return;
+}

@@ -9,8 +9,13 @@ import {
 } from "@/components/forms/field-classes";
 import { createTransaction } from "@/app/(app)/transactions/actions";
 
-export default async function NewTransactionPage() {
+export default async function NewTransactionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ accountId?: string }>;
+}) {
   const { budget } = await requireBudgetAccess();
+  const sp = await searchParams;
   const [accounts, groups, payees] = await Promise.all([
     prisma.financeAccount.findMany({
       where: { budgetId: budget.id, closed: false },
@@ -30,6 +35,11 @@ export default async function NewTransactionPage() {
     }),
   ]);
 
+  const preferred =
+    sp.accountId && accounts.some((a) => a.id === sp.accountId)
+      ? sp.accountId
+      : accounts[0]?.id;
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight text-fg">
@@ -39,7 +49,12 @@ export default async function NewTransactionPage() {
       <form action={createTransaction} className={`${cardClass} space-y-4 p-4`}>
         <label className={labelClass}>
           Account
-          <select name="accountId" required className={inputClass} defaultValue={accounts[0]?.id}>
+          <select
+            name="accountId"
+            required
+            className={inputClass}
+            defaultValue={preferred}
+          >
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -50,7 +65,13 @@ export default async function NewTransactionPage() {
 
         <label className={labelClass}>
           Date
-          <input name="date" type="date" required className={inputClass} defaultValue={todayISO()} />
+          <input
+            name="date"
+            type="date"
+            required
+            className={inputClass}
+            defaultValue={todayISO()}
+          />
         </label>
 
         <label className={labelClass}>
@@ -64,8 +85,8 @@ export default async function NewTransactionPage() {
           />
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-fg">
-          <input type="checkbox" name="inflow" value="1" className="size-4" />
+        <label className="flex min-h-11 items-center gap-2 text-sm text-fg">
+          <input type="checkbox" name="inflow" value="1" className="size-5" />
           Inflow (income / refund)
         </label>
 
@@ -118,8 +139,14 @@ export default async function NewTransactionPage() {
           <input name="notes" className={inputClass} />
         </label>
 
-        <label className="flex items-center gap-2 text-sm text-fg">
-          <input type="checkbox" name="cleared" value="1" defaultChecked className="size-4" />
+        <label className="flex min-h-11 items-center gap-2 text-sm text-fg">
+          <input
+            type="checkbox"
+            name="cleared"
+            value="1"
+            defaultChecked
+            className="size-5"
+          />
           Cleared
         </label>
 

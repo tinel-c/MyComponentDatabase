@@ -6,6 +6,7 @@ import { addMonths, currentMonth, formatMoney, monthLabel } from "@/lib/money";
 import { AssignCell } from "@/components/plan/AssignCell";
 import { MoveMoneyForm } from "@/components/plan/MoveMoneyForm";
 import { cardClass } from "@/components/forms/field-classes";
+import { groupAccent } from "@/lib/ui-accents";
 
 export default async function PlanPage({
   searchParams,
@@ -63,8 +64,15 @@ export default async function PlanPage({
         {groups
           .filter((g) => !g.isIncome)
           .map((group) => (
-            <section key={group.id} className={cardClass}>
-              <h2 className="border-b border-rim-subtle px-4 py-3 text-sm font-semibold text-fg">
+            <section key={group.id} className={`${cardClass} overflow-hidden`}>
+              <h2
+                className="border-b border-rim-subtle px-4 py-3 text-sm font-semibold text-fg"
+                style={{
+                  borderLeft: `4px solid ${groupAccent(group.name)}`,
+                  background:
+                    "color-mix(in oklch, var(--accent-muted) 40%, transparent)",
+                }}
+              >
                 {group.name}
               </h2>
               <ul className="divide-y divide-rim-subtle/60">

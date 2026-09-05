@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -15,22 +16,44 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { BarChart3 } from "lucide-react";
 import { cardClass } from "@/components/forms/field-classes";
+import { EmptyState } from "@/components/ui/EmptyState";
 
-const COLORS = [
-  "#10b981",
-  "#06b6d4",
-  "#8b5cf6",
-  "#3b82f6",
-  "#f59e0b",
-  "#ef4444",
-  "#84cc16",
-  "#ec4899",
-  "#14b8a6",
-  "#a855f7",
-  "#64748b",
-  "#eab308",
-];
+type ChartColors = {
+  accent: string;
+  ok: string;
+  danger: string;
+  muted: string;
+  rim: string;
+  slices: string[];
+};
+
+const FALLBACK: ChartColors = {
+  accent: "#10b981",
+  ok: "#10b981",
+  danger: "#f43f5e",
+  muted: "#64748b",
+  rim: "#334155",
+  slices: ["#10b981", "#06b6d4", "#3b82f6", "#f59e0b", "#ef4444", "#84cc16"],
+};
+
+function readThemeColors(): ChartColors {
+  const s = getComputedStyle(document.documentElement);
+  const accent = s.getPropertyValue("--accent").trim() || FALLBACK.accent;
+  const ok = s.getPropertyValue("--ok").trim() || accent;
+  const danger = s.getPropertyValue("--danger").trim() || FALLBACK.danger;
+  const muted = s.getPropertyValue("--fg-muted").trim() || FALLBACK.muted;
+  const rim = s.getPropertyValue("--rim").trim() || FALLBACK.rim;
+  return {
+    accent,
+    ok,
+    danger,
+    muted,
+    rim,
+    slices: [accent, ok, "#06b6d4", "#3b82f6", "#f59e0b", danger, "#84cc16", muted],
+  };
+}
 
 type Slice = { name: string; value: number };
 
@@ -46,12 +69,24 @@ export function ReflectCharts({
   incomeExpense: { month: string; income: number; expense: number; net: number }[];
   netWorth: { month: string; assets: number; debts: number; net: number }[];
 }) {
+  const [colors, setColors] = useState<ChartColors>(FALLBACK);
+  useEffect(() => {
+    setColors(readThemeColors());
+  }, []);
+
+  const tick = { fontSize: 11, fill: colors.muted };
+  const gridStroke = colors.rim;
+
   return (
     <div className="space-y-4">
       <section className={`${cardClass} p-4`}>
         <h2 className="text-sm font-semibold text-fg">Spending by category</h2>
         {spending.length === 0 ? (
-          <p className="mt-6 text-center text-sm text-fg-muted">No spending yet.</p>
+          <EmptyState
+            icon={BarChart3}
+            title="No spending yet"
+            description="Categorized outflows will show up here."
+          />
         ) : (
           <div className="mt-2 h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -67,15 +102,21 @@ export function ReflectCharts({
                   paddingAngle={2}
                 >
                   {spending.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    <Cell key={i} fill={colors.slices[i % colors.slices.length]} />
                   ))}
                 </Pie>
                 <Tooltip
+                  contentStyle={{
+                    background: "var(--overlay)",
+                    border: "1px solid var(--rim)",
+                    borderRadius: 12,
+                    color: "var(--fg)",
+                  }}
                   formatter={(v) =>
                     typeof v === "number" ? v.toFixed(2) : String(v)
                   }
                 />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 12, color: colors.muted }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -84,22 +125,27 @@ export function ReflectCharts({
 
       <section className={`${cardClass} p-4`}>
         <h2 className="text-sm font-semibold text-fg">Spending by payee</h2>
-        <div className="mt-2 h-56 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={payees} layout="vertical" margin={{ left: 8, right: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis type="number" tick={{ fontSize: 11 }} />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={88}
-                tick={{ fontSize: 10 }}
-              />
-              <Tooltip />
-              <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {payees.length === 0 ? (
+          <EmptyState icon={BarChart3} title="No payee data yet" />
+        ) : (
+          <div className="mt-2 h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={payees} layout="vertical" margin={{ left: 8, right: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.35} />
+                <XAxis type="number" tick={tick} />
+                <YAxis type="category" dataKey="name" width={88} tick={{ ...tick, fontSize: 10 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--overlay)",
+                    border: "1px solid var(--rim)",
+                    borderRadius: 12,
+                  }}
+                />
+                <Bar dataKey="value" fill={colors.accent} radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </section>
 
       <section className={`${cardClass} p-4`}>
@@ -107,13 +153,19 @@ export function ReflectCharts({
         <div className="mt-2 h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeExpense}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.35} />
+              <XAxis dataKey="month" tick={tick} />
+              <YAxis tick={tick} />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--overlay)",
+                  border: "1px solid var(--rim)",
+                  borderRadius: 12,
+                }}
+              />
               <Legend />
-              <Bar dataKey="income" fill="#10b981" name="Income" />
-              <Bar dataKey="expense" fill="#f43f5e" name="Expense" />
+              <Bar dataKey="income" fill={colors.ok} name="Income" />
+              <Bar dataKey="expense" fill={colors.danger} name="Expense" />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -124,14 +176,26 @@ export function ReflectCharts({
         <div className="mt-2 h-56 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={netWorth}>
-              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.35} />
+              <XAxis dataKey="month" tick={tick} />
+              <YAxis tick={tick} />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--overlay)",
+                  border: "1px solid var(--rim)",
+                  borderRadius: 12,
+                }}
+              />
               <Legend />
               <Line type="monotone" dataKey="assets" stroke="#3b82f6" name="Assets" />
-              <Line type="monotone" dataKey="debts" stroke="#f43f5e" name="Debts" />
-              <Line type="monotone" dataKey="net" stroke="#10b981" name="Net" strokeWidth={2} />
+              <Line type="monotone" dataKey="debts" stroke={colors.danger} name="Debts" />
+              <Line
+                type="monotone"
+                dataKey="net"
+                stroke={colors.accent}
+                name="Net"
+                strokeWidth={2}
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>

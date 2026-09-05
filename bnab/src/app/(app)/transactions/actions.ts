@@ -196,7 +196,147 @@ export async function toggleCleared(formData: FormData) {
     data: { cleared: !txn.cleared },
   });
   revalidatePath(`/accounts/${txn.accountId}`);
+  revalidatePath(`/transactions/${id}`);
   return;
+}
+
+export async function updateTransaction(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const parsed = txnSchema.omit({ accountId: true }).extend({
+    accountId: z.string().min(1).optional(),
+  }).safeParse({
+    accountId: formData.get("accountId") || undefined,
+    date: formData.get("date") || todayISO(),
+    amount: formData.get("amount"),
+    payee: formData.get("payee") ?? "",
+    categoryId: formData.get("categoryId") ?? "",
+    notes: formData.get("notes") ?? "",
+    inflow: formData.get("inflow") ?? "",
+    transferToId: formData.get("transferToId") ?? "",
+    cleared: formData.get("cleared") ?? "",
+  });
+  if (!parsed.success || !id) return;
+
+  const txn = await prisma.transaction.findFirst({
+    where: { id, account: { budgetId: budget.id }, isChild: false },
+    include: { account: true },
+  });
+  if (!txn) return;
+
+  // Split parents: only memo/date/cleared for v1
+  if (txn.isParent) {
+    await prisma.transaction.update({
+      where: { id },
+      data: {
+        date: parsed.data.date,
+        notes: parsed.data.notes || null,
+        cleared: parsed.data.cleared === "on" || parsed.data.cleared === "1",
+      },
+    });
+    revalidatePath(`/accounts/${txn.accountId}`);
+    revalidatePath(`/transactions/${id}`);
+    revalidatePath("/plan");
+    redirect(`/accounts/${txn.accountId}`);
+  }
+
+  const abs = parseMoneyInput(parsed.data.amount);
+  if (abs === null || abs === 0) return;
+
+  const isInflow = parsed.data.inflow === "1" || parsed.data.inflow === "on";
+  const cleared = parsed.data.cleared === "on" || parsed.data.cleared === "1";
+
+  if (txn.transferTwinId) {
+    const twin = await prisma.transaction.findFirst({
+      where: { id: txn.transferTwinId, account: { budgetId: budget.id } },
+    });
+    if (!twin) return;
+    const outAmount = -Math.abs(abs);
+    const inAmount = Math.abs(abs);
+    await prisma.$transaction([
+      prisma.transaction.update({
+        where: { id: txn.id },
+        data: {
+          date: parsed.data.date,
+          amount: outAmount,
+          notes: parsed.data.notes || null,
+          cleared,
+          payeeId: null,
+          categoryId: null,
+        },
+      }),
+      prisma.transaction.update({
+        where: { id: twin.id },
+        data: {
+          date: parsed.data.date,
+          amount: inAmount,
+          notes: parsed.data.notes || null,
+          cleared,
+        },
+      }),
+    ]);
+    revalidatePath(`/accounts/${txn.accountId}`);
+    revalidatePath(`/accounts/${twin.accountId}`);
+    revalidatePath(`/transactions/${id}`);
+    revalidatePath("/plan");
+    revalidatePath("/reflect");
+    redirect(`/accounts/${txn.accountId}`);
+  }
+
+  const categoryId = parsed.data.categoryId || null;
+  const payee = await upsertPayee(budget.id, parsed.data.payee ?? "", categoryId);
+  const signed = isInflow ? Math.abs(abs) : -Math.abs(abs);
+
+  await prisma.transaction.update({
+    where: { id },
+    data: {
+      date: parsed.data.date,
+      amount: signed,
+      payeeId: payee?.id ?? null,
+      categoryId,
+      notes: parsed.data.notes || null,
+      cleared,
+    },
+  });
+
+  revalidatePath(`/accounts/${txn.accountId}`);
+  revalidatePath(`/transactions/${id}`);
+  revalidatePath("/plan");
+  revalidatePath("/reflect");
+  redirect(`/accounts/${txn.accountId}`);
+}
+
+export async function deleteTransaction(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const txn = await prisma.transaction.findFirst({
+    where: { id, account: { budgetId: budget.id }, isChild: false },
+  });
+  if (!txn) return;
+
+  const accountId = txn.accountId;
+
+  await prisma.$transaction(async (tx) => {
+    if (txn.isParent) {
+      await tx.transaction.deleteMany({ where: { parentId: id } });
+    }
+    if (txn.transferTwinId) {
+      await tx.transaction.updateMany({
+        where: { id: { in: [id, txn.transferTwinId] } },
+        data: { transferTwinId: null },
+      });
+      await tx.transaction.deleteMany({
+        where: { id: { in: [id, txn.transferTwinId] } },
+      });
+      return;
+    }
+    await tx.transaction.delete({ where: { id } });
+  });
+
+  revalidatePath(`/accounts/${accountId}`);
+  revalidatePath("/plan");
+  revalidatePath("/reflect");
+  redirect(`/accounts/${accountId}`);
 }
 
 export async function reconcileAccount(formData: FormData) {

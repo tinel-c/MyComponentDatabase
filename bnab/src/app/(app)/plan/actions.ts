@@ -202,5 +202,37 @@ export async function toggleAccountClosed(formData: FormData) {
     data: { closed: !acct.closed },
   });
   revalidatePath("/accounts");
+  revalidatePath(`/accounts/${id}`);
+  return;
+}
+
+export async function renameAccount(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  if (!id || !name || name.length > 80) return;
+
+  const acct = await prisma.financeAccount.findFirst({
+    where: { id, budgetId: budget.id },
+  });
+  if (!acct) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.financeAccount.update({
+      where: { id },
+      data: { name },
+    });
+    if (acct.creditCategoryId) {
+      await tx.category.update({
+        where: { id: acct.creditCategoryId },
+        data: { name: `Payment: ${name}` },
+      });
+    }
+  });
+
+  revalidatePath("/accounts");
+  revalidatePath(`/accounts/${id}`);
+  revalidatePath("/plan");
+  revalidatePath("/more/categories");
   return;
 }
