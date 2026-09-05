@@ -104,6 +104,7 @@ npm_install_with_progress() {
       size="$(du -sh node_modules 2>/dev/null | awk '{print $1}')"
       last_ts="$(stat -c %Y "$last_line_file" 2>/dev/null || echo "$start_ts")"
       last_age=$((now - last_ts))
+      if [[ "$last_age" -lt 0 ]]; then last_age=0; fi
       printf 'phase=installing elapsed=%ss pkgs=%s size=%s last_line_age=%ss updated=%s\n' \
         "$elapsed" "${dirs:-0}" "${size:-0}" "$last_age" "$(date -u +%H:%M:%S)" >"$status_file"
       printf '[deploy-bnab][heartbeat +%ss] pkgs=%s node_modules=%s last_npm_line=%ss_ago\n' \
@@ -121,10 +122,13 @@ npm_install_with_progress() {
     npm_bin=(stdbuf -oL -eL npm)
   fi
 
+  # Low-RAM VPS: limit parallel fetches so install doesn't thrash swap into a silent hang.
   set +e
   NPM_CONFIG_PROGRESS=false \
   NPM_CONFIG_COLOR=false \
+  NPM_CONFIG_MAXSOCKETS=3 \
   CI=true \
+  NODE_OPTIONS="${NODE_OPTIONS:-} --max-old-space-size=384" \
   "${npm_bin[@]}" install \
     --no-audit \
     --no-fund \
@@ -135,6 +139,7 @@ npm_install_with_progress() {
     --fetch-retries=5 \
     --fetch-retry-mintimeout=20000 \
     --fetch-retry-maxtimeout=120000 \
+    --maxsockets=3 \
     2>&1 | while IFS= read -r line || [[ -n "$line" ]]; do
       # Touch marker so heartbeat can detect silence.
       : >"$last_line_file"

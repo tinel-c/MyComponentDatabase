@@ -107,6 +107,8 @@ tail -f /opt/bnab/green/bnab/.deploy-npm-status
 
 If `pkgs`/`size` stop growing and `STALL?` appears, kill npm under that slot and retry after `rm -rf node_modules`.
 
+On a **1 GB RAM** VPS, install uses `--maxsockets=3` and a capped Node heap. If swap is full (`free -h`), stop other heavy processes (or wait) before retrying — thrashing looks like a silent hang even with heartbeats.
+
 ## CI
 
 [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) job **bnab**: migrate, unit tests (`budget-engine`), production build.
