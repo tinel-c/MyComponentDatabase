@@ -8,6 +8,7 @@ Thumbs.db
 !.env.example
 deploy/.env.deploy
 deploy/deploy.secrets
+deploy/google-oauth.secrets
 
 # SQLite (optional local DB outside web/)
 *.db
@@ -21,3 +22,7 @@ deploy/deploy.secrets
 # Logs
 *.log
 npm-debug.log*
+
+# Local BNAB upload artifact
+bnab/.next-upload.tgz
+bnab/.next/
