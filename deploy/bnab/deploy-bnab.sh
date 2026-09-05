@@ -68,17 +68,69 @@ ln -sfn "$SHARED_ENV" "${APP_DIR}/.env"
 export DATABASE_URL="file:${SHARED_DB}"
 cd "$APP_DIR"
 
-log "clean node_modules (+ leftover .package-lock.json caches)"
+log "clean node_modules (+ leftover caches)"
 rm -rf node_modules
 rm -f package-lock.json.bak
 
-log "npm install (verbose)"
-# --loglevel verbose: progress + package fetch details (helps diagnose VPS hangs)
-# --foreground-scripts: show lifecycle script output inline
-npm install --no-audit --no-fund --legacy-peer-deps \
-  --loglevel verbose \
-  --foreground-scripts \
-  --progress=true
+log "npm install (line logs + heartbeat every 15s)"
+# Spinners/progress bars look "stuck" over SSH. Use line-based logs + heartbeat.
+# Heartbeat prints node_modules growth so you can tell install is alive.
+npm_install_with_progress() {
+  local hb_pid=""
+  local start_ts
+  start_ts="$(date +%s)"
+
+  (
+    while true; do
+      sleep 15
+      local now elapsed dirs size
+      now="$(date +%s)"
+      elapsed=$((now - start_ts))
+      dirs="$(find node_modules -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+      size="$(du -sh node_modules 2>/dev/null | awk '{print $1}')"
+      printf '[deploy-bnab][heartbeat +%ss] top-level pkgs=%s node_modules=%s\n' \
+        "$elapsed" "${dirs:-0}" "${size:-0}"
+    done
+  ) &
+  hb_pid=$!
+
+  # Disable ANSI progress spinner; force readable line output.
+  # loglevel=info: http fetches + added packages as lines (not spinner).
+  local npm_bin=(npm)
+  if command -v stdbuf >/dev/null 2>&1; then
+    npm_bin=(stdbuf -oL -eL npm)
+  fi
+
+  set +e
+  NPM_CONFIG_PROGRESS=false \
+  NPM_CONFIG_COLOR=false \
+  CI=true \
+  "${npm_bin[@]}" install \
+    --no-audit \
+    --no-fund \
+    --legacy-peer-deps \
+    --loglevel info \
+    --foreground-scripts \
+    --timing \
+    --fetch-retries=5 \
+    --fetch-retry-mintimeout=20000 \
+    --fetch-retry-maxtimeout=120000 \
+    2>&1 | while IFS= read -r line || [[ -n "$line" ]]; do
+      printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$line"
+    done
+  local npm_rc=${PIPESTATUS[0]}
+  set -e
+
+  kill "$hb_pid" 2>/dev/null || true
+  wait "$hb_pid" 2>/dev/null || true
+
+  if [[ "$npm_rc" -ne 0 ]]; then
+    die "npm install failed (exit $npm_rc) — if heartbeats stopped updating, install was stuck"
+  fi
+  log "npm install finished in $(( $(date +%s) - start_ts ))s"
+}
+
+npm_install_with_progress
 
 log "prisma migrate deploy"
 npx prisma migrate deploy

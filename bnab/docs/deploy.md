@@ -87,7 +87,9 @@ Or on the VPS:
 bash /opt/bnab/blue/deploy/bnab/deploy-bnab.sh
 ```
 
-`deploy-bnab.sh` updates the **inactive** slot, `npm ci`, `prisma migrate deploy`, `npm run build`, switches nginx upstream (ports 3010/3011), stops the previous PM2 process.
+`deploy-bnab.sh` updates the **inactive** slot, runs a **verbose** `npm install` (timestamped lines + heartbeat every 15s showing `node_modules` growth), `prisma migrate deploy`, `npm run build`, switches nginx upstream (ports 3010/3011), stops the previous PM2 process.
+
+If heartbeats freeze (same pkg count for several minutes), install is stuck — kill `npm` and retry after `rm -rf node_modules`.
 
 ## CI
 
