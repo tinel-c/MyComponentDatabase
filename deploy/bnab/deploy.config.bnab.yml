@@ -1,0 +1,26 @@
+# BNAB deployment — non-sensitive values
+server:
+  host: bnab.bogza.ro
+  user: deploy
+  port: 22
+  app_root: /opt/bnab
+
+app:
+  repo: https://github.com/tinel-c/MyComponentDatabase.git
+  branch: main
+  node_version: "20"
+  app_subdir: bnab
+
+slots:
+  blue:
+    port: 3010
+    pm2_name: bnab-blue
+  green:
+    port: 3011
+    pm2_name: bnab-green
+
+paths:
+  shared: /opt/bnab/shared
+  active_slot_file: /opt/bnab/active_slot
+  nginx_site: /etc/nginx/sites-available/bnab
+  nginx_upstream_include: /opt/bnab/nginx-active-upstream.conf

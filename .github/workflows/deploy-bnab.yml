@@ -1,0 +1,36 @@
+name: Deploy BNAB
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bnab/**"
+      - "deploy/bnab/**"
+      - ".github/workflows/deploy-bnab.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sshpass
+        run: sudo apt-get update -y && sudo apt-get install -y sshpass
+
+      - name: SSH deploy BNAB
+        env:
+          SSHPASS: ${{ secrets.DEPLOY_SSH_PASSWORD }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_PORT: ${{ secrets.DEPLOY_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          PORT="${DEPLOY_SSH_PORT:-22}"
+          sshpass -e ssh \
+            -p "$PORT" \
+            -o StrictHostKeyChecking=accept-new \
+            -o PreferredAuthentications=password \
+            -o PubkeyAuthentication=no \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            'bash -s' < deploy/bnab/deploy-bnab.sh

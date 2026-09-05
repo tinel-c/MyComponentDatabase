@@ -7,12 +7,16 @@ Web application to **register and track parts and components** for a hobby wareh
 ## Documentation
 
 - **[IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)** — researched features, technology choices, data model outline, and phased implementation steps.
+- **[BNAB_IMPLEMENTATION_PLAN.md](./BNAB_IMPLEMENTATION_PLAN.md)** — Bogza Needs A Budget (envelope budgeting at bnab.bogza.ro); details in [`bnab/docs/`](./bnab/docs/README.md).
 
 ## Application code
 
-The Next.js app lives in **`web/`**.
+| App | Path | Domain |
+|-----|------|--------|
+| Hobby Warehouse (parts) | [`web/`](./web/) | part-db.bogza.ro |
+| BNAB (budget) | [`bnab/`](./bnab/) | bnab.bogza.ro |
 
-### Setup
+### Setup (parts tracker)
 
 1. Copy `web/.env.example` to `web/.env` and fill in values (see **Authentication** below).
 2. Install dependencies (Next.js 16 may need `npm install --legacy-peer-deps` if npm reports peer conflicts):
@@ -52,6 +56,24 @@ Open [http://localhost:3000](http://localhost:3000). Sign in from **Sign in** on
 - **Member:** sees only parts whose **category** falls under assigned categories; categories/locations are read-only (locations shown for reference).
 
 PostgreSQL is optional: use `docker compose up -d` from the repo root, then point `DATABASE_URL` at Postgres and set `provider = "postgresql"` in `web/prisma/schema.prisma` before running migrations.
+
+### Setup (BNAB budget app)
+
+1. Copy `bnab/.env.example` to `bnab/.env` and set `AUTH_*`, `ADMIN_EMAIL`, and `DATABASE_URL`.
+2. Add Google OAuth redirect URI `{AUTH_URL}/api/auth/callback/google` (local: `http://localhost:3010/api/auth/callback/google`).
+3. Install and migrate:
+
+```bash
+cd bnab
+npm install
+npx prisma migrate dev
+npx prisma db seed
+npm run dev
+```
+
+Open [http://localhost:3010](http://localhost:3010). Invite a second household member under **More → Team**.
+
+Production: separate stack at `/opt/bnab` + `bnab.bogza.ro` — see [`bnab/docs/deploy.md`](./bnab/docs/deploy.md) and [`deploy/bnab/`](./deploy/bnab/).
 
 ## License
 

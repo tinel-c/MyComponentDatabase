@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum MemberRole {
+  ADMIN
+  EDITOR
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CASH
+  CREDIT_CARD
+  TRACKING_ASSET
+  TRACKING_LIABILITY
+}
+
+enum TargetType {
+  MONTHLY_SPENDING
+  NEEDED_BY_DATE
+  WEEKLY
+  SAVINGS_BALANCE
+}
+
+enum Recurrence {
+  ONCE
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  YEARLY
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String?
+  email         String?        @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role           @default(USER)
+  accounts      Account[]
+  sessions      Session[]
+  memberships   BudgetMember[]
+}
+
+/** Auth.js OAuth account (not a bank account). */
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Budget {
+  id          String                 @id @default(cuid())
+  name        String
+  currency    String                 @default("RON")
+  firstMonth  String
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  members     BudgetMember[]
+  accounts    FinanceAccount[]
+  groups      CategoryGroup[]
+  payees      Payee[]
+  monthMetas  MonthMeta[]
+  schedules   ScheduledTransaction[]
+}
+
+model BudgetMember {
+  id       String     @id @default(cuid())
+  budgetId String
+  userId   String
+  role     MemberRole @default(EDITOR)
+  budget   Budget     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetId, userId])
+}
+
+/** Bank / cash / credit / tracking account. */
+model FinanceAccount {
+  id               String        @id @default(cuid())
+  budgetId         String
+  name             String
+  type             AccountType
+  onBudget         Boolean       @default(true)
+  closed           Boolean       @default(false)
+  note             String?
+  sortOrder        Float         @default(0)
+  creditCategoryId String?       @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  budget           Budget        @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  creditCategory   Category?     @relation("CreditPaymentCategory", fields: [creditCategoryId], references: [id], onDelete: SetNull)
+  transactions     Transaction[]
+  schedules        ScheduledTransaction[]
+
+  @@index([budgetId])
+}
+
+model CategoryGroup {
+  id        String     @id @default(cuid())
+  budgetId  String
+  name      String
+  isIncome  Boolean    @default(false)
+  hidden    Boolean    @default(false)
+  sortOrder Float      @default(0)
+  budget    Budget     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  categories Category[]
+
+  @@index([budgetId])
+}
+
+model Category {
+  id        String                 @id @default(cuid())
+  groupId   String
+  name      String
+  isIncome  Boolean                @default(false)
+  hidden    Boolean                @default(false)
+  isSystem  Boolean                @default(false)
+  systemKey String?
+  note      String?
+  sortOrder Float                  @default(0)
+  group     CategoryGroup          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  monthly   MonthlyCategoryBudget[]
+  targets   CategoryTarget[]
+  transactions Transaction[]
+  payees    Payee[]
+  creditAccount FinanceAccount?    @relation("CreditPaymentCategory")
+  schedules ScheduledTransaction[]
+
+  @@index([groupId])
+}
+
+model MonthlyCategoryBudget {
+  id         String   @id @default(cuid())
+  categoryId String
+  month      String
+  assigned   Int      @default(0)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, month])
+  @@index([month])
+}
+
+model CategoryTarget {
+  id         String     @id @default(cuid())
+  categoryId String
+  type       TargetType
+  amount     Int
+  dueDay     Int?
+  dueDate    String?
+  category   Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+}
+
+model Payee {
+  id             String        @id @default(cuid())
+  budgetId       String
+  name           String
+  lastCategoryId String?
+  budget         Budget        @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  lastCategory   Category?     @relation(fields: [lastCategoryId], references: [id], onDelete: SetNull)
+  transactions   Transaction[]
+  schedules      ScheduledTransaction[]
+
+  @@unique([budgetId, name])
+  @@index([budgetId])
+}
+
+model Transaction {
+  id                String        @id @default(cuid())
+  accountId         String
+  date              String
+  amount            Int
+  payeeId           String?
+  categoryId        String?
+  notes             String?
+  cleared           Boolean       @default(false)
+  reconciled        Boolean       @default(false)
+  isParent          Boolean       @default(false)
+  isChild           Boolean       @default(false)
+  parentId          String?
+  transferTwinId    String?
+  isStartingBalance Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  account           FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  payee             Payee?        @relation(fields: [payeeId], references: [id], onDelete: SetNull)
+  category          Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  parent            Transaction?  @relation("SplitChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children          Transaction[] @relation("SplitChildren")
+
+  @@index([accountId, date])
+  @@index([categoryId, date])
+  @@index([parentId])
+  @@index([transferTwinId])
+}
+
+model ScheduledTransaction {
+  id             String     @id @default(cuid())
+  budgetId       String
+  accountId      String
+  payeeId        String?
+  categoryId     String?
+  amount         Int
+  notes          String?
+  nextDate       String
+  recurrence     Recurrence @default(MONTHLY)
+  transferToId   String?
+  active         Boolean    @default(true)
+  budget         Budget     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  account        FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  payee          Payee?         @relation(fields: [payeeId], references: [id], onDelete: SetNull)
+  category       Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([budgetId, nextDate])
+}
+
+model MonthMeta {
+  id              String  @id @default(cuid())
+  budgetId        String
+  month           String
+  notes           String?
+  holdForNextMonth Boolean @default(false)
+  heldAmount      Int     @default(0)
+  budget          Budget  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetId, month])
+}

@@ -1,0 +1,131 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutGrid,
+  PiggyBank,
+  Plus,
+  BarChart3,
+  MoreHorizontal,
+} from "lucide-react";
+
+const tabs: {
+  href: string;
+  label: string;
+  icon: typeof LayoutGrid;
+  fab?: boolean;
+}[] = [
+  { href: "/plan", label: "Plan", icon: LayoutGrid },
+  { href: "/accounts", label: "Accounts", icon: PiggyBank },
+  { href: "/transactions/new", label: "Add", icon: Plus, fab: true },
+  { href: "/reflect", label: "Reflect", icon: BarChart3 },
+  { href: "/more", label: "More", icon: MoreHorizontal },
+];
+
+export function AppChrome({
+  children,
+  budgetName,
+}: {
+  children: React.ReactNode;
+  budgetName: string;
+}) {
+  const pathname = usePathname();
+
+  return (
+    <div className="flex min-h-dvh flex-col md:flex-row">
+      <aside className="hidden w-56 shrink-0 border-r border-rim/60 bg-surface md:flex md:flex-col">
+        <div className="border-b border-rim/60 px-5 py-5">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-fg-subtle">
+            BNAB
+          </p>
+          <p className="mt-1 truncate text-sm font-medium text-fg">{budgetName}</p>
+        </div>
+        <nav className="flex flex-1 flex-col gap-1 p-3">
+          {tabs.map(({ href, label, icon: Icon, fab }) => {
+            if (fab) return null;
+            const active = pathname === href || pathname.startsWith(href + "/");
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-accent-muted text-accent"
+                    : "text-fg-muted hover:bg-overlay hover:text-fg"
+                }`}
+              >
+                <Icon className="size-5" />
+                {label}
+              </Link>
+            );
+          })}
+          <Link
+            href="/transactions/new"
+            className="mt-2 flex items-center justify-center gap-2 rounded-full bg-accent px-3 py-2.5 text-sm font-medium text-accent-fg hover:bg-accent-hover"
+          >
+            <Plus className="size-4" />
+            Add transaction
+          </Link>
+          <Link
+            href="/more"
+            className={`mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${
+              pathname.startsWith("/more")
+                ? "bg-accent-muted text-accent"
+                : "text-fg-muted hover:bg-overlay hover:text-fg"
+            }`}
+          >
+            <MoreHorizontal className="size-5" />
+            More
+          </Link>
+        </nav>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
+        <header className="sticky top-0 z-30 flex h-14 items-center border-b border-rim/60 bg-canvas/90 px-4 backdrop-blur md:hidden">
+          <p className="text-sm font-semibold tracking-tight text-fg">BNAB</p>
+          <p className="ml-2 truncate text-sm text-fg-muted">{budgetName}</p>
+        </header>
+        <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-4 sm:px-6 md:px-8 md:py-8">
+          {children}
+        </main>
+      </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-rim/60 bg-surface/95 backdrop-blur md:hidden">
+        <ul className="mx-auto flex max-w-lg items-end justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
+          {tabs.map(({ href, label, icon: Icon, fab }) => {
+            const active =
+              pathname === href ||
+              (href !== "/plan" && pathname.startsWith(href));
+            if (fab) {
+              return (
+                <li key={href} className="-mt-5">
+                  <Link
+                    href={href}
+                    className="flex size-14 items-center justify-center rounded-full bg-accent text-accent-fg shadow-lg shadow-black/20"
+                    aria-label="Add transaction"
+                  >
+                    <Icon className="size-7" />
+                  </Link>
+                </li>
+              );
+            }
+            return (
+              <li key={href}>
+                <Link
+                  href={href}
+                  className={`flex min-w-[4.25rem] flex-col items-center gap-0.5 px-2 py-2 text-[10px] font-medium ${
+                    active ? "text-accent" : "text-fg-muted"
+                  }`}
+                >
+                  <Icon className="size-5" />
+                  {label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
+  );
+}

@@ -106,15 +106,27 @@ Requires `pip install paramiko` once.
 
 | File | Role |
 |------|------|
-| `deploy.sh` | Blue-green deploy on the VPS (called by GitHub Actions over SSH). |
-| `reset-all-slots-to-origin.sh` | Emergency reset of both slots to `origin/main`. |
-| `setup-server.sh` | Initial server layout. |
-| `deploy.config.yml` | Non-sensitive host/paths/ports/repo URL. |
+| `deploy.sh` | Blue-green deploy for **Hobby Warehouse** (`web/`, `/opt/warehouse`). |
+| `bnab/deploy-bnab.sh` | Blue-green deploy for **BNAB** (`bnab/`, `/opt/bnab`, ports 3010/3011). |
+| `bnab/setup-bnab-server.sh` | One-time BNAB VPS bootstrap + nginx site. |
+| `bnab/nginx-site.conf` | nginx `server_name bnab.bogza.ro`. |
+| `bnab/deploy.config.bnab.yml` | Non-sensitive BNAB host/paths/ports. |
+| `reset-all-slots-to-origin.sh` | Emergency reset of warehouse slots to `origin/main`. |
+| `setup-server.sh` | Initial warehouse server layout. |
+| `deploy.config.yml` | Non-sensitive warehouse host/paths/ports/repo URL. |
 | `deploy.secrets.example` | Template for GitHub Secrets and local `deploy.secrets`. |
 | `deploy.secrets` | **Local only** — real credentials; gitignored. |
-| `ssh_reset_slots.py` | Optional: reset both slots via SSH using Paramiko (no `sshpass`). |
+| `ssh_reset_slots.py` | Optional: reset warehouse slots via SSH using Paramiko (no `sshpass`). |
+
+## BNAB (bnab.bogza.ro)
+
+Separate app and database. Full steps: [`bnab/docs/deploy.md`](../bnab/docs/deploy.md).
+
+- **CI:** job `bnab` in `.github/workflows/ci.yml`
+- **Deploy:** `.github/workflows/deploy-bnab.yml` on pushes that touch `bnab/**` or `deploy/bnab/**`
+- Reuses the same GitHub Secrets (`DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_PASSWORD`)
 
 ## GitHub Actions
 
 - Required repository secrets match the names in `deploy.secrets.example`.
-- **CI** should be the required check for merges; **Deploy** can still fail for SSH or server-only issues while CI stays green.
+- **CI** should be the required check for merges; **Deploy** / **Deploy BNAB** can still fail for SSH or server-only issues while CI stays green.

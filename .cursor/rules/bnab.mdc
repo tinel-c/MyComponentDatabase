@@ -1,0 +1,13 @@
+---
+description: BNAB mobile-first envelope budgeting conventions
+globs: bnab/**/*.{tsx,ts,css}
+---
+
+# BNAB — Agent Rules
+
+- Use semantic theme tokens (`bg-canvas`, `bg-surface`, `text-fg`, `bg-accent`, …) — never hardcoded zinc/emerald/white.
+- Amounts are integer **minor units** (bani); format via `formatMoney` / parse via `parseMoneyInput`.
+- Envelope Available is **derived** by `lib/budget-engine` — do not persist Available.
+- Financial accounts are `FinanceAccount` (Auth.js owns model `Account`).
+- Prefer mobile-first layouts: bottom tabs, large touch targets, sticky Ready to Assign.
+- Keep docs in `bnab/docs/` in sync when changing engine math or deploy paths.
