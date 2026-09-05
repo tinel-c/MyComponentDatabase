@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowLeftRight, Search } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { formatMoney } from "@/lib/money";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -11,7 +10,7 @@ import {
   labelClass,
 } from "@/components/forms/field-classes";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ClearToggle } from "@/components/accounts/ClearToggle";
+import { TransactionsRegister } from "@/components/transactions/TransactionsRegister";
 
 const PAGE_SIZE = 50;
 
@@ -31,10 +30,25 @@ export default async function TransactionsPage({
   const pageNum = Math.max(1, Number(sp.page ?? "1") || 1);
   const take = pageNum * PAGE_SIZE;
 
-  const accounts = await prisma.financeAccount.findMany({
-    where: { budgetId: budget.id },
-    orderBy: [{ closed: "asc" }, { sortOrder: "asc" }],
-  });
+  const [accounts, groups, payees] = await Promise.all([
+    prisma.financeAccount.findMany({
+      where: { budgetId: budget.id },
+      orderBy: [{ closed: "asc" }, { sortOrder: "asc" }],
+    }),
+    prisma.categoryGroup.findMany({
+      where: { budgetId: budget.id, hidden: false },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        categories: { where: { hidden: false }, orderBy: { sortOrder: "asc" } },
+      },
+    }),
+    prisma.payee.findMany({
+      where: { budgetId: budget.id },
+      orderBy: { name: "asc" },
+      take: 100,
+      select: { name: true },
+    }),
+  ]);
 
   const where = {
     isChild: false,
@@ -68,10 +82,42 @@ export default async function TransactionsPage({
     prisma.transaction.count({ where }),
   ]);
 
+  const twinIds = transactions
+    .map((t) => t.transferTwinId)
+    .filter((id): id is string => Boolean(id));
+  const twins =
+    twinIds.length > 0
+      ? await prisma.transaction.findMany({
+          where: { id: { in: twinIds } },
+          include: { account: true },
+        })
+      : [];
+  const twinById = new Map(twins.map((t) => [t.id, t]));
+
   const hasMore = transactions.length < count;
   const qs = new URLSearchParams();
   if (q) qs.set("q", q);
   if (accountId) qs.set("accountId", accountId);
+
+  const rows = transactions.map((t) => {
+    const twin = t.transferTwinId ? twinById.get(t.transferTwinId) : null;
+    const isTransfer = Boolean(t.transferTwinId);
+    return {
+      id: t.id,
+      accountId: t.accountId,
+      accountName: t.account.name,
+      date: t.date,
+      payee: t.payee?.name ?? "",
+      categoryId: t.categoryId ?? "",
+      notes: t.notes ?? "",
+      cleared: t.cleared,
+      absAmount: (Math.abs(t.amount) / 100).toFixed(2),
+      isInflow: t.amount > 0,
+      isSplit: t.isParent,
+      isTransfer,
+      transferLabel: twin?.account.name ?? null,
+    };
+  });
 
   return (
     <div className="space-y-4">
@@ -81,7 +127,7 @@ export default async function TransactionsPage({
             Transactions
           </h1>
           <p className="mt-1 text-sm text-fg-muted">
-            Tap a row to view or edit. {count} total
+            Spreadsheet register — edit cells inline. {count} total
             {q || accountId ? " (filtered)" : ""}.
           </p>
         </div>
@@ -90,7 +136,9 @@ export default async function TransactionsPage({
         </Link>
       </div>
 
-      <form className={`${cardClass} space-y-3 p-4`}>
+      <form
+        className={`${cardClass} grid gap-3 p-3 sm:grid-cols-[1fr_10rem_auto] sm:items-end`}
+      >
         <label className={labelClass}>
           Search
           <input
@@ -123,57 +171,31 @@ export default async function TransactionsPage({
         </button>
       </form>
 
-      <ul className={`${cardClass} divide-y divide-rim-subtle/60`}>
-        {transactions.length === 0 ? (
-          <li>
-            <EmptyState
-              icon={ArrowLeftRight}
-              title="No transactions found"
-              description={
-                q || accountId
-                  ? "Try clearing filters or add a new transaction."
-                  : "Add your first transaction with the + button."
-              }
-            />
-          </li>
-        ) : (
-          transactions.map((t) => {
-            const title = t.transferTwinId
-              ? "Transfer"
-              : t.payee?.name ??
-                t.notes ??
-                (t.isStartingBalance ? "Starting balance" : "Transaction");
-            return (
-              <li key={t.id}>
-                <div className="flex items-center gap-2 px-3 py-2.5">
-                  <ClearToggle id={t.id} cleared={t.cleared} />
-                  <Link
-                    href={`/transactions/${t.id}`}
-                    prefetch
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl py-1 active:bg-overlay/40"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-fg">{title}</p>
-                      <p className="truncate text-xs text-fg-subtle">
-                        {t.date} · {t.account.name}
-                        {t.category ? ` · ${t.category.name}` : ""}
-                        {t.isParent ? " · split" : ""}
-                      </p>
-                    </div>
-                    <p
-                      className={`shrink-0 tabular-nums font-medium ${
-                        t.amount < 0 ? "text-fg" : "text-ok"
-                      }`}
-                    >
-                      {formatMoney(t.amount, budget.currency)}
-                    </p>
-                  </Link>
-                </div>
-              </li>
-            );
-          })
-        )}
-      </ul>
+      {transactions.length === 0 ? (
+        <div className={cardClass}>
+          <EmptyState
+            icon={ArrowLeftRight}
+            title="No transactions found"
+            description={
+              q || accountId
+                ? "Try clearing filters or add a new transaction."
+                : "Add your first transaction with Add."
+            }
+          />
+        </div>
+      ) : (
+        <TransactionsRegister
+          rows={rows}
+          groups={groups.map((g) => ({
+            id: g.id,
+            name: g.name,
+            isIncome: g.isIncome,
+            categories: g.categories.map((c) => ({ id: c.id, name: c.name })),
+          }))}
+          payees={payees.map((p) => p.name)}
+          currency={budget.currency}
+        />
+      )}
 
       {hasMore ? (
         <Link

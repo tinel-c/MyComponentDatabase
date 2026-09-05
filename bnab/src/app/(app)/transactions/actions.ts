@@ -201,6 +201,21 @@ export async function toggleCleared(formData: FormData) {
   return;
 }
 
+function resolveReturnTo(
+  formData: FormData,
+  fallback: string,
+): "stay" | string {
+  const raw = String(formData.get("returnTo") ?? "").trim();
+  if (raw === "stay") return "stay";
+  if (raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  return fallback;
+}
+
+function finishMutation(returnTo: "stay" | string, fallback: string): void {
+  if (returnTo === "stay") return;
+  redirect(returnTo || fallback);
+}
+
 export async function updateTransaction(formData: FormData) {
   const { budget } = await requireBudgetAccess();
   const id = String(formData.get("id") ?? "");
@@ -225,6 +240,11 @@ export async function updateTransaction(formData: FormData) {
   });
   if (!txn) return;
 
+  const returnTo = resolveReturnTo(
+    formData,
+    `/accounts/${txn.accountId}`,
+  );
+
   // Split parents: only memo/date/cleared for v1
   if (txn.isParent) {
     await prisma.transaction.update({
@@ -239,7 +259,8 @@ export async function updateTransaction(formData: FormData) {
     revalidatePath(`/transactions/${id}`);
     revalidatePath("/transactions");
     revalidatePath("/plan");
-    redirect(`/accounts/${txn.accountId}`);
+    finishMutation(returnTo, `/accounts/${txn.accountId}`);
+    return;
   }
 
   const abs = parseMoneyInput(parsed.data.amount);
@@ -283,7 +304,8 @@ export async function updateTransaction(formData: FormData) {
     revalidatePath("/transactions");
     revalidatePath("/plan");
     revalidatePath("/reflect");
-    redirect(`/accounts/${txn.accountId}`);
+    finishMutation(returnTo, `/accounts/${txn.accountId}`);
+    return;
   }
 
   const categoryId = parsed.data.categoryId || null;
@@ -307,7 +329,7 @@ export async function updateTransaction(formData: FormData) {
   revalidatePath("/transactions");
   revalidatePath("/plan");
   revalidatePath("/reflect");
-  redirect(`/accounts/${txn.accountId}`);
+  finishMutation(returnTo, `/accounts/${txn.accountId}`);
 }
 
 export async function deleteTransaction(formData: FormData) {
@@ -319,6 +341,7 @@ export async function deleteTransaction(formData: FormData) {
   if (!txn) return;
 
   const accountId = txn.accountId;
+  const returnTo = resolveReturnTo(formData, `/accounts/${accountId}`);
 
   await prisma.$transaction(async (tx) => {
     if (txn.isParent) {
@@ -341,7 +364,11 @@ export async function deleteTransaction(formData: FormData) {
   revalidatePath("/transactions");
   revalidatePath("/plan");
   revalidatePath("/reflect");
-  redirect(`/accounts/${accountId}`);
+  if (returnTo === "stay") {
+    redirect("/transactions");
+    return;
+  }
+  redirect(returnTo || `/accounts/${accountId}`);
 }
 
 export async function reconcileAccount(formData: FormData) {

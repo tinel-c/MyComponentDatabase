@@ -110,7 +110,15 @@ export function AppChrome({
           <p className="text-sm font-semibold tracking-tight text-fg">BNAB</p>
           <p className="ml-2 truncate text-sm text-fg-muted">{budgetName}</p>
         </header>
-        <main className="mx-auto w-full max-w-3xl flex-1 px-3 py-4 sm:px-6 md:px-8 md:py-8">
+        <main
+          className={`mx-auto w-full flex-1 px-2 py-4 sm:px-4 md:px-6 md:py-8 ${
+            pathname === "/transactions" ||
+            (pathname.startsWith("/transactions/") &&
+              !pathname.startsWith("/transactions/new"))
+              ? "max-w-6xl"
+              : "max-w-3xl sm:px-6 md:px-8"
+          }`}
+        >
           {children}
         </main>
       </div>
