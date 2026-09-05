@@ -81,30 +81,42 @@ log "clean node_modules (+ leftover caches)"
 rm -rf node_modules
 rm -f package-lock.json.bak
 
-log "npm install (line logs + heartbeat every 15s)"
-# Spinners/progress bars look "stuck" over SSH. Use line-based logs + heartbeat.
-# Heartbeat prints node_modules growth so you can tell install is alive.
+log "npm install (timestamps + heartbeat; status file for stuck checks)"
+# Spinners look frozen over SSH. Emit timestamped lines + a heartbeat that tracks
+# node_modules growth. Also write APP_DIR/.deploy-npm-status for `tail -f`.
 npm_install_with_progress() {
   local hb_pid=""
-  local start_ts
+  local start_ts status_file last_line_file
   start_ts="$(date +%s)"
+  status_file="${APP_DIR}/.deploy-npm-status"
+  last_line_file="${APP_DIR}/.deploy-npm-last-line"
+  : >"$last_line_file"
+  printf 'phase=starting elapsed=0s pkgs=0 size=0 last_line_age=0s\n' >"$status_file"
+  log "progress: watch this file on the server → tail -f $status_file"
+  log "progress: heartbeats every 10s; STALL warning if no npm line for 60s"
 
   (
     while true; do
-      sleep 15
-      local now elapsed dirs size
+      sleep 10
+      local now elapsed dirs size last_age last_ts
       now="$(date +%s)"
       elapsed=$((now - start_ts))
       dirs="$(find node_modules -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
       size="$(du -sh node_modules 2>/dev/null | awk '{print $1}')"
-      printf '[deploy-bnab][heartbeat +%ss] top-level pkgs=%s node_modules=%s\n' \
-        "$elapsed" "${dirs:-0}" "${size:-0}"
+      last_ts="$(stat -c %Y "$last_line_file" 2>/dev/null || echo "$start_ts")"
+      last_age=$((now - last_ts))
+      printf 'phase=installing elapsed=%ss pkgs=%s size=%s last_line_age=%ss updated=%s\n' \
+        "$elapsed" "${dirs:-0}" "${size:-0}" "$last_age" "$(date -u +%H:%M:%S)" >"$status_file"
+      printf '[deploy-bnab][heartbeat +%ss] pkgs=%s node_modules=%s last_npm_line=%ss_ago\n' \
+        "$elapsed" "${dirs:-0}" "${size:-0}" "$last_age"
+      if [[ "$last_age" -ge 60 ]]; then
+        printf '[deploy-bnab][STALL?] no npm output for %ss — check network or kill stuck npm\n' "$last_age"
+      fi
     done
   ) &
   hb_pid=$!
 
-  # Disable ANSI progress spinner; force readable line output.
-  # loglevel=info: http fetches + added packages as lines (not spinner).
+  # Disable ANSI progress spinner; force line-buffered readable output.
   local npm_bin=(npm)
   if command -v stdbuf >/dev/null 2>&1; then
     npm_bin=(stdbuf -oL -eL npm)
@@ -125,6 +137,8 @@ npm_install_with_progress() {
     --fetch-retry-mintimeout=20000 \
     --fetch-retry-maxtimeout=120000 \
     2>&1 | while IFS= read -r line || [[ -n "$line" ]]; do
+      # Touch marker so heartbeat can detect silence.
+      : >"$last_line_file"
       printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$line"
     done
   local npm_rc=${PIPESTATUS[0]}
@@ -134,8 +148,11 @@ npm_install_with_progress() {
   wait "$hb_pid" 2>/dev/null || true
 
   if [[ "$npm_rc" -ne 0 ]]; then
-    die "npm install failed (exit $npm_rc) — if heartbeats stopped updating, install was stuck"
+    printf 'phase=failed elapsed=%ss\n' "$(( $(date +%s) - start_ts ))" >"$status_file"
+    die "npm install failed (exit $npm_rc) — if heartbeats stopped / STALL? appeared, install was stuck"
   fi
+  printf 'phase=done elapsed=%ss\n' "$(( $(date +%s) - start_ts ))" >"$status_file"
+  rm -f "$last_line_file"
   log "npm install finished in $(( $(date +%s) - start_ts ))s"
 }
 

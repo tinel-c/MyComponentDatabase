@@ -87,9 +87,25 @@ Or on the VPS:
 bash /opt/bnab/blue/deploy/bnab/deploy-bnab.sh
 ```
 
-`deploy-bnab.sh` updates the **inactive** slot, runs a **verbose** `npm install` (timestamped lines + heartbeat every 15s showing `node_modules` growth), `prisma migrate deploy`, `npm run build`, switches nginx upstream (ports 3010/3011), stops the previous PM2 process.
+`deploy-bnab.sh` updates the **inactive** slot, runs a **verbose** `npm install`, `prisma migrate deploy`, `npm run build`, switches nginx upstream (ports 3010/3011), stops the previous PM2 process.
 
-If heartbeats freeze (same pkg count for several minutes), install is stuck — kill `npm` and retry after `rm -rf node_modules`.
+### Watching `npm install` (progress vs stuck)
+
+During install the script prints:
+
+- `[HH:MM:SS] …` — each npm log line (spinner disabled)
+- `[deploy-bnab][heartbeat +Ns] pkgs=… node_modules=… last_npm_line=…s_ago` every **10s**
+- `[deploy-bnab][STALL?]` if no npm line for **60s**
+
+On the server you can also:
+
+```bash
+# Live status (pkgs / size / silence age) — written under the inactive slot’s bnab/
+tail -f /opt/bnab/green/bnab/.deploy-npm-status
+# or: /opt/bnab/blue/bnab/.deploy-npm-status
+```
+
+If `pkgs`/`size` stop growing and `STALL?` appears, kill npm under that slot and retry after `rm -rf node_modules`.
 
 ## CI
 
