@@ -19,6 +19,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
@@ -49,6 +50,10 @@ fun HomeRoute(
         topBar = {
             TopAppBar(
                 title = { Text("Hobby Warehouse") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -70,6 +75,7 @@ fun HomeRoute(
                 onValueChange = onBaseUrlChange,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                placeholder = { Text("http://10.0.2.2:3000") }
             )
             Spacer(modifier = Modifier.height(8.dp))
             Button(
@@ -116,25 +122,32 @@ fun HomeRoute(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            val loginUrl = remember(baseUrl) { "${baseUrl.trim().trimEnd('/')}/login" }
+            val loginUrl = remember(baseUrl) { 
+                val trimmed = baseUrl.trim().trimEnd('/')
+                if (trimmed.isEmpty()) "" else "$trimmed/login" 
+            }
             key(baseUrl) {
-                AndroidView(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                    factory = {
-                        WebView(context).apply {
-                            CookieManager.getInstance().setAcceptCookie(true)
-                            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            webChromeClient = WebChromeClient()
-                            webViewClient = WebViewClient()
-                            loadUrl(loginUrl)
-                        }
-                    },
-                )
+                if (loginUrl.isNotEmpty()) {
+                    AndroidView(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                        factory = {
+                            WebView(context).apply {
+                                CookieManager.getInstance().setAcceptCookie(true)
+                                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                webChromeClient = WebChromeClient()
+                                webViewClient = WebViewClient()
+                                loadUrl(loginUrl)
+                            }
+                        },
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }

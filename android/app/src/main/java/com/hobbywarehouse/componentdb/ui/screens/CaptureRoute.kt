@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
@@ -98,12 +100,16 @@ fun CaptureRoute(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Add photo") },
+                title = { Text("Add Photo") },
                 navigationIcon = {
                     TextButton(onClick = onBack) {
-                        Text("Cancel")
+                        Text("Cancel", color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
             )
         },
         snackbarHost = { SnackbarHost(snackbar) },
@@ -163,7 +169,7 @@ fun CaptureRoute(
                         .align(Alignment.BottomCenter)
                         .padding(24.dp),
             ) {
-                Text("Capture & upload")
+                Text("Capture & Upload")
             }
         }
     }

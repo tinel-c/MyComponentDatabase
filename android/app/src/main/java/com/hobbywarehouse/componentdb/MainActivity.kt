@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.hobbywarehouse.componentdb.data.SettingsRepository
@@ -18,7 +19,10 @@ class MainActivity : ComponentActivity() {
         val settings = SettingsRepository(applicationContext)
         setContent {
             ComponentDbTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                ) {
                     AppNavigation(settings = settings)
                 }
             }
