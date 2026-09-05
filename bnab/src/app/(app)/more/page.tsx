@@ -9,6 +9,11 @@ import { logoutAction } from "./actions";
 import { ThemeSelector } from "@/components/ui/ThemeSelector";
 
 const links = [
+  {
+    href: "/transactions",
+    label: "All transactions",
+    desc: "Search, view, and edit spending",
+  },
   { href: "/more/team", label: "Team", desc: "Invite your household partner" },
   { href: "/more/categories", label: "Categories & targets", desc: "Organize envelopes" },
   { href: "/more/payees", label: "Payees", desc: "Merchant list" },

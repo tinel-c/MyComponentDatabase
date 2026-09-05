@@ -40,6 +40,13 @@ export default async function AccountsPage() {
         <p className="mt-1 text-sm text-fg-muted">
           On-budget balances feed Ready to Assign. Tracking accounts are for net worth.
         </p>
+        <Link
+          href="/transactions"
+          prefetch
+          className="mt-2 inline-block text-sm text-accent hover:underline"
+        >
+          View all transactions →
+        </Link>
       </div>
 
       {accounts.length === 0 ? (

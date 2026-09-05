@@ -8,6 +8,7 @@ import {
   Plus,
   BarChart3,
   MoreHorizontal,
+  ArrowLeftRight,
 } from "lucide-react";
 
 const tabs: {
@@ -21,6 +22,17 @@ const tabs: {
   { href: "/transactions/new", label: "Add", icon: Plus, fab: true },
   { href: "/reflect", label: "Reflect", icon: BarChart3 },
   { href: "/more", label: "More", icon: MoreHorizontal },
+];
+
+const desktopLinks: {
+  href: string;
+  label: string;
+  icon: typeof LayoutGrid;
+}[] = [
+  { href: "/plan", label: "Plan", icon: LayoutGrid },
+  { href: "/accounts", label: "Accounts", icon: PiggyBank },
+  { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/reflect", label: "Reflect", icon: BarChart3 },
 ];
 
 export function AppChrome({
@@ -49,9 +61,13 @@ export function AppChrome({
           <p className="mt-1 truncate text-sm font-medium text-fg">{budgetName}</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
-          {tabs.map(({ href, label, icon: Icon, fab }) => {
-            if (fab) return null;
-            const active = pathname === href || pathname.startsWith(href + "/");
+          {desktopLinks.map(({ href, label, icon: Icon }) => {
+            const active =
+              href === "/transactions"
+                ? pathname === "/transactions" ||
+                  (pathname.startsWith("/transactions/") &&
+                    !pathname.startsWith("/transactions/new"))
+                : pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}
@@ -102,9 +118,12 @@ export function AppChrome({
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-rim/60 bg-surface/95 backdrop-blur md:hidden">
         <ul className="mx-auto flex max-w-lg items-end justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
           {tabs.map(({ href, label, icon: Icon, fab }) => {
-            const active =
-              pathname === href ||
-              (href !== "/plan" && pathname.startsWith(href));
+            const active = fab
+              ? pathname === "/transactions/new" ||
+                pathname.startsWith("/transactions/new/")
+              : href === "/plan"
+                ? pathname === "/plan" || pathname.startsWith("/plan?")
+                : pathname === href || pathname.startsWith(href + "/");
             if (fab) {
               return (
                 <li key={href} className="-mt-5">

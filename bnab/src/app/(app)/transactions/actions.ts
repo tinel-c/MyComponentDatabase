@@ -117,6 +117,7 @@ export async function createTransaction(formData: FormData) {
   revalidatePath("/accounts");
   revalidatePath("/plan");
   revalidatePath("/reflect");
+  revalidatePath("/transactions");
   redirect(`/accounts/${account.id}`);
 }
 
@@ -236,6 +237,7 @@ export async function updateTransaction(formData: FormData) {
     });
     revalidatePath(`/accounts/${txn.accountId}`);
     revalidatePath(`/transactions/${id}`);
+    revalidatePath("/transactions");
     revalidatePath("/plan");
     redirect(`/accounts/${txn.accountId}`);
   }
@@ -278,6 +280,7 @@ export async function updateTransaction(formData: FormData) {
     revalidatePath(`/accounts/${txn.accountId}`);
     revalidatePath(`/accounts/${twin.accountId}`);
     revalidatePath(`/transactions/${id}`);
+    revalidatePath("/transactions");
     revalidatePath("/plan");
     revalidatePath("/reflect");
     redirect(`/accounts/${txn.accountId}`);
@@ -301,6 +304,7 @@ export async function updateTransaction(formData: FormData) {
 
   revalidatePath(`/accounts/${txn.accountId}`);
   revalidatePath(`/transactions/${id}`);
+  revalidatePath("/transactions");
   revalidatePath("/plan");
   revalidatePath("/reflect");
   redirect(`/accounts/${txn.accountId}`);
@@ -334,6 +338,7 @@ export async function deleteTransaction(formData: FormData) {
   });
 
   revalidatePath(`/accounts/${accountId}`);
+  revalidatePath("/transactions");
   revalidatePath("/plan");
   revalidatePath("/reflect");
   redirect(`/accounts/${accountId}`);

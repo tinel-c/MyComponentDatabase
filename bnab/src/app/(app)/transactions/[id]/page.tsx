@@ -65,7 +65,7 @@ export default async function EditTransactionPage({
           ← {txn.account.name}
         </Link>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-fg">
-          Edit transaction
+          View / edit
         </h1>
         <p className="text-sm text-fg-muted">
           {formatMoney(txn.amount, budget.currency)}
