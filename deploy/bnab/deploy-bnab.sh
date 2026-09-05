@@ -59,6 +59,15 @@ git -C "$SLOT_DIR" fetch "$GIT_REMOTE"
 git -C "$SLOT_DIR" checkout "$BRANCH"
 git -C "$SLOT_DIR" reset --hard "${GIT_REMOTE}/${BRANCH}"
 
+# Re-exec from the freshly updated slot copy so we never run a stale deploy-bnab.sh
+# (common when invoking /opt/bnab/blue/... while blue is behind origin).
+UPDATED_SCRIPT="${SLOT_DIR}/deploy/bnab/deploy-bnab.sh"
+if [[ "${BNAB_DEPLOY_REEXEC:-}" != "1" && -f "$UPDATED_SCRIPT" ]]; then
+  log "re-exec updated script from $INACTIVE ($(git -C "$SLOT_DIR" rev-parse --short HEAD))"
+  export BNAB_DEPLOY_REEXEC=1
+  exec bash "$UPDATED_SCRIPT"
+fi
+
 mkdir -p "${APP_ROOT}/shared"
 touch "$SHARED_DB"
 chmod 664 "$SHARED_DB" 2>/dev/null || true
