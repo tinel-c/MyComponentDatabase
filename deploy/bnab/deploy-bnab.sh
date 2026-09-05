@@ -68,6 +68,9 @@ ln -sfn "$SHARED_ENV" "${APP_DIR}/.env"
 export DATABASE_URL="file:${SHARED_DB}"
 cd "$APP_DIR"
 
+log "clean node_modules"
+rm -rf node_modules
+
 log "npm install"
 npm install --no-audit --no-fund --legacy-peer-deps
 
