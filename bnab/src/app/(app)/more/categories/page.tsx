@@ -53,14 +53,18 @@ export default async function CategoriesPage() {
 
       <section className={`${cardClass} p-4`}>
         <h2 className="text-sm font-semibold text-fg">New group</h2>
-        <form action={createCategoryGroup} className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <form action={createCategoryGroup} className="mt-3 space-y-3">
           <input
             name="name"
             required
             maxLength={80}
             className={inputClass}
-            placeholder="e.g. Vacation"
+            placeholder="e.g. Vacation or Income"
           />
+          <label className="flex min-h-11 items-center gap-2 text-sm text-fg">
+            <input type="checkbox" name="isIncome" value="1" className="size-5" />
+            Income group (Paycheck, etc. — feeds Ready to Assign)
+          </label>
           <button type="submit" className={buttonPrimaryClass}>
             Add group
           </button>

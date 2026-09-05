@@ -236,6 +236,8 @@ async function assertGroup(budgetId: string, groupId: string) {
 export async function createCategoryGroup(formData: FormData) {
   const { budget } = await requireBudgetAccess();
   const name = String(formData.get("name") ?? "").trim();
+  const isIncome =
+    formData.get("isIncome") === "1" || formData.get("isIncome") === "on";
   if (!name || name.length > 80) return;
   const max = await prisma.categoryGroup.aggregate({
     where: { budgetId: budget.id },
@@ -245,6 +247,7 @@ export async function createCategoryGroup(formData: FormData) {
     data: {
       budgetId: budget.id,
       name,
+      isIncome,
       sortOrder: (max._max.sortOrder ?? 0) + 1,
     },
   });

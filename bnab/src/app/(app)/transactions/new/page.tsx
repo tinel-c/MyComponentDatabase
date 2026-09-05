@@ -12,10 +12,11 @@ import { createTransaction } from "@/app/(app)/transactions/actions";
 export default async function NewTransactionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ accountId?: string }>;
+  searchParams: Promise<{ accountId?: string; inflow?: string }>;
 }) {
   const { budget } = await requireBudgetAccess();
   const sp = await searchParams;
+  const preferInflow = sp.inflow === "1" || sp.inflow === "true";
   const [accounts, groups, payees] = await Promise.all([
     prisma.financeAccount.findMany({
       where: { budgetId: budget.id, closed: false },
@@ -40,11 +41,23 @@ export default async function NewTransactionPage({
       ? sp.accountId
       : accounts[0]?.id;
 
+  const incomeGroups = groups.filter((g) => g.isIncome);
+  const spendingGroups = groups.filter((g) => !g.isIncome);
+  const defaultCategory =
+    preferInflow && incomeGroups[0]?.categories[0]
+      ? incomeGroups[0].categories[0].id
+      : "";
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight text-fg">
-        Add transaction
+        {preferInflow ? "Add income" : "Add transaction"}
       </h1>
+      {preferInflow ? (
+        <p className="text-sm text-fg-muted">
+          Categorize to an Income category so it increases Ready to Assign on Plan.
+        </p>
+      ) : null}
 
       <form action={createTransaction} className={`${cardClass} space-y-4 p-4`}>
         <label className={labelClass}>
@@ -86,7 +99,13 @@ export default async function NewTransactionPage({
         </label>
 
         <label className="flex min-h-11 items-center gap-2 text-sm text-fg">
-          <input type="checkbox" name="inflow" value="1" className="size-5" />
+          <input
+            type="checkbox"
+            name="inflow"
+            value="1"
+            defaultChecked={preferInflow}
+            className="size-5"
+          />
           Inflow (income / refund)
         </label>
 
@@ -96,7 +115,7 @@ export default async function NewTransactionPage({
             name="payee"
             list="payees"
             className={inputClass}
-            placeholder="Merchant"
+            placeholder={preferInflow ? "Employer / source" : "Merchant"}
             autoComplete="off"
           />
           <datalist id="payees">
@@ -108,9 +127,22 @@ export default async function NewTransactionPage({
 
         <label className={labelClass}>
           Category
-          <select name="categoryId" className={inputClass} defaultValue="">
+          <select
+            name="categoryId"
+            className={inputClass}
+            defaultValue={defaultCategory}
+          >
             <option value="">Ready to Assign / none</option>
-            {groups.map((g) => (
+            {incomeGroups.map((g) => (
+              <optgroup key={g.id} label={`${g.name} (income)`}>
+                {g.categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+            {spendingGroups.map((g) => (
               <optgroup key={g.id} label={g.name}>
                 {g.categories.map((c) => (
                   <option key={c.id} value={c.id}>
