@@ -68,11 +68,17 @@ ln -sfn "$SHARED_ENV" "${APP_DIR}/.env"
 export DATABASE_URL="file:${SHARED_DB}"
 cd "$APP_DIR"
 
-log "clean node_modules"
+log "clean node_modules (+ leftover .package-lock.json caches)"
 rm -rf node_modules
+rm -f package-lock.json.bak
 
-log "npm install"
-npm install --no-audit --no-fund --legacy-peer-deps
+log "npm install (verbose)"
+# --loglevel verbose: progress + package fetch details (helps diagnose VPS hangs)
+# --foreground-scripts: show lifecycle script output inline
+npm install --no-audit --no-fund --legacy-peer-deps \
+  --loglevel verbose \
+  --foreground-scripts \
+  --progress=true
 
 log "prisma migrate deploy"
 npx prisma migrate deploy
