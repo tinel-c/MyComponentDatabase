@@ -98,7 +98,6 @@ npm_install_with_progress() {
   (
     while true; do
       sleep 10
-      local now elapsed dirs size last_age last_ts
       now="$(date +%s)"
       elapsed=$((now - start_ts))
       dirs="$(find node_modules -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
