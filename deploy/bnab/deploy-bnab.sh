@@ -191,15 +191,23 @@ npm run build
 log "restart PM2: $PM2_NAME on port $PORT"
 if command -v pm2 >/dev/null 2>&1; then
   PORT="$PORT" pm2 delete "$PM2_NAME" 2>/dev/null || true
-  PORT="$PORT" NODE_ENV=production pm2 start npm --name "$PM2_NAME" -- start
+  # Next.js reads PORT; keep cwd so `npm start` runs in APP_DIR.
+  PORT="$PORT" NODE_ENV=production pm2 start npm --name "$PM2_NAME" --cwd "$APP_DIR" -- start
   pm2 save
 else
   die "pm2 not found"
 fi
 
 log "health check http://127.0.0.1:${PORT}/"
-sleep 2
-code="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/" || echo "000")"
+code="000"
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  sleep 2
+  code="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORT}/" 2>/dev/null || echo "000")"
+  log "health attempt $i → HTTP $code"
+  if [[ "$code" =~ ^(200|204|302|307|308)$ ]]; then
+    break
+  fi
+done
 if [[ ! "$code" =~ ^(200|204|302|307|308)$ ]]; then
   die "health check failed: HTTP $code"
 fi
