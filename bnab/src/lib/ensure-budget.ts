@@ -7,7 +7,6 @@ type MembershipWithBudget = {
   userId: string;
   budgetId: string;
   role: MemberRole;
-  createdAt: Date;
   budget: {
     id: string;
     name: string;
@@ -63,8 +62,12 @@ export async function ensureAdminHouseholdBudget(
     ],
   });
 
-  return prisma.budgetMember.findFirst({
+  const membership = await prisma.budgetMember.findFirst({
     where: { userId, budgetId: budget.id },
     include: { budget: true },
   });
+  if (!membership) {
+    throw new Error("Failed to load membership after creating household budget");
+  }
+  return membership;
 }
