@@ -190,9 +190,12 @@ npm run build
 
 log "restart PM2: $PM2_NAME on port $PORT"
 if command -v pm2 >/dev/null 2>&1; then
-  PORT="$PORT" pm2 delete "$PM2_NAME" 2>/dev/null || true
-  # Next.js reads PORT; keep cwd so `npm start` runs in APP_DIR.
-  PORT="$PORT" NODE_ENV=production pm2 start npm --name "$PM2_NAME" --cwd "$APP_DIR" -- start
+  pm2 delete "$PM2_NAME" 2>/dev/null || true
+  # Invoke next binary directly — PM2's npm wrapper often loses node_modules/.bin on PATH.
+  PORT="$PORT" NODE_ENV=production pm2 start ./node_modules/next/dist/bin/next \
+    --name "$PM2_NAME" \
+    --cwd "$APP_DIR" \
+    -- start --port "$PORT"
   pm2 save
 else
   die "pm2 not found"
