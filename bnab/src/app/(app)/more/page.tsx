@@ -10,9 +10,14 @@ import { ThemeSelector } from "@/components/ui/ThemeSelector";
 
 const links = [
   {
+    href: "/reflect",
+    label: "Reflect",
+    desc: "Spending trends and net worth reports",
+  },
+  {
     href: "/transactions",
     label: "All transactions",
-    desc: "Search, view, and edit spending",
+    desc: "Spreadsheet register — edit cells inline",
   },
   { href: "/more/team", label: "Team", desc: "Invite your household partner" },
   { href: "/more/categories", label: "Categories & targets", desc: "Organize envelopes" },

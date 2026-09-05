@@ -35,6 +35,14 @@ function applyTheme(id: ThemeId) {
     html.classList.remove("dark");
     html.classList.add("light");
   }
+  const preview = getTheme(id).preview.bg;
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", preview);
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

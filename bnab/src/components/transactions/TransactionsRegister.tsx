@@ -8,8 +8,10 @@ import {
   sheetCell,
   sheetCellInput,
   sheetHeaderCell,
+  sheetMoneyInput,
   sheetTableClass,
 } from "@/components/transactions/sheet-styles";
+import { cardClass } from "@/components/forms/field-classes";
 
 export type RegisterRow = {
   id: string;
@@ -95,8 +97,16 @@ function RegisterRowCells({
       : row.payee;
 
   return (
-    <tr className={pending ? "bg-surface opacity-60" : "bg-surface"}>
-      <td className={`${sheetCell} text-center`}>
+    <tr
+      className={`transition-colors ${
+        pending
+          ? "opacity-60"
+          : "odd:bg-surface even:bg-canvas/40 hover:bg-accent-muted/25"
+      }`}
+    >
+      <td
+        className={`${sheetCell} sticky left-0 z-[1] bg-inherit text-center shadow-[2px_0_6px_-2px_color-mix(in_oklch,var(--rim)_50%,transparent)]`}
+      >
         <input
           type="checkbox"
           checked={isCleared}
@@ -189,7 +199,7 @@ function RegisterRowCells({
           </span>
         )}
       </td>
-      <td className={sheetCell}>
+      <td className={`${sheetCell} hidden sm:table-cell`}>
         <input
           form={formId}
           name="notes"
@@ -209,7 +219,7 @@ function RegisterRowCells({
             disabled={pending}
             placeholder="—"
             aria-label="Outflow"
-            className={`${sheetCellInput} text-right tabular-nums`}
+            className={`${sheetMoneyInput}`}
             onChange={(e) => {
               setOutflow(e.target.value);
               if (e.target.value.trim()) setInflow("");
@@ -223,7 +233,7 @@ function RegisterRowCells({
             }}
           />
         ) : !row.isInflow ? (
-          <span className="block truncate px-1 py-1.5 text-right text-[11px] tabular-nums text-fg-muted sm:text-xs">
+          <span className="block truncate px-1.5 py-2.5 text-right text-xs font-mono tabular-nums text-fg-muted sm:text-sm">
             {row.absAmount}
           </span>
         ) : null}
@@ -237,7 +247,7 @@ function RegisterRowCells({
             disabled={pending}
             placeholder="—"
             aria-label="Inflow"
-            className={`${sheetCellInput} text-right tabular-nums text-ok`}
+            className={`${sheetMoneyInput} text-ok`}
             onChange={(e) => {
               setInflow(e.target.value);
               if (e.target.value.trim()) setOutflow("");
@@ -251,7 +261,7 @@ function RegisterRowCells({
             }}
           />
         ) : row.isInflow ? (
-          <span className="block truncate px-1 py-1.5 text-right text-[11px] tabular-nums text-ok sm:text-xs">
+          <span className="block truncate px-1.5 py-2.5 text-right text-xs font-mono tabular-nums text-ok sm:text-sm">
             {row.absAmount}
           </span>
         ) : null}
@@ -274,7 +284,7 @@ export function TransactionsRegister({
   if (rows.length === 0) return null;
 
   return (
-    <div className="rounded-xl border border-rim shadow-sm">
+    <div className={`${cardClass} overflow-hidden`}>
       <div className="hidden" aria-hidden>
         {rows.map((row) => (
           <form id={`txn-row-${row.id}`} key={row.id}>
@@ -289,42 +299,48 @@ export function TransactionsRegister({
           </form>
         ))}
       </div>
-      <table className={sheetTableClass}>
-        <colgroup>
-          <col className="w-[6%]" />
-          <col className="w-[14%]" />
-          <col className="w-[12%]" />
-          <col className="w-[18%]" />
-          <col className="w-[16%]" />
-          <col className="w-[14%]" />
-          <col className="w-[10%]" />
-          <col className="w-[10%]" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th className={`${sheetHeaderCell} text-center`}>✓</th>
-            <th className={sheetHeaderCell}>Date</th>
-            <th className={sheetHeaderCell}>Acct</th>
-            <th className={sheetHeaderCell}>Payee</th>
-            <th className={sheetHeaderCell}>Cat</th>
-            <th className={sheetHeaderCell}>Memo</th>
-            <th className={`${sheetHeaderCell} text-right`}>Out</th>
-            <th className={`${sheetHeaderCell} text-right`}>In</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <RegisterRowCells
-              key={row.id}
-              row={row}
-              groups={groups}
-              payees={payees}
-            />
-          ))}
-        </tbody>
-      </table>
-      <p className="border-t border-rim-subtle px-2 py-1.5 text-[10px] text-fg-subtle">
-        Edits save when you leave a cell · {currency}
+      <div className="overflow-x-auto overscroll-x-contain">
+        <table className={sheetTableClass}>
+          <colgroup>
+            <col className="w-10" />
+            <col className="w-[7.5rem]" />
+            <col className="w-[5.5rem]" />
+            <col className="min-w-[7rem]" />
+            <col className="min-w-[6.5rem]" />
+            <col className="min-w-[5rem]" />
+            <col className="w-[5.5rem]" />
+            <col className="w-[5.5rem]" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th
+                className={`${sheetHeaderCell} sticky left-0 z-20 text-center shadow-[2px_0_6px_-2px_color-mix(in_oklch,var(--rim)_50%,transparent)]`}
+              >
+                ✓
+              </th>
+              <th className={sheetHeaderCell}>Date</th>
+              <th className={sheetHeaderCell}>Acct</th>
+              <th className={sheetHeaderCell}>Payee</th>
+              <th className={sheetHeaderCell}>Cat</th>
+              <th className={`${sheetHeaderCell} hidden sm:table-cell`}>Memo</th>
+              <th className={`${sheetHeaderCell} text-right`}>Out</th>
+              <th className={`${sheetHeaderCell} text-right`}>In</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <RegisterRowCells
+                key={row.id}
+                row={row}
+                groups={groups}
+                payees={payees}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="border-t border-rim-subtle px-3 py-2 text-[11px] text-fg-subtle">
+        Leave a cell to save · swipe sideways on small screens · {currency}
       </p>
     </div>
   );

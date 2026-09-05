@@ -7,6 +7,7 @@ import { ensureAdminHouseholdBudget } from "@/lib/ensure-budget";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
+  cardClass,
   inputClass,
   labelClass,
 } from "@/components/forms/field-classes";
@@ -29,8 +30,6 @@ export default async function LoginPage({
         session.user.role,
       );
     }
-    // Only bounce to the app when the user can actually open it — otherwise we
-    // loop: /plan → no-budget → /login → /plan …
     if (membership) redirect("/plan");
   }
 
@@ -48,13 +47,25 @@ export default async function LoginPage({
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-6 py-12">
-      <Link href="/" className="text-sm text-fg-muted hover:text-fg">
-        ← BNAB
+    <main
+      className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-6 py-12"
+      style={{
+        backgroundImage:
+          "radial-gradient(ellipse 90% 55% at 50% -15%, var(--glow-top), transparent 70%)," +
+          "radial-gradient(ellipse 50% 35% at 100% 10%, var(--glow-accent), transparent 55%)",
+      }}
+    >
+      <Link
+        href="/"
+        className="text-xs font-medium uppercase tracking-[0.2em] text-fg-subtle hover:text-fg"
+      >
+        BNAB
       </Link>
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight text-fg">Sign in</h1>
+      <h1 className="mt-4 text-4xl font-semibold tracking-tight text-fg">
+        Sign in
+      </h1>
       <p className="mt-2 text-sm text-fg-muted">
-        Invite-only household access via Google.
+        Invite-only household access. Give every leu a job.
       </p>
 
       {errorMsg ? (
@@ -63,7 +74,7 @@ export default async function LoginPage({
         </div>
       ) : null}
 
-      <div className="mt-8 space-y-4">
+      <div className={`${cardClass} mt-8 space-y-4 p-5`}>
         {googleOk ? (
           <form action={loginWithGoogle}>
             <button type="submit" className={`${buttonPrimaryClass} w-full`}>
@@ -77,7 +88,10 @@ export default async function LoginPage({
         )}
 
         {localDev ? (
-          <form action={loginLocalDev} className="rounded-2xl border border-rim/60 bg-surface p-4">
+          <form
+            action={loginLocalDev}
+            className="rounded-xl border border-rim-subtle bg-canvas/50 p-4"
+          >
             <p className="text-xs font-medium uppercase tracking-wide text-fg-subtle">
               Local dev
             </p>

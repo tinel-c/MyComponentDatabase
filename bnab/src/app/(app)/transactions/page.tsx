@@ -8,6 +8,8 @@ import {
   cardClass,
   inputClass,
   labelClass,
+  sectionHeadingClass,
+  sectionSubheadingClass,
 } from "@/components/forms/field-classes";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TransactionsRegister } from "@/components/transactions/TransactionsRegister";
@@ -123,11 +125,9 @@ export default async function TransactionsPage({
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-fg">
-            Transactions
-          </h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            Spreadsheet register — edit cells inline. {count} total
+          <h1 className={sectionHeadingClass}>Transactions</h1>
+          <p className={sectionSubheadingClass}>
+            Spreadsheet register — edit a cell, leave it to save. {count} total
             {q || accountId ? " (filtered)" : ""}.
           </p>
         </div>
@@ -179,7 +179,12 @@ export default async function TransactionsPage({
             description={
               q || accountId
                 ? "Try clearing filters or add a new transaction."
-                : "Add your first transaction with Add."
+                : "Add your first transaction to start the register."
+            }
+            action={
+              <Link href="/transactions/new" className={buttonPrimaryClass}>
+                Add transaction
+              </Link>
             }
           />
         </div>

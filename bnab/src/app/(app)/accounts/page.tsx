@@ -6,12 +6,14 @@ import { formatMoney } from "@/lib/money";
 import { accountTypeMeta } from "@/lib/ui-accents";
 import {
   buttonPrimaryClass,
-  buttonSecondaryClass,
   cardClass,
   inputClass,
   labelClass,
+  moneyClass,
+  sectionHeadingClass,
+  sectionSubheadingClass,
 } from "@/components/forms/field-classes";
-import { createAccount, toggleAccountClosed } from "@/app/(app)/plan/actions";
+import { createAccount } from "@/app/(app)/plan/actions";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 export default async function AccountsPage() {
@@ -36,17 +38,11 @@ export default async function AccountsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-fg">Accounts</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          On-budget balances feed Ready to Assign. Tracking accounts are for net worth.
+        <h1 className={sectionHeadingClass}>Accounts</h1>
+        <p className={sectionSubheadingClass}>
+          On-budget balances feed Ready to Assign. Tracking accounts are for net
+          worth.
         </p>
-        <Link
-          href="/transactions"
-          prefetch
-          className="mt-2 inline-block text-sm text-accent hover:underline"
-        >
-          View all transactions →
-        </Link>
       </div>
 
       {accounts.length === 0 ? (
@@ -55,6 +51,11 @@ export default async function AccountsPage() {
             icon={PiggyBank}
             title="No accounts yet"
             description="Create a checking or cash account to start tracking balances."
+            action={
+              <a href="#add-account" className={`${buttonPrimaryClass} px-5`}>
+                Add account
+              </a>
+            }
           />
         </div>
       ) : (
@@ -68,7 +69,7 @@ export default async function AccountsPage() {
                 <Link
                   href={`/accounts/${a.id}`}
                   prefetch
-                  className={`${cardClass} flex items-center gap-3 overflow-hidden px-3 py-3 ${
+                  className={`${cardClass} flex items-center gap-3 overflow-hidden px-3 py-3 transition-colors hover:border-rim ${
                     a.closed ? "opacity-50" : ""
                   }`}
                 >
@@ -96,7 +97,7 @@ export default async function AccountsPage() {
                     </p>
                   </div>
                   <p
-                    className={`text-base font-semibold tabular-nums ${
+                    className={`text-base font-semibold ${moneyClass} ${
                       balance < 0 ? "text-danger" : "text-fg"
                     }`}
                   >
@@ -109,7 +110,7 @@ export default async function AccountsPage() {
         </ul>
       )}
 
-      <section className={`${cardClass} p-4`}>
+      <section id="add-account" className={`${cardClass} scroll-mt-20 p-4`}>
         <h2 className="text-sm font-semibold text-fg">Add account</h2>
         <form action={createAccount} className="mt-3 space-y-3">
           <label className={labelClass}>
@@ -131,7 +132,7 @@ export default async function AccountsPage() {
             Starting balance
             <input
               name="startingBalance"
-              className={inputClass}
+              className={`${inputClass} ${moneyClass}`}
               inputMode="decimal"
               placeholder="0.00"
             />
@@ -141,20 +142,6 @@ export default async function AccountsPage() {
           </button>
         </form>
       </section>
-
-      {accounts.some((a) => !a.closed) || accounts.some((a) => a.closed) ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium text-fg-muted">Close / reopen</h2>
-          {accounts.map((a) => (
-            <form key={a.id} action={toggleAccountClosed}>
-              <input type="hidden" name="id" value={a.id} />
-              <button type="submit" className={`${buttonSecondaryClass} w-full`}>
-                {a.closed ? `Reopen ${a.name}` : `Close ${a.name}`}
-              </button>
-            </form>
-          ))}
-        </section>
-      ) : null}
     </div>
   );
 }

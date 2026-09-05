@@ -6,6 +6,7 @@ import {
   buttonDangerClass,
   buttonPrimaryClass,
   buttonSecondaryClass,
+  cardClass,
 } from "@/components/forms/field-classes";
 import {
   deleteTransaction,
@@ -19,6 +20,7 @@ import {
   sheetCell,
   sheetCellInput,
   sheetHeaderCell,
+  sheetMoneyInput,
   sheetTableClass,
 } from "@/components/transactions/sheet-styles";
 
@@ -103,193 +105,185 @@ export function TransactionSheetEditor({
           </>
         ) : null}
 
-        <div className="rounded-xl border border-rim shadow-sm">
-          <table className={sheetTableClass}>
-            <colgroup>
-              <col className="w-[7%]" />
-              <col className="w-[15%]" />
-              <col className="w-[13%]" />
-              <col className="w-[18%]" />
-              <col className="w-[17%]" />
-              <col className="w-[12%]" />
-              <col className="w-[9%]" />
-              <col className="w-[9%]" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th className={`${sheetHeaderCell} text-center`}>✓</th>
-                <th className={sheetHeaderCell}>Date</th>
-                <th className={sheetHeaderCell}>Acct</th>
-                <th className={sheetHeaderCell}>Payee</th>
-                <th className={sheetHeaderCell}>Cat</th>
-                <th className={sheetHeaderCell}>Memo</th>
-                <th className={`${sheetHeaderCell} text-right`}>Out</th>
-                <th className={`${sheetHeaderCell} text-right`}>In</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-surface">
-                <td className={`${sheetCell} text-center`}>
-                  <input
-                    type="checkbox"
-                    checked={isCleared}
-                    onChange={(e) => setIsCleared(e.target.checked)}
-                    className="size-3.5 accent-[var(--accent)]"
-                    aria-label="Cleared"
-                  />
-                </td>
-                <td className={sheetCell}>
-                  <input
-                    name="date"
-                    type="date"
-                    required
-                    defaultValue={date}
-                    className={sheetCellInput}
-                  />
-                </td>
-                <td className={sheetCell}>
-                  <span
-                    className="block truncate px-1 py-1.5 text-[11px] text-fg-muted sm:text-xs"
-                    title={accountName}
-                  >
-                    {accountName}
-                  </span>
-                </td>
-                <td className={sheetCell}>
-                  {canEditPayeeCategory ? (
-                    <>
-                      <input
-                        name="payee"
-                        defaultValue={payee}
-                        list={payeeListId}
-                        autoComplete="off"
-                        placeholder="Payee"
-                        className={sheetCellInput}
-                      />
-                      <datalist id={payeeListId}>
-                        {payees.map((p) => (
-                          <option key={p} value={p} />
-                        ))}
-                      </datalist>
-                    </>
-                  ) : (
-                    <span className="block truncate px-1 py-1.5 text-[11px] text-fg-muted sm:text-xs">
-                      {isTransfer
-                        ? (transferLabel ?? "Transfer")
-                        : payee || "Split"}
-                    </span>
-                  )}
-                </td>
-                <td className={sheetCell}>
-                  {canEditPayeeCategory ? (
-                    <select
-                      name="categoryId"
-                      defaultValue={categoryId}
-                      className={`${sheetCellInput} cursor-pointer`}
+        <div className={`${cardClass} overflow-hidden`}>
+          <div className="overflow-x-auto">
+            <table className={sheetTableClass}>
+              <thead>
+                <tr>
+                  <th className={`${sheetHeaderCell} text-center`}>✓</th>
+                  <th className={sheetHeaderCell}>Date</th>
+                  <th className={sheetHeaderCell}>Acct</th>
+                  <th className={sheetHeaderCell}>Payee</th>
+                  <th className={sheetHeaderCell}>Cat</th>
+                  <th className={sheetHeaderCell}>Memo</th>
+                  <th className={`${sheetHeaderCell} text-right`}>Out</th>
+                  <th className={`${sheetHeaderCell} text-right`}>In</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="bg-surface">
+                  <td className={`${sheetCell} text-center`}>
+                    <input
+                      type="checkbox"
+                      checked={isCleared}
+                      onChange={(e) => setIsCleared(e.target.checked)}
+                      className="size-4 accent-[var(--accent)]"
+                      aria-label="Cleared"
+                    />
+                  </td>
+                  <td className={sheetCell}>
+                    <input
+                      name="date"
+                      type="date"
+                      required
+                      defaultValue={date}
+                      className={sheetCellInput}
+                    />
+                  </td>
+                  <td className={sheetCell}>
+                    <span
+                      className="block truncate px-1.5 py-2.5 text-xs text-fg-muted sm:text-sm"
+                      title={accountName}
                     >
-                      <option value="">RTA</option>
-                      {groups.map((g) => (
-                        <optgroup
-                          key={g.id}
-                          label={g.isIncome ? `${g.name} (In)` : g.name}
-                        >
-                          {g.categories.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
+                      {accountName}
+                    </span>
+                  </td>
+                  <td className={sheetCell}>
+                    {canEditPayeeCategory ? (
+                      <>
+                        <input
+                          name="payee"
+                          defaultValue={payee}
+                          list={payeeListId}
+                          autoComplete="off"
+                          placeholder="Payee"
+                          className={sheetCellInput}
+                        />
+                        <datalist id={payeeListId}>
+                          {payees.map((p) => (
+                            <option key={p} value={p} />
                           ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="block truncate px-1 py-1.5 text-[11px] text-fg-muted sm:text-xs">
-                      {isSplit ? "Split" : "—"}
-                    </span>
-                  )}
-                </td>
-                <td className={sheetCell}>
-                  <input
-                    name="notes"
-                    defaultValue={notes}
-                    placeholder="Memo"
-                    className={sheetCellInput}
-                  />
-                </td>
-                <td className={sheetCell}>
-                  {canEditMoney ? (
-                    <input
-                      inputMode="decimal"
-                      value={outflow}
-                      placeholder="—"
-                      aria-label="Outflow"
-                      className={`${sheetCellInput} text-right tabular-nums`}
-                      onChange={(e) => {
-                        setOutflow(e.target.value);
-                        if (e.target.value.trim()) setInflow("");
-                      }}
-                    />
-                  ) : !isInflow ? (
-                    <span className="block px-1 py-1.5 text-right text-[11px] tabular-nums text-fg-muted sm:text-xs">
-                      {absAmount}
-                    </span>
-                  ) : null}
-                </td>
-                <td className={sheetCell}>
-                  {canEditMoney ? (
-                    <input
-                      inputMode="decimal"
-                      value={inflow}
-                      placeholder="—"
-                      aria-label="Inflow"
-                      className={`${sheetCellInput} text-right tabular-nums text-ok`}
-                      onChange={(e) => {
-                        setInflow(e.target.value);
-                        if (e.target.value.trim()) setOutflow("");
-                      }}
-                    />
-                  ) : isInflow ? (
-                    <span className="block px-1 py-1.5 text-right text-[11px] tabular-nums text-ok sm:text-xs">
-                      {absAmount}
-                    </span>
-                  ) : null}
-                </td>
-              </tr>
-
-              {childrenRows.map((row) => (
-                <tr key={row.id} className="bg-overlay/40">
-                  <td className={`${sheetCell} bg-overlay/20`} />
-                  <td className={`${sheetCell} bg-overlay/20`} />
-                  <td className={`${sheetCell} bg-overlay/20`} />
-                  <td className={`${sheetCell} bg-overlay/20`}>
-                    <span className="block truncate px-1 py-1.5 text-[11px] text-fg-subtle sm:text-xs">
-                      ↳ split
-                    </span>
+                        </datalist>
+                      </>
+                    ) : (
+                      <span className="block truncate px-1.5 py-2.5 text-xs text-fg-muted sm:text-sm">
+                        {isTransfer
+                          ? (transferLabel ?? "Transfer")
+                          : payee || "Split"}
+                      </span>
+                    )}
                   </td>
-                  <td className={`${sheetCell} bg-overlay/20`}>
-                    <span className="block truncate px-1 py-1.5 text-[11px] text-fg sm:text-xs">
-                      {row.categoryName}
-                    </span>
+                  <td className={sheetCell}>
+                    {canEditPayeeCategory ? (
+                      <select
+                        name="categoryId"
+                        defaultValue={categoryId}
+                        className={`${sheetCellInput} cursor-pointer`}
+                      >
+                        <option value="">RTA</option>
+                        {groups.map((g) => (
+                          <optgroup
+                            key={g.id}
+                            label={g.isIncome ? `${g.name} (In)` : g.name}
+                          >
+                            {g.categories.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="block truncate px-1.5 py-2.5 text-xs text-fg-muted sm:text-sm">
+                        {isSplit ? "Split" : "—"}
+                      </span>
+                    )}
                   </td>
-                  <td className={`${sheetCell} bg-overlay/20`} />
-                  <td className={`${sheetCell} bg-overlay/20`}>
-                    {!row.isInflow ? (
-                      <span className="block px-1 py-1.5 text-right text-[11px] tabular-nums text-fg sm:text-xs">
-                        {row.amountDisplay}
+                  <td className={sheetCell}>
+                    <input
+                      name="notes"
+                      defaultValue={notes}
+                      placeholder="Memo"
+                      className={sheetCellInput}
+                    />
+                  </td>
+                  <td className={sheetCell}>
+                    {canEditMoney ? (
+                      <input
+                        inputMode="decimal"
+                        value={outflow}
+                        placeholder="—"
+                        aria-label="Outflow"
+                        className={sheetMoneyInput}
+                        onChange={(e) => {
+                          setOutflow(e.target.value);
+                          if (e.target.value.trim()) setInflow("");
+                        }}
+                      />
+                    ) : !isInflow ? (
+                      <span className="block px-1.5 py-2.5 text-right text-xs font-mono tabular-nums text-fg-muted sm:text-sm">
+                        {absAmount}
                       </span>
                     ) : null}
                   </td>
-                  <td className={`${sheetCell} bg-overlay/20`}>
-                    {row.isInflow ? (
-                      <span className="block px-1 py-1.5 text-right text-[11px] tabular-nums text-ok sm:text-xs">
-                        {row.amountDisplay}
+                  <td className={sheetCell}>
+                    {canEditMoney ? (
+                      <input
+                        inputMode="decimal"
+                        value={inflow}
+                        placeholder="—"
+                        aria-label="Inflow"
+                        className={`${sheetMoneyInput} text-ok`}
+                        onChange={(e) => {
+                          setInflow(e.target.value);
+                          if (e.target.value.trim()) setOutflow("");
+                        }}
+                      />
+                    ) : isInflow ? (
+                      <span className="block px-1.5 py-2.5 text-right text-xs font-mono tabular-nums text-ok sm:text-sm">
+                        {absAmount}
                       </span>
                     ) : null}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="border-t border-rim-subtle px-2 py-1.5 text-[10px] text-fg-subtle">
+
+                {childrenRows.map((row) => (
+                  <tr key={row.id} className="bg-overlay/40">
+                    <td className={sheetCell} />
+                    <td className={sheetCell} />
+                    <td className={sheetCell} />
+                    <td className={sheetCell}>
+                      <span className="block truncate px-1.5 py-2.5 text-xs text-fg-subtle">
+                        ↳ split
+                      </span>
+                    </td>
+                    <td className={sheetCell}>
+                      <span className="block truncate px-1.5 py-2.5 text-xs text-fg">
+                        {row.categoryName}
+                      </span>
+                    </td>
+                    <td className={sheetCell} />
+                    <td className={sheetCell}>
+                      {!row.isInflow ? (
+                        <span className="block px-1.5 py-2.5 text-right text-xs font-mono tabular-nums">
+                          {row.amountDisplay}
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className={sheetCell}>
+                      {row.isInflow ? (
+                        <span className="block px-1.5 py-2.5 text-right text-xs font-mono tabular-nums text-ok">
+                          {row.amountDisplay}
+                        </span>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="border-t border-rim-subtle px-3 py-2 text-[11px] text-fg-subtle">
             {currencyHint}
             {isTransfer
               ? ` · Transfer with ${transferLabel ?? "other account"}`

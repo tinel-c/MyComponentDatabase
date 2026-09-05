@@ -16,11 +16,20 @@ const tabs: {
   label: string;
   icon: typeof LayoutGrid;
   fab?: boolean;
+  match?: (path: string) => boolean;
 }[] = [
   { href: "/plan", label: "Plan", icon: LayoutGrid },
-  { href: "/accounts", label: "Accounts", icon: PiggyBank },
+  {
+    href: "/transactions",
+    label: "Txns",
+    icon: ArrowLeftRight,
+    match: (path) =>
+      path === "/transactions" ||
+      (path.startsWith("/transactions/") &&
+        !path.startsWith("/transactions/new")),
+  },
   { href: "/transactions/new", label: "Add", icon: Plus, fab: true },
-  { href: "/reflect", label: "Reflect", icon: BarChart3 },
+  { href: "/accounts", label: "Accounts", icon: PiggyBank },
   { href: "/more", label: "More", icon: MoreHorizontal },
 ];
 
@@ -43,6 +52,10 @@ export function AppChrome({
   budgetName: string;
 }) {
   const pathname = usePathname();
+  const wideRegister =
+    pathname === "/transactions" ||
+    (pathname.startsWith("/transactions/") &&
+      !pathname.startsWith("/transactions/new"));
 
   return (
     <div
@@ -53,7 +66,7 @@ export function AppChrome({
           "radial-gradient(ellipse 40% 30% at 100% 0%, var(--glow-accent), transparent 55%)",
       }}
     >
-      <aside className="hidden w-56 shrink-0 border-r border-rim/60 bg-surface/90 md:flex md:flex-col backdrop-blur-sm">
+      <aside className="hidden w-56 shrink-0 border-r border-rim/60 bg-surface/90 backdrop-blur-sm md:flex md:flex-col">
         <div className="border-b border-rim/60 px-5 py-5">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-fg-subtle">
             BNAB
@@ -64,9 +77,7 @@ export function AppChrome({
           {desktopLinks.map(({ href, label, icon: Icon }) => {
             const active =
               href === "/transactions"
-                ? pathname === "/transactions" ||
-                  (pathname.startsWith("/transactions/") &&
-                    !pathname.startsWith("/transactions/new"))
+                ? wideRegister
                 : pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
@@ -86,7 +97,10 @@ export function AppChrome({
           })}
           <Link
             href="/transactions/new"
-            className="mt-2 flex items-center justify-center gap-2 rounded-full bg-accent px-3 py-2.5 text-sm font-medium text-accent-fg hover:bg-accent-hover"
+            className="mt-2 flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-3 py-2.5 text-sm font-medium text-accent-fg hover:bg-accent-hover"
+            style={{
+              boxShadow: "0 8px 24px color-mix(in oklch, var(--glow-accent) 55%, transparent)",
+            }}
           >
             <Plus className="size-4" />
             Add transaction
@@ -111,12 +125,8 @@ export function AppChrome({
           <p className="ml-2 truncate text-sm text-fg-muted">{budgetName}</p>
         </header>
         <main
-          className={`mx-auto w-full flex-1 px-2 py-4 sm:px-4 md:px-6 md:py-8 ${
-            pathname === "/transactions" ||
-            (pathname.startsWith("/transactions/") &&
-              !pathname.startsWith("/transactions/new"))
-              ? "max-w-6xl"
-              : "max-w-3xl sm:px-6 md:px-8"
+          className={`mx-auto w-full flex-1 px-3 py-4 sm:px-5 md:py-8 ${
+            wideRegister ? "max-w-6xl md:px-6" : "max-w-3xl md:px-8"
           }`}
         >
           {children}
@@ -125,19 +135,25 @@ export function AppChrome({
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-rim/60 bg-surface/95 backdrop-blur md:hidden">
         <ul className="mx-auto flex max-w-lg items-end justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
-          {tabs.map(({ href, label, icon: Icon, fab }) => {
+          {tabs.map(({ href, label, icon: Icon, fab, match }) => {
             const active = fab
               ? pathname === "/transactions/new" ||
                 pathname.startsWith("/transactions/new/")
-              : href === "/plan"
-                ? pathname === "/plan" || pathname.startsWith("/plan?")
-                : pathname === href || pathname.startsWith(href + "/");
+              : match
+                ? match(pathname)
+                : href === "/plan"
+                  ? pathname === "/plan" || pathname.startsWith("/plan?")
+                  : pathname === href || pathname.startsWith(href + "/");
             if (fab) {
               return (
                 <li key={href} className="-mt-5">
                   <Link
                     href={href}
-                    className="flex size-14 items-center justify-center rounded-full bg-accent text-accent-fg shadow-lg shadow-black/20"
+                    className="flex size-14 items-center justify-center rounded-full bg-accent text-accent-fg"
+                    style={{
+                      boxShadow:
+                        "0 10px 28px color-mix(in oklch, var(--glow-accent) 65%, transparent)",
+                    }}
                     aria-label="Add transaction"
                   >
                     <Icon className="size-7" />
@@ -150,7 +166,7 @@ export function AppChrome({
                 <Link
                   href={href}
                   prefetch
-                  className={`flex min-w-[4.25rem] flex-col items-center gap-0.5 px-2 py-2 text-[10px] font-medium ${
+                  className={`flex min-h-12 min-w-[4.25rem] flex-col items-center justify-center gap-0.5 px-2 py-1.5 text-[11px] font-medium ${
                     active ? "text-accent" : "text-fg-muted"
                   }`}
                 >

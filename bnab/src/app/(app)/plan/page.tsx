@@ -5,7 +5,7 @@ import { loadPlanMonth } from "@/lib/plan-data";
 import { addMonths, currentMonth, formatMoney, monthLabel } from "@/lib/money";
 import { AssignCell } from "@/components/plan/AssignCell";
 import { MoveMoneyForm } from "@/components/plan/MoveMoneyForm";
-import { buttonSecondaryClass, cardClass } from "@/components/forms/field-classes";
+import { buttonSecondaryClass, cardClass, moneyClass } from "@/components/forms/field-classes";
 import { groupAccent } from "@/lib/ui-accents";
 
 export default async function PlanPage({
@@ -65,13 +65,19 @@ export default async function PlanPage({
         <p className="text-xs font-medium uppercase tracking-wide opacity-80">
           Ready to Assign
         </p>
-        <p className="text-2xl font-semibold tabular-nums">
+        <p className={`text-2xl font-semibold ${moneyClass}`}>
           {formatMoney(plan.rta, currency)}
         </p>
         <p className="mt-1 text-xs opacity-80">
-          Income to budget {formatMoney(plan.incomeToRta, currency)}
+          Income to budget{" "}
+          <span className={moneyClass}>
+            {formatMoney(plan.incomeToRta, currency)}
+          </span>
           {" · "}
-          Assigned {formatMoney(plan.totalAssigned, currency)}
+          Assigned{" "}
+          <span className={moneyClass}>
+            {formatMoney(plan.totalAssigned, currency)}
+          </span>
         </p>
       </div>
 
@@ -183,7 +189,7 @@ export default async function PlanPage({
                         Act {formatMoney(activity, currency)}
                       </p>
                     </div>
-                    <div className="hidden text-right text-sm tabular-nums text-fg-muted sm:block">
+                    <div className={`hidden text-right text-sm text-fg-muted sm:block ${moneyClass}`}>
                       {formatMoney(activity, currency)}
                     </div>
                     <AssignCell
@@ -193,7 +199,7 @@ export default async function PlanPage({
                       currency={currency}
                     />
                     <p
-                      className={`text-right text-sm font-semibold tabular-nums ${
+                      className={`text-right text-sm font-semibold ${moneyClass} ${
                         available < 0
                           ? "text-danger"
                           : available > 0
