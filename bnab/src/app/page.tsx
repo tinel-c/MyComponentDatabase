@@ -2,11 +2,24 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { buttonPrimaryClass } from "@/components/forms/field-classes";
+import { prisma } from "@/lib/prisma";
+import { ensureAdminHouseholdBudget } from "@/lib/ensure-budget";
 
 export default async function HomePage() {
   const session = await auth();
-  if (session?.user) redirect("/plan");
-
+  if (session?.user?.id) {
+    let membership = await prisma.budgetMember.findFirst({
+      where: { userId: session.user.id },
+    });
+    if (!membership) {
+      membership = await ensureAdminHouseholdBudget(
+        prisma,
+        session.user.id,
+        session.user.role,
+      );
+    }
+    if (membership) redirect("/plan");
+  }
   return (
     <main className="relative flex min-h-dvh flex-col overflow-hidden">
       <div

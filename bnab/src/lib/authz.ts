@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { ensureAdminHouseholdBudget } from "@/lib/ensure-budget";
 
 export async function requireSession() {
   const session = await auth();
@@ -21,11 +22,18 @@ export async function requireAdmin() {
 /** Ensure user has membership; return budget + membership. Creates default budget for admin if none. */
 export async function requireBudgetAccess() {
   const session = await requireSession();
-  const membership = await prisma.budgetMember.findFirst({
+  let membership = await prisma.budgetMember.findFirst({
     where: { userId: session.user.id },
     include: { budget: true },
     orderBy: { budget: { createdAt: "asc" } },
   });
+  if (!membership) {
+    membership = await ensureAdminHouseholdBudget(
+      prisma,
+      session.user.id,
+      session.user.role,
+    );
+  }
   if (!membership) {
     redirect("/login?error=no-budget");
   }

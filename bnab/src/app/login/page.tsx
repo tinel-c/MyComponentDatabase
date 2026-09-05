@@ -2,6 +2,8 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { isGoogleOAuthConfigured, isLocalDevAuthEnabled } from "@/lib/oauth-config";
+import { prisma } from "@/lib/prisma";
+import { ensureAdminHouseholdBudget } from "@/lib/ensure-budget";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -16,7 +18,21 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const session = await auth();
-  if (session?.user) redirect("/plan");
+  if (session?.user?.id) {
+    let membership = await prisma.budgetMember.findFirst({
+      where: { userId: session.user.id },
+    });
+    if (!membership) {
+      membership = await ensureAdminHouseholdBudget(
+        prisma,
+        session.user.id,
+        session.user.role,
+      );
+    }
+    // Only bounce to the app when the user can actually open it — otherwise we
+    // loop: /plan → no-budget → /login → /plan …
+    if (membership) redirect("/plan");
+  }
 
   const params = await searchParams;
   const googleOk = isGoogleOAuthConfigured();
