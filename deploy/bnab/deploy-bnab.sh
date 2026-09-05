@@ -78,7 +78,21 @@ export DATABASE_URL="file:${SHARED_DB}"
 cd "$APP_DIR"
 
 log "clean node_modules (+ leftover caches)"
-rm -rf node_modules
+# ENOTEMPTY races are common under memory pressure; wipe aggressively with retries.
+wipe_node_modules() {
+  local i
+  for i in 1 2 3; do
+    rm -rf node_modules 2>/dev/null || true
+    if [[ ! -e node_modules ]]; then
+      return 0
+    fi
+    find node_modules -mindepth 1 -delete 2>/dev/null || true
+    rmdir node_modules 2>/dev/null || rm -rf node_modules 2>/dev/null || true
+    sleep 1
+  done
+  [[ ! -e node_modules ]] || die "could not remove node_modules"
+}
+wipe_node_modules
 rm -f package-lock.json.bak
 
 log "npm install (timestamps + heartbeat; status file for stuck checks)"
@@ -153,14 +167,19 @@ npm_install_with_progress() {
 
   if [[ "$npm_rc" -ne 0 ]]; then
     printf 'phase=failed elapsed=%ss\n' "$(( $(date +%s) - start_ts ))" >"$status_file"
-    die "npm install failed (exit $npm_rc) — if heartbeats stopped / STALL? appeared, install was stuck"
+    return "$npm_rc"
   fi
   printf 'phase=done elapsed=%ss\n' "$(( $(date +%s) - start_ts ))" >"$status_file"
   rm -f "$last_line_file"
   log "npm install finished in $(( $(date +%s) - start_ts ))s"
+  return 0
 }
 
-npm_install_with_progress
+if ! npm_install_with_progress; then
+  log "npm install failed — wiping node_modules and retrying once"
+  wipe_node_modules
+  npm_install_with_progress || die "npm install failed after retry — if heartbeats stopped / STALL? appeared, install was stuck"
+fi
 
 log "prisma migrate deploy"
 npx prisma migrate deploy
