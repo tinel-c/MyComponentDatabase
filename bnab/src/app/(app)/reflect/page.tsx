@@ -40,6 +40,29 @@ export default async function ReflectPage({
   const spendByPayee = new Map<string, number>();
   const incomeByMonth = new Map<string, number>();
   const expenseByMonth = new Map<string, number>();
+  type Overlay = {
+    id: string;
+    label: string;
+    date?: string;
+    amount: number;
+    href?: string;
+  };
+  const itemsByCat = new Map<string, Overlay[]>();
+  const itemsByPayee = new Map<string, Overlay[]>();
+  const incomeItemsByMonth = new Map<string, Overlay[]>();
+  const expenseItemsByMonth = new Map<string, Overlay[]>();
+
+  function pushTop(
+    map: Map<string, Overlay[]>,
+    key: string,
+    item: Overlay,
+    limit = 8,
+  ) {
+    const list = map.get(key) ?? [];
+    list.push(item);
+    list.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+    map.set(key, list.slice(0, limit));
+  }
 
   for (const m of months) {
     incomeByMonth.set(m, 0);
@@ -50,8 +73,19 @@ export default async function ReflectPage({
     if (t.transferTwinId) continue;
     if (!t.account.onBudget) continue;
     const m = t.date.slice(0, 7);
+    const overlay: Overlay = {
+      id: t.id,
+      label: t.payee?.name || t.notes || t.category?.name || "Transaction",
+      date: t.date,
+      amount: t.amount / 100,
+      href: `/transactions/${t.id}`,
+    };
     if (t.amount < 0) {
       expenseByMonth.set(m, (expenseByMonth.get(m) ?? 0) + Math.abs(t.amount));
+      pushTop(expenseItemsByMonth, m, {
+        ...overlay,
+        amount: Math.abs(t.amount) / 100,
+      });
       if (t.categoryId) {
         const cat = catById.get(t.categoryId);
         if (cat && !cat.isIncome) {
@@ -59,25 +93,42 @@ export default async function ReflectPage({
             cat.name,
             (spendByCat.get(cat.name) ?? 0) + Math.abs(t.amount),
           );
+          pushTop(itemsByCat, cat.name, {
+            ...overlay,
+            amount: Math.abs(t.amount) / 100,
+          });
         }
       }
       const payee = t.payee?.name ?? "Unknown";
       spendByPayee.set(payee, (spendByPayee.get(payee) ?? 0) + Math.abs(t.amount));
+      pushTop(itemsByPayee, payee, {
+        ...overlay,
+        amount: Math.abs(t.amount) / 100,
+      });
     } else if (t.amount > 0) {
       const cat = t.categoryId ? catById.get(t.categoryId) : null;
       if (!t.categoryId || cat?.isIncome || t.isStartingBalance) {
         incomeByMonth.set(m, (incomeByMonth.get(m) ?? 0) + t.amount);
+        pushTop(incomeItemsByMonth, m, overlay);
       }
     }
   }
 
   const spendingData = [...spendByCat.entries()]
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({
+      name,
+      value,
+      items: itemsByCat.get(name) ?? [],
+    }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 12);
 
   const payeeData = [...spendByPayee.entries()]
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({
+      name,
+      value,
+      items: itemsByPayee.get(name) ?? [],
+    }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 10);
 
@@ -86,6 +137,8 @@ export default async function ReflectPage({
     income: (incomeByMonth.get(m) ?? 0) / 100,
     expense: (expenseByMonth.get(m) ?? 0) / 100,
     net: ((incomeByMonth.get(m) ?? 0) - (expenseByMonth.get(m) ?? 0)) / 100,
+    incomeItems: incomeItemsByMonth.get(m) ?? [],
+    expenseItems: expenseItemsByMonth.get(m) ?? [],
   }));
 
   // Net worth: sum all account balances as of end of each month (approx using all tx up to month)
@@ -131,14 +184,23 @@ export default async function ReflectPage({
     },
     include: {
       matchedRule: { include: { category: true } },
-      scan: { select: { status: true } },
+      scan: {
+        select: {
+          status: true,
+          transactionId: true,
+        },
+      },
     },
     take: 500,
   });
 
   const receiptByCat = new Map<string, number>();
-  const topReceiptItems: { description: string; amountCents: number; category: string }[] =
-    [];
+  const receiptItemsByCat = new Map<string, Overlay[]>();
+  const topReceiptItems: {
+    description: string;
+    amountCents: number;
+    category: string;
+  }[] = [];
   for (const line of receiptLines) {
     if (line.matchedRule?.ignore) continue;
     const cat =
@@ -146,6 +208,14 @@ export default async function ReflectPage({
       line.categoryHint ||
       "Unknown";
     receiptByCat.set(cat, (receiptByCat.get(cat) ?? 0) + line.amountCents);
+    pushTop(receiptItemsByCat, cat, {
+      id: line.id,
+      label: line.description,
+      amount: line.amountCents / 100,
+      href: line.scan.transactionId
+        ? `/transactions/${line.scan.transactionId}`
+        : undefined,
+    });
     topReceiptItems.push({
       description: line.description,
       amountCents: line.amountCents,
@@ -154,7 +224,11 @@ export default async function ReflectPage({
   }
   topReceiptItems.sort((a, b) => b.amountCents - a.amountCents);
   const receiptCatRows = [...receiptByCat.entries()]
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({
+      name,
+      value,
+      items: receiptItemsByCat.get(name) ?? [],
+    }))
     .sort((a, b) => b.value - a.value);
   const detailedParentIds = await prisma.receiptScan.findMany({
     where: {
@@ -181,10 +255,23 @@ export default async function ReflectPage({
 
       <ReflectCharts
         currency={budget.currency}
-        spending={spendingData.map((d) => ({ ...d, value: d.value / 100 }))}
-        payees={payeeData.map((d) => ({ ...d, value: d.value / 100 }))}
+        spending={spendingData.map((d) => ({
+          name: d.name,
+          value: d.value / 100,
+          items: d.items,
+        }))}
+        payees={payeeData.map((d) => ({
+          name: d.name,
+          value: d.value / 100,
+          items: d.items,
+        }))}
         incomeExpense={incomeExpense}
         netWorth={netWorth}
+        receiptSpending={receiptCatRows.slice(0, 12).map((d) => ({
+          name: d.name,
+          value: d.value / 100,
+          items: d.items,
+        }))}
       />
 
       {receiptCatRows.length > 0 ? (
@@ -194,6 +281,7 @@ export default async function ReflectPage({
           </h2>
           <p className="mt-1 text-sm text-fg-muted">
             From Gemini bill scans in this range (line items, not bank memos).
+            Charts above summarize the same data.
           </p>
           <ul className="mt-3 divide-y divide-rim-subtle md:hidden">
             {receiptCatRows.slice(0, 12).map((row) => (

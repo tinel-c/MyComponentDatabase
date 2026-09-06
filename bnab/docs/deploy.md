@@ -77,21 +77,27 @@ npx prisma db seed
 
 ## Recommended: PC build → live upload (fast path)
 
-On a **1 GB RAM** VPS, remote `next build` is slow and can OOM. Prefer building on your PC and uploading `.next`.
+On a **1 GB RAM** VPS, remote `next build` OOMs. Prefer building on your PC (or GitHub Actions) and uploading `.next`.
 
 Requires local `deploy/deploy.secrets` (gitignored) with `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_PASSWORD`.
 
 ```powershell
-cd bnab
-npm run build
-# remove old tarball if present
-tar -czf .next-upload.tgz .next
-python ../deploy/bnab/ssh_upload_live_next.py
-python ../deploy/bnab/ssh_upload_public_brand.py   # favicons / PWA icons / manifest
-python ../deploy/bnab/ssh_quick_restart_bnab.py     # if PM2 did not pick up cleanly
+# One command pipeline:
+python deploy/bnab/bnab_deploy.py all
+
+# Or step-by-step:
+python deploy/bnab/bnab_deploy.py clean    # stop PM2, wipe green .next
+python deploy/bnab/bnab_deploy.py build    # npm run build + .next-upload.tgz
+python deploy/bnab/bnab_deploy.py upload   # extract + migrate + PM2
+python deploy/bnab/bnab_deploy.py brand    # favicons / PWA / sw.js
+python deploy/bnab/bnab_deploy.py status
 ```
 
-### What `ssh_upload_live_next.py` does
+### GitHub Actions
+
+`Deploy BNAB` runs **after CI succeeds** on `main`: builds `.next` on the runner, SCPs the tarball, then on the VPS only extracts / migrates / restarts (no remote `next build`). Manual `workflow_dispatch` also works.
+
+### What `ssh_upload_live_next.py` / upload step does
 
 1. Stops BNAB PM2 processes on ports 3010/3011  
 2. Uploads `.next-upload.tgz`  

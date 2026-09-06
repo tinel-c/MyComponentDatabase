@@ -129,13 +129,16 @@ export default async function PlanPage({
                             {cat.name}
                           </p>
                         </div>
-                        <p
-                          className={`shrink-0 text-sm font-semibold ${moneyClass} ${
+                        <Link
+                          href={`/transactions?categoryId=${encodeURIComponent(cat.id)}&month=${encodeURIComponent(month)}`}
+                          prefetch
+                          className={`shrink-0 text-sm font-semibold underline-offset-2 hover:underline ${moneyClass} ${
                             activity > 0 ? "text-ok" : "text-fg-muted"
                           }`}
+                          title="View transactions that make up this activity"
                         >
                           {formatMoney(activity, currency)}
-                        </p>
+                        </Link>
                       </li>
                     );
                   })}

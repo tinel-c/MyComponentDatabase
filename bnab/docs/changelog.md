@@ -3,6 +3,9 @@
 ## Unreleased
 
 - **Receipt detailing (Gemini):** upload a bill on a transaction → line items mapped via `ReceiptCategoryRule` → category split children; Reflect receipt-detailed section; More → Receipt mappings
+- Plan **Activity** amounts link to `/transactions?categoryId=&month=` (same rows that compose the envelope)
+- Reflect chart hover shows top transactions for that slice; receipt-detailed section includes pie + bar charts
+- Deploy: Actions builds `.next` on the runner (no VPS OOM); local `bnab_deploy.py all` pipeline; CI lockfile fixed
 - **Import bill** main flow (`/more/import-bill` + desktop nav): photo → match bank txn by date+amount, pick manually, **or create a new entry** (categories now; link later from ING import)
 - Full-width desktop chrome for all app pages (not only Plan); mobile-first layouts for More hub, accounts grid, Reflect charts, transaction edit, schedules
 - Favicon / PWA icons regenerated as padded envelope mark (fixes green-square tab icon); chrome mark no longer sits in a solid accent tile

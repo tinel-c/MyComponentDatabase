@@ -1,24 +1,80 @@
 name: Deploy BNAB
 
+# Build .next on GitHub Actions (plenty of RAM), then promote to the VPS.
+# Avoids OOM from remote `npm install` + `next build` on the 1GB box.
+
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
-    paths:
-      - "bnab/**"
-      - "deploy/bnab/**"
-      - ".github/workflows/deploy-bnab.yml"
   workflow_dispatch:
+
+concurrency:
+  group: deploy-bnab
+  cancel-in-progress: true
 
 jobs:
   deploy:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bnab
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Skip if BNAB unchanged
+        working-directory: .
+        id: gate
+        run: |
+          set -euo pipefail
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          if git diff --name-only "${SHA}^" "${SHA}" | grep -E '^(bnab/|deploy/bnab/|\.github/workflows/deploy-bnab\.yml)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No BNAB paths in ${SHA} — skip deploy"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: bnab/package-lock.json
+
+      - name: Install
+        if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+        run: npm ci
+
+      - name: Build
+        if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          DATABASE_URL: "file:./ci.db"
+          AUTH_SECRET: "ci-build-placeholder-secret-at-least-32-chars-long!!"
+          AUTH_URL: "https://bnab.bogza.ro"
+          AUTH_GOOGLE_ID: "ci-placeholder"
+          AUTH_GOOGLE_SECRET: "ci-placeholder"
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run build
+          tar -czf .next-upload.tgz .next
 
       - name: Install sshpass
+        if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
         run: sudo apt-get update -y && sudo apt-get install -y sshpass
 
-      - name: SSH deploy BNAB
+      - name: Promote build to VPS
+        if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
+        working-directory: .
         env:
           SSHPASS: ${{ secrets.DEPLOY_SSH_PASSWORD }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -27,10 +83,95 @@ jobs:
         run: |
           set -euo pipefail
           PORT="${DEPLOY_SSH_PORT:-22}"
-          sshpass -e ssh \
-            -p "$PORT" \
-            -o StrictHostKeyChecking=accept-new \
-            -o PreferredAuthentications=password \
-            -o PubkeyAuthentication=no \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            'bash -s' < deploy/bnab/deploy-bnab.sh
+          SSH=(sshpass -e ssh -p "$PORT"
+            -o StrictHostKeyChecking=accept-new
+            -o PreferredAuthentications=password
+            -o PubkeyAuthentication=no
+            -o ServerAliveInterval=30
+            -o ServerAliveCountMax=120
+            "${DEPLOY_USER}@${DEPLOY_HOST}")
+          SCP=(sshpass -e scp -P "$PORT"
+            -o StrictHostKeyChecking=accept-new
+            -o PreferredAuthentications=password
+            -o PubkeyAuthentication=no)
+
+          "${SSH[@]}" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          fuser -k 3011/tcp 2>/dev/null || true
+          sudo -u deploy -H bash -lc 'pm2 delete bnab-green >/dev/null 2>&1 || true' || true
+          chown -R deploy:deploy /opt/bnab/green /opt/bnab/shared || true
+          rm -rf /opt/bnab/green/bnab/.next
+          install -o deploy -g deploy -m 664 /dev/null /opt/bnab/shared/bnab-next-upload.tgz
+          REMOTE
+
+          "${SCP[@]}" bnab/.next-upload.tgz \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/bnab/shared/bnab-next-upload.tgz"
+
+          # Overlay prisma + receipt-ai from this checkout (ahead of/reset-safe)
+          tar -czf /tmp/bnab-overlay.tgz \
+            -C bnab \
+            prisma/schema.prisma \
+            prisma/seed.ts \
+            prisma/migrations \
+            src/lib/receipt-ai \
+            src/lib/plan-data.ts \
+            src/lib/money.ts \
+            src/lib/starter-categories.ts \
+            src/lib/ing-import/default-rules.ts \
+            src/lib/budget-engine/index.ts \
+            2>/dev/null || tar -czf /tmp/bnab-overlay.tgz -C bnab prisma src/lib/receipt-ai
+
+          "${SCP[@]}" /tmp/bnab-overlay.tgz \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/bnab/shared/bnab-overlay.tgz"
+
+          "${SSH[@]}" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          APP=/opt/bnab/green/bnab
+          sudo -u deploy bash -lc '
+            set -euo pipefail
+            cd /opt/bnab/green/bnab
+            git fetch origin && git reset --hard origin/main || true
+            rm -rf .next
+            tar -xzf /opt/bnab/shared/bnab-next-upload.tgz
+            test -f .next/BUILD_ID
+            echo BUILD_ID=$(cat .next/BUILD_ID)
+            tar -xzf /opt/bnab/shared/bnab-overlay.tgz
+            set -a; . /opt/bnab/shared/.env; set +a
+            export DATABASE_URL=file:/opt/bnab/shared/bnab.db
+            npx prisma generate
+            npx prisma migrate deploy
+            shopt -s nullglob
+            for d in .next/node_modules/@prisma/client-*; do
+              echo "sync $d"
+              rm -rf "$d"; mkdir -p "$d"
+              cp -a node_modules/@prisma/client/. "$d/"
+            done
+            if [ -d node_modules/.prisma ]; then
+              rm -rf .next/node_modules/.prisma
+              mkdir -p .next/node_modules
+              cp -a node_modules/.prisma .next/node_modules/
+            fi
+            echo PRISMA_OK
+          '
+          chown -R deploy:deploy /opt/bnab/green/bnab/.next
+          # Public brand (if present on shared from last local upload — optional)
+          if [ -f /opt/bnab/shared/bnab-public.tgz ]; then
+            sudo -u deploy bash -lc "cd /opt/bnab/green/bnab/public && tar -xzf /opt/bnab/shared/bnab-public.tgz" || true
+          fi
+          sudo -u deploy -H bash -lc "
+            cd /opt/bnab/green/bnab
+            set -a; . /opt/bnab/shared/.env; set +a
+            export DATABASE_URL=file:/opt/bnab/shared/bnab.db
+            pm2 delete bnab-green >/dev/null 2>&1 || true
+            PORT=3011 NODE_ENV=production pm2 start ./node_modules/next/dist/bin/next --name bnab-green -- start --port 3011
+            pm2 save
+          "
+          printf 'upstream bnab_app {\n    server 127.0.0.1:3011;\n}\n' > /opt/bnab/nginx-active-upstream.conf
+          echo green > /opt/bnab/active_slot
+          chown deploy:deploy /opt/bnab/nginx-active-upstream.conf /opt/bnab/active_slot
+          sudo nginx -t && sudo systemctl reload nginx || true
+          sleep 4
+          curl -sS -o /dev/null -w "local=%{http_code}\n" --max-time 20 http://127.0.0.1:3011/
+          rm -f /opt/bnab/shared/bnab-next-upload.tgz /opt/bnab/shared/bnab-overlay.tgz
+          echo UPLOAD_OK
+          REMOTE

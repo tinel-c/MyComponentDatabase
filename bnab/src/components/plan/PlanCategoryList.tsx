@@ -1,11 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { AssignCell } from "@/components/plan/AssignCell";
 import { AssignQuickButtons } from "@/components/plan/AssignQuickButtons";
 import { CategoryIcon } from "@/components/plan/CategoryIcon";
 import { moneyClass } from "@/components/forms/field-classes";
 import { formatMoney } from "@/lib/money";
+
+function activityHref(categoryId: string, month: string) {
+  return `/transactions?categoryId=${encodeURIComponent(categoryId)}&month=${encodeURIComponent(month)}`;
+}
 
 type Cat = { id: string; name: string };
 
@@ -98,11 +103,14 @@ export function PlanCategoryList({
               <span className="min-w-0 truncate text-[13px] font-medium leading-none text-fg">
                 {cat.name}
               </span>
-              <span
-                className={`whitespace-nowrap text-right text-xs leading-none text-fg-muted ${moneyClass}`}
+              <Link
+                href={activityHref(cat.id, month)}
+                prefetch
+                className={`whitespace-nowrap text-right text-xs leading-none text-fg-muted underline-offset-2 hover:text-accent hover:underline ${moneyClass}`}
+                title={`View transactions · ${formatMoney(activity, currency)}`}
               >
                 {planAmount(activity)}
-              </span>
+              </Link>
               <span
                 className={`whitespace-nowrap text-right text-xs font-semibold leading-none ${moneyClass} ${
                   available < 0
@@ -126,12 +134,14 @@ export function PlanCategoryList({
                   {cat.name}
                 </p>
               </div>
-              <div
-                className={`truncate text-right text-sm text-fg-muted ${moneyClass}`}
-                title={formatMoney(activity, currency)}
+              <Link
+                href={activityHref(cat.id, month)}
+                prefetch
+                className={`truncate text-right text-sm text-fg-muted underline-offset-2 hover:text-accent hover:underline ${moneyClass}`}
+                title={`View transactions · ${formatMoney(activity, currency)}`}
               >
                 {planAmount(activity)}
-              </div>
+              </Link>
               <div className="min-w-0">
                 <AssignCell
                   categoryId={cat.id}
