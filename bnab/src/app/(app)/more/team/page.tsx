@@ -30,35 +30,41 @@ export default async function TeamPage() {
         </p>
       </div>
 
-      <ul className={`${cardClass} divide-y divide-rim-subtle`}>
-        {members.map((m) => (
-          <li key={m.id} className="flex items-center justify-between px-4 py-3">
-            <div>
-              <p className="font-medium text-fg">{m.user.email}</p>
-              <p className="text-xs text-fg-subtle">{m.user.name ?? "—"}</p>
-            </div>
-            <span className="text-xs font-medium uppercase text-fg-muted">
-              {m.role}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <ul className={`${cardClass} divide-y divide-rim-subtle`}>
+          {members.map((m) => (
+            <li
+              key={m.id}
+              className="flex items-center justify-between gap-3 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium text-fg">{m.user.email}</p>
+                <p className="text-xs text-fg-subtle">{m.user.name ?? "—"}</p>
+              </div>
+              <span className="shrink-0 text-xs font-medium uppercase text-fg-muted">
+                {m.role}
+              </span>
+            </li>
+          ))}
+        </ul>
 
-      <form action={inviteMember} className={`${cardClass} space-y-3 p-4`}>
-        <label className={labelClass}>
-          Invite email
-          <input
-            name="email"
-            type="email"
-            required
-            className={inputClass}
-            placeholder="partner@gmail.com"
-          />
-        </label>
-        <button type="submit" className={buttonPrimaryClass}>
-          Invite editor
-        </button>
-      </form>
+        <form action={inviteMember} className={`${cardClass} space-y-3 p-4`}>
+          <h2 className="text-sm font-semibold text-fg">Invite</h2>
+          <label className={labelClass}>
+            Email
+            <input
+              name="email"
+              type="email"
+              required
+              className={inputClass}
+              placeholder="partner@gmail.com"
+            />
+          </label>
+          <button type="submit" className={`${buttonPrimaryClass} w-full sm:w-auto`}>
+            Invite editor
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

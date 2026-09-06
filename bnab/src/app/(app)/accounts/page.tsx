@@ -59,7 +59,7 @@ export default async function AccountsPage() {
           />
         </div>
       ) : (
-        <ul className="space-y-2">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {accounts.map((a) => {
             const balance = balanceMap.get(a.id) ?? 0;
             const meta = accountTypeMeta(a.type);
@@ -69,7 +69,7 @@ export default async function AccountsPage() {
                 <Link
                   href={`/accounts/${a.id}`}
                   prefetch
-                  className={`${cardClass} flex items-center gap-3 overflow-hidden px-3 py-3 transition-colors hover:border-rim ${
+                  className={`${cardClass} flex h-full items-center gap-3 overflow-hidden px-4 py-4 transition-colors hover:border-rim ${
                     a.closed ? "opacity-50" : ""
                   }`}
                 >
@@ -79,7 +79,7 @@ export default async function AccountsPage() {
                     aria-hidden
                   />
                   <span
-                    className="flex size-10 shrink-0 items-center justify-center rounded-xl"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-xl"
                     style={{
                       background:
                         "color-mix(in oklch, var(--accent-muted) 70%, transparent)",
@@ -110,7 +110,10 @@ export default async function AccountsPage() {
         </ul>
       )}
 
-      <section id="add-account" className={`${cardClass} scroll-mt-20 p-4`}>
+      <section
+        id="add-account"
+        className={`${cardClass} scroll-mt-20 p-4 sm:max-w-lg lg:max-w-xl`}
+      >
         <h2 className="text-sm font-semibold text-fg">Add account</h2>
         <form action={createAccount} className="mt-3 space-y-3">
           <label className={labelClass}>

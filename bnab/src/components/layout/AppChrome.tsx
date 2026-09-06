@@ -60,7 +60,6 @@ export function AppChrome({
     pathname === "/transactions" ||
     (pathname.startsWith("/transactions/") &&
       !pathname.startsWith("/transactions/new"));
-  const widePlan = pathname === "/plan" || pathname.startsWith("/plan?");
 
   return (
     <div
@@ -83,7 +82,9 @@ export function AppChrome({
             const active =
               href === "/transactions"
                 ? wideRegister
-                : pathname === href || pathname.startsWith(href + "/");
+                : href === "/more/import-bill"
+                  ? pathname.startsWith("/more/import-bill")
+                  : pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}
@@ -104,7 +105,8 @@ export function AppChrome({
             href="/more"
             prefetch
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-              pathname.startsWith("/more")
+              pathname.startsWith("/more") &&
+              !pathname.startsWith("/more/import-bill")
                 ? "bg-accent-muted text-accent"
                 : "text-fg-muted hover:bg-overlay hover:text-fg"
             }`}
@@ -136,15 +138,7 @@ export function AppChrome({
             <p className="truncate text-xs text-fg-muted">{budgetName}</p>
           </div>
         </header>
-        <main
-          className={`mx-auto w-full flex-1 px-3 py-4 sm:px-5 md:py-6 ${
-            widePlan
-              ? "max-w-none md:px-6 lg:px-8"
-              : wideRegister
-                ? "max-w-6xl md:px-6"
-                : "max-w-3xl md:px-8 md:py-8"
-          }`}
-        >
+        <main className="mx-auto w-full max-w-none flex-1 px-3 py-4 sm:px-5 md:px-6 md:py-6 lg:px-8">
           {children}
         </main>
         <InstallAppPrompt />

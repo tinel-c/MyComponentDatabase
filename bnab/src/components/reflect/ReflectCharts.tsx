@@ -78,8 +78,8 @@ export function ReflectCharts({
   const gridStroke = colors.rim;
 
   return (
-    <div className="space-y-4">
-      <section className={`${cardClass} p-4`}>
+    <div className="grid gap-4 md:grid-cols-2 xl:gap-6">
+      <section className={`${cardClass} p-4 md:col-span-1`}>
         <h2 className="text-sm font-semibold text-fg">Spending by category</h2>
         {spending.length === 0 ? (
           <EmptyState
@@ -88,7 +88,7 @@ export function ReflectCharts({
             description="Categorized outflows will show up here."
           />
         ) : (
-          <div className="mt-2 h-64 w-full">
+          <div className="mt-2 h-72 w-full sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -97,8 +97,8 @@ export function ReflectCharts({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
+                  innerRadius={55}
+                  outerRadius={90}
                   paddingAngle={2}
                 >
                   {spending.map((_, i) => (
@@ -128,12 +128,17 @@ export function ReflectCharts({
         {payees.length === 0 ? (
           <EmptyState icon={BarChart3} title="No payee data yet" />
         ) : (
-          <div className="mt-2 h-56 w-full">
+          <div className="mt-2 h-72 w-full sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={payees} layout="vertical" margin={{ left: 8, right: 8 }}>
+              <BarChart data={payees} layout="vertical" margin={{ left: 4, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.35} />
                 <XAxis type="number" tick={tick} />
-                <YAxis type="category" dataKey="name" width={88} tick={{ ...tick, fontSize: 10 }} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={100}
+                  tick={{ ...tick, fontSize: 10 }}
+                />
                 <Tooltip
                   contentStyle={{
                     background: "var(--overlay)",
@@ -150,7 +155,7 @@ export function ReflectCharts({
 
       <section className={`${cardClass} p-4`}>
         <h2 className="text-sm font-semibold text-fg">Income vs Expense</h2>
-        <div className="mt-2 h-56 w-full">
+        <div className="mt-2 h-64 w-full sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={incomeExpense}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.35} />
@@ -173,7 +178,7 @@ export function ReflectCharts({
 
       <section className={`${cardClass} p-4`}>
         <h2 className="text-sm font-semibold text-fg">Net worth</h2>
-        <div className="mt-2 h-56 w-full">
+        <div className="mt-2 h-64 w-full sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={netWorth}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.35} />

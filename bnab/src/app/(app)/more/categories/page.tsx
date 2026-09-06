@@ -200,7 +200,10 @@ export default async function CategoriesPage() {
                 ) : null}
 
                 {!c.isIncome ? (
-                  <form action={setCategoryTarget} className="grid gap-2 sm:grid-cols-4">
+                  <form
+                    action={setCategoryTarget}
+                    className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4"
+                  >
                     <input type="hidden" name="categoryId" value={c.id} />
                     <select
                       name="type"
@@ -220,7 +223,10 @@ export default async function CategoriesPage() {
                       required
                     />
                     <input name="dueDate" type="date" className={inputClass} />
-                    <button type="submit" className={buttonPrimaryClass}>
+                    <button
+                      type="submit"
+                      className={`${buttonPrimaryClass} w-full sm:w-auto`}
+                    >
                       Set target
                     </button>
                   </form>

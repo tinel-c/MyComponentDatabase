@@ -111,8 +111,8 @@ export function ImportBillClient({ currency }: { currency: string }) {
     null;
 
   return (
-    <div className="space-y-4">
-      <div className={`${cardClass} space-y-4 p-4`}>
+    <div className="mx-auto w-full max-w-3xl space-y-4 lg:mx-0 lg:max-w-none lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
+      <div className={`${cardClass} space-y-4 p-4 sm:p-5 lg:sticky lg:top-6`}>
         <div className="flex items-start gap-3">
           <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-muted text-accent">
             <Receipt className="size-5" aria-hidden />
@@ -140,13 +140,15 @@ export function ImportBillClient({ currency }: { currency: string }) {
           <button
             type="submit"
             disabled={pending}
-            className={`${buttonPrimaryClass} inline-flex w-full items-center justify-center gap-2 sm:w-auto`}
+            className={`${buttonPrimaryClass} inline-flex w-full items-center justify-center gap-2`}
           >
             <Upload className="h-4 w-4" aria-hidden />
             {scanPending ? "Scanning…" : "Import bill"}
           </button>
         </form>
       </div>
+
+      <div className="space-y-4">
 
       {error ? (
         <p className="rounded-lg bg-danger-muted px-3 py-2 text-sm text-danger-fg">
@@ -286,6 +288,17 @@ export function ImportBillClient({ currency }: { currency: string }) {
           </ul>
         </details>
       ) : null}
+
+      {!error &&
+      state.phase === "upload" &&
+      !state.ok ? (
+        <div className={`${cardClass} border-dashed p-6 text-center sm:p-8`}>
+          <p className="text-sm text-fg-muted">
+            Results appear here after you scan a bill.
+          </p>
+        </div>
+      ) : null}
+      </div>
     </div>
   );
 }

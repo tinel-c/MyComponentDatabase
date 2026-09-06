@@ -59,8 +59,10 @@ export default async function NewTransactionPage({
         </p>
       ) : null}
 
-      <form action={createTransaction} className={`${cardClass} space-y-4 p-4`}>
-        <label className={labelClass}>
+      <form
+        action={createTransaction}
+        className={`${cardClass} mx-auto max-w-3xl space-y-4 p-4 sm:p-6 md:grid md:max-w-none md:grid-cols-2 md:gap-x-6 md:gap-y-4 md:space-y-0`}
+      >        <label className={labelClass}>
           Account
           <select
             name="accountId"
@@ -171,7 +173,7 @@ export default async function NewTransactionPage({
           <input name="notes" className={inputClass} />
         </label>
 
-        <label className="flex min-h-11 items-center gap-2 text-sm text-fg">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-fg md:col-span-2">
           <input
             type="checkbox"
             name="cleared"
@@ -182,7 +184,10 @@ export default async function NewTransactionPage({
           Cleared
         </label>
 
-        <button type="submit" className={`${buttonPrimaryClass} w-full`}>
+        <button
+          type="submit"
+          className={`${buttonPrimaryClass} w-full md:col-span-2 md:max-w-xs`}
+        >
           Save
         </button>
       </form>

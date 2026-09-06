@@ -123,7 +123,7 @@ export default async function TransactionsPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className={sectionHeadingClass}>Transactions</h1>
           <p className={sectionSubheadingClass}>
@@ -131,7 +131,11 @@ export default async function TransactionsPage({
             {q || accountId ? " (filtered)" : ""}.
           </p>
         </div>
-        <Link href="/transactions/new" prefetch className={buttonPrimaryClass}>
+        <Link
+          href="/transactions/new"
+          prefetch
+          className={`${buttonPrimaryClass} w-full shrink-0 sm:w-auto`}
+        >
           Add
         </Link>
       </div>

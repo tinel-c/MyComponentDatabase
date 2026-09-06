@@ -101,6 +101,7 @@ export default async function AccountDetailPage({
         </Link>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-2">
       <section className={`${cardClass} space-y-3 p-4`}>
         <h2 className="text-sm font-semibold text-fg">
           Adjust to ING / statement
@@ -141,6 +142,7 @@ export default async function AccountDetailPage({
           </button>
         </form>
       </section>
+      </div>
 
       <form action={reconcileAccount}>
         <input type="hidden" name="accountId" value={account.id} />

@@ -46,7 +46,10 @@ export default async function SchedulesPage() {
           </li>
         ) : (
           schedules.map((s) => (
-            <li key={s.id} className="flex items-center gap-3 px-4 py-3">
+            <li
+              key={s.id}
+              className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
+            >
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-fg">
                   {s.payee?.name ?? s.notes ?? "Scheduled"}
@@ -56,22 +59,32 @@ export default async function SchedulesPage() {
                   {s.category ? ` · ${s.category.name}` : ""}
                 </p>
               </div>
-              <p className="tabular-nums text-sm font-medium text-fg">
-                {formatMoney(s.amount, budget.currency)}
-              </p>
-              <form action={enterScheduled}>
-                <input type="hidden" name="id" value={s.id} />
-                <button type="submit" className={buttonSecondaryClass}>
-                  Enter
-                </button>
-              </form>
+              <div className="flex items-center justify-between gap-3 sm:justify-end">
+                <p className="tabular-nums text-sm font-medium text-fg">
+                  {formatMoney(s.amount, budget.currency)}
+                </p>
+                <form action={enterScheduled}>
+                  <input type="hidden" name="id" value={s.id} />
+                  <button
+                    type="submit"
+                    className={`${buttonSecondaryClass} min-h-10 px-4`}
+                  >
+                    Enter
+                  </button>
+                </form>
+              </div>
             </li>
           ))
         )}
       </ul>
 
-      <form action={createSchedule} className={`${cardClass} space-y-3 p-4`}>
-        <h2 className="text-sm font-semibold text-fg">New schedule</h2>
+      <form
+        action={createSchedule}
+        className={`${cardClass} space-y-3 p-4 lg:grid lg:max-w-4xl lg:grid-cols-2 lg:gap-3 lg:space-y-0`}
+      >
+        <h2 className="text-sm font-semibold text-fg lg:col-span-2">
+          New schedule
+        </h2>
         <label className={labelClass}>
           Account
           <select name="accountId" className={inputClass} required>
@@ -86,7 +99,7 @@ export default async function SchedulesPage() {
           Amount
           <input name="amount" required inputMode="decimal" className={inputClass} />
         </label>
-        <label className="flex items-center gap-2 text-sm text-fg">
+        <label className="flex items-center gap-2 text-sm text-fg lg:col-span-2">
           <input type="checkbox" name="inflow" value="1" className="size-4" />
           Inflow
         </label>
@@ -123,7 +136,10 @@ export default async function SchedulesPage() {
             <option value="YEARLY">Yearly</option>
           </select>
         </label>
-        <button type="submit" className={buttonPrimaryClass}>
+        <button
+          type="submit"
+          className={`${buttonPrimaryClass} w-full lg:col-span-2 lg:max-w-xs`}
+        >
           Create
         </button>
       </form>
