@@ -15,8 +15,11 @@ type ChartColors = {
   ok: string;
   danger: string;
   muted: string;
+  subtle: string;
   rim: string;
+  rimSubtle: string;
   fg: string;
+  surface: string;
   overlay: string;
   slices: string[];
 };
@@ -26,8 +29,11 @@ const FALLBACK: ChartColors = {
   ok: "oklch(0.72 0.17 160)",
   danger: "oklch(0.65 0.2 25)",
   muted: "oklch(0.65 0.02 260)",
+  subtle: "oklch(0.55 0.02 260)",
   rim: "oklch(0.35 0.02 260)",
+  rimSubtle: "oklch(0.3 0.02 260)",
   fg: "oklch(0.95 0.01 260)",
+  surface: "oklch(0.2 0.02 260)",
   overlay: "oklch(0.22 0.02 260)",
   slices: [],
 };
@@ -38,8 +44,12 @@ function readThemeColors(): ChartColors {
   const ok = s.getPropertyValue("--ok").trim() || accent;
   const danger = s.getPropertyValue("--danger").trim() || FALLBACK.danger;
   const muted = s.getPropertyValue("--fg-muted").trim() || FALLBACK.muted;
+  const subtle = s.getPropertyValue("--fg-subtle").trim() || FALLBACK.subtle;
   const rim = s.getPropertyValue("--rim").trim() || FALLBACK.rim;
+  const rimSubtle =
+    s.getPropertyValue("--rim-subtle").trim() || FALLBACK.rimSubtle;
   const fg = s.getPropertyValue("--fg").trim() || FALLBACK.fg;
+  const surface = s.getPropertyValue("--surface").trim() || FALLBACK.surface;
   const overlay = s.getPropertyValue("--overlay").trim() || FALLBACK.overlay;
   const accentHover = s.getPropertyValue("--accent-hover").trim() || accent;
   const accentMuted = s.getPropertyValue("--accent-muted").trim() || accent;
@@ -48,8 +58,11 @@ function readThemeColors(): ChartColors {
     ok,
     danger,
     muted,
+    subtle,
     rim,
+    rimSubtle,
     fg,
+    surface,
     overlay,
     slices: [accent, ok, accentHover, danger, muted, accentMuted, fg, rim],
   };
@@ -114,15 +127,17 @@ function nivoTheme(colors: ChartColors): PartialTheme {
       text: { fill: colors.muted, fontSize: 11 },
     },
     tooltip: {
+      // Custom tooltips render their own panel; keep wrapper chrome empty
+      // so we don't get a double box. (Nivo does not portal — tooltips are
+      // position:absolute inside the chart, so parents must not clip.)
       container: {
-        background: "var(--surface)",
-        color: "var(--fg)",
+        background: "transparent",
+        color: colors.fg,
         fontSize: 12,
-        borderRadius: 12,
-        border: "1px solid var(--rim)",
-        boxShadow:
-          "0 16px 40px color-mix(in oklch, var(--canvas) 70%, transparent)",
-        padding: "10px 12px",
+        borderRadius: 0,
+        border: "none",
+        boxShadow: "none",
+        padding: 0,
       },
     },
     crosshair: {
@@ -140,32 +155,34 @@ function OverlayList({
   value,
   items,
   currency,
+  colors,
 }: {
   title: string;
   value?: number | null;
   items?: OverlayItem[];
   currency: string;
+  colors: ChartColors;
 }) {
   return (
     <div
       className="max-w-xs text-xs"
+      role="tooltip"
       style={{
-        background: "var(--surface)",
-        color: "var(--fg)",
-        border: "1px solid var(--rim)",
+        background: colors.overlay,
+        color: colors.fg,
+        border: `1px solid ${colors.rim}`,
         borderRadius: 12,
         padding: "10px 12px",
-        boxShadow:
-          "0 16px 40px color-mix(in oklch, var(--canvas) 70%, transparent)",
-        opacity: 1,
+        boxShadow: `0 16px 40px color-mix(in oklch, ${colors.surface} 75%, transparent)`,
+        pointerEvents: "none",
       }}
     >
-      <p className="font-semibold" style={{ color: "var(--fg)" }}>
+      <p className="font-semibold" style={{ color: colors.fg }}>
         {title}
         {value != null ? (
           <span
             className="ml-2 tabular-nums"
-            style={{ color: "var(--fg-muted)" }}
+            style={{ color: colors.muted }}
           >
             {formatMajor(value, currency)}
           </span>
@@ -174,13 +191,13 @@ function OverlayList({
       {items && items.length > 0 ? (
         <ul
           className="mt-2 max-h-48 space-y-1 overflow-y-auto pt-2"
-          style={{ borderTop: "1px solid var(--rim-subtle)" }}
+          style={{ borderTop: `1px solid ${colors.rimSubtle}` }}
         >
           {items.map((item) => (
             <li
               key={item.id}
               className="flex justify-between gap-3"
-              style={{ color: "var(--fg-muted)" }}
+              style={{ color: colors.muted }}
             >
               <span className="min-w-0 truncate">
                 {item.date ? `${item.date} · ` : ""}
@@ -188,7 +205,7 @@ function OverlayList({
               </span>
               <span
                 className="shrink-0 tabular-nums font-medium"
-                style={{ color: "var(--fg)" }}
+                style={{ color: colors.fg }}
               >
                 {formatMajor(item.amount, currency)}
               </span>
@@ -196,7 +213,7 @@ function OverlayList({
           ))}
         </ul>
       ) : (
-        <p className="mt-1" style={{ color: "var(--fg-subtle)" }}>
+        <p className="mt-1" style={{ color: colors.subtle }}>
           No line details
         </p>
       )}
@@ -217,17 +234,22 @@ function ChartCard({
 }) {
   return (
     <section
-      className={`${cardClass} relative overflow-hidden p-4`}
+      className={`${cardClass} relative p-4`}
       style={{
         background:
           "linear-gradient(165deg, color-mix(in oklch, var(--surface) 92%, var(--accent-muted)) 0%, var(--surface) 55%)",
       }}
     >
+      {/* Clip glow only — chart tooltips are absolute and must not be clipped */}
       <div
-        className="pointer-events-none absolute -right-8 -top-10 size-36 rounded-full opacity-40 blur-2xl"
-        style={{ background: "var(--glow-accent)" }}
+        className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         aria-hidden
-      />
+      >
+        <div
+          className="absolute -right-8 -top-10 size-36 rounded-full opacity-40 blur-2xl"
+          style={{ background: "var(--glow-accent)" }}
+        />
+      </div>
       <div className="relative">
         <h2 className="text-sm font-semibold text-fg">{title}</h2>
         {subtitle ? (
@@ -236,7 +258,9 @@ function ChartCard({
         {empty ? (
           <div className="mt-2">{children}</div>
         ) : (
-          <div className="mt-2 h-72 w-full sm:h-80">{children}</div>
+          <div className="relative z-10 mt-2 h-72 w-full overflow-visible sm:h-80">
+            {children}
+          </div>
         )}
       </div>
     </section>
@@ -388,10 +412,7 @@ export function ReflectCharts({
             borderWidth={0}
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={18}
-            arcLabelsTextColor={{
-              from: "color",
-              modifiers: [["brighter", 2.2]],
-            }}
+            arcLabelsTextColor={colors.fg}
             motionConfig="gentle"
             transitionMode="pushIn"
             legends={[
@@ -413,6 +434,7 @@ export function ReflectCharts({
                   (datum.data as { items?: OverlayItem[] }).items
                 }
                 currency={currency}
+                colors={colors}
               />
             )}
           />
@@ -450,6 +472,7 @@ export function ReflectCharts({
                   value={Number(data.amount)}
                   items={meta?.items}
                   currency={currency}
+                  colors={colors}
                 />
               );
             }}
@@ -500,6 +523,7 @@ export function ReflectCharts({
                   id === "Income" ? meta?.incomeItems : meta?.expenseItems
                 }
                 currency={currency}
+                colors={colors}
               />
             );
           }}
@@ -548,29 +572,30 @@ export function ReflectCharts({
           sliceTooltip={({ slice }) => (
             <div
               className="min-w-[10rem] space-y-1 text-xs"
+              role="tooltip"
               style={{
-                background: "var(--surface)",
-                color: "var(--fg)",
-                border: "1px solid var(--rim)",
+                background: colors.overlay,
+                color: colors.fg,
+                border: `1px solid ${colors.rim}`,
                 borderRadius: 12,
                 padding: "10px 12px",
-                boxShadow:
-                  "0 16px 40px color-mix(in oklch, var(--canvas) 70%, transparent)",
+                boxShadow: `0 16px 40px color-mix(in oklch, ${colors.surface} 75%, transparent)`,
+                pointerEvents: "none",
               }}
             >
-              <p className="font-semibold" style={{ color: "var(--fg)" }}>
+              <p className="font-semibold" style={{ color: colors.fg }}>
                 {String(slice.points[0]?.data.x)}
               </p>
               {slice.points.map((p) => (
                 <p
                   key={p.id}
                   className="flex justify-between gap-4"
-                  style={{ color: "var(--fg-muted)" }}
+                  style={{ color: colors.muted }}
                 >
                   <span style={{ color: p.seriesColor }}>{p.seriesId}</span>
                   <span
                     className="tabular-nums font-medium"
-                    style={{ color: "var(--fg)" }}
+                    style={{ color: colors.fg }}
                   >
                     {formatMajor(Number(p.data.y), currency)}
                   </span>
@@ -617,6 +642,7 @@ export function ReflectCharts({
                   value={datum.value}
                   items={(datum.data as { items?: OverlayItem[] }).items}
                   currency={currency}
+                  colors={colors}
                 />
               )}
             />
@@ -652,6 +678,7 @@ export function ReflectCharts({
                     value={Number(data.amount)}
                     items={meta?.items}
                     currency={currency}
+                    colors={colors}
                   />
                 );
               }}
