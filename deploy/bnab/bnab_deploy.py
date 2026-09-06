@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -25,10 +26,13 @@ DEPLOY = Path(__file__).resolve().parent
 
 def run(cmd: list[str], cwd: Path | None = None) -> None:
     print(f"\n==> {' '.join(cmd)}", flush=True)
-    r = subprocess.run(cmd, cwd=str(cwd or ROOT))
+    r = subprocess.run(
+        cmd,
+        cwd=str(cwd or ROOT),
+        shell=os.name == "nt",
+    )
     if r.returncode != 0:
         sys.exit(r.returncode)
-
 
 def cmd_status() -> None:
     run([sys.executable, str(DEPLOY / "ssh_check_bnab.py")])
