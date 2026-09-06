@@ -115,12 +115,13 @@ function nivoTheme(colors: ChartColors): PartialTheme {
     },
     tooltip: {
       container: {
-        background: colors.overlay,
-        color: colors.fg,
+        background: "var(--surface)",
+        color: "var(--fg)",
         fontSize: 12,
         borderRadius: 12,
-        border: `1px solid ${colors.rim}`,
-        boxShadow: "0 12px 40px color-mix(in oklch, var(--glow-accent) 25%, transparent)",
+        border: "1px solid var(--rim)",
+        boxShadow:
+          "0 16px 40px color-mix(in oklch, var(--canvas) 70%, transparent)",
         padding: "10px 12px",
       },
     },
@@ -146,34 +147,58 @@ function OverlayList({
   currency: string;
 }) {
   return (
-    <div className="max-w-xs text-xs">
-      <p className="font-semibold text-fg">
+    <div
+      className="max-w-xs text-xs"
+      style={{
+        background: "var(--surface)",
+        color: "var(--fg)",
+        border: "1px solid var(--rim)",
+        borderRadius: 12,
+        padding: "10px 12px",
+        boxShadow:
+          "0 16px 40px color-mix(in oklch, var(--canvas) 70%, transparent)",
+        opacity: 1,
+      }}
+    >
+      <p className="font-semibold" style={{ color: "var(--fg)" }}>
         {title}
         {value != null ? (
-          <span className="ml-2 tabular-nums text-fg-muted">
+          <span
+            className="ml-2 tabular-nums"
+            style={{ color: "var(--fg-muted)" }}
+          >
             {formatMajor(value, currency)}
           </span>
         ) : null}
       </p>
       {items && items.length > 0 ? (
-        <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto border-t border-rim-subtle pt-2">
+        <ul
+          className="mt-2 max-h-48 space-y-1 overflow-y-auto pt-2"
+          style={{ borderTop: "1px solid var(--rim-subtle)" }}
+        >
           {items.map((item) => (
             <li
               key={item.id}
-              className="flex justify-between gap-3 text-fg-muted"
+              className="flex justify-between gap-3"
+              style={{ color: "var(--fg-muted)" }}
             >
               <span className="min-w-0 truncate">
                 {item.date ? `${item.date} · ` : ""}
                 {item.label}
               </span>
-              <span className="shrink-0 tabular-nums text-fg">
+              <span
+                className="shrink-0 tabular-nums font-medium"
+                style={{ color: "var(--fg)" }}
+              >
                 {formatMajor(item.amount, currency)}
               </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-1 text-fg-subtle">No line details</p>
+        <p className="mt-1" style={{ color: "var(--fg-subtle)" }}>
+          No line details
+        </p>
       )}
     </div>
   );
@@ -521,12 +546,32 @@ export function ReflectCharts({
           ]}
           motionConfig="gentle"
           sliceTooltip={({ slice }) => (
-            <div className="space-y-1 text-xs">
-              <p className="font-semibold text-fg">{String(slice.points[0]?.data.x)}</p>
+            <div
+              className="min-w-[10rem] space-y-1 text-xs"
+              style={{
+                background: "var(--surface)",
+                color: "var(--fg)",
+                border: "1px solid var(--rim)",
+                borderRadius: 12,
+                padding: "10px 12px",
+                boxShadow:
+                  "0 16px 40px color-mix(in oklch, var(--canvas) 70%, transparent)",
+              }}
+            >
+              <p className="font-semibold" style={{ color: "var(--fg)" }}>
+                {String(slice.points[0]?.data.x)}
+              </p>
               {slice.points.map((p) => (
-                <p key={p.id} className="flex justify-between gap-4 text-fg-muted">
+                <p
+                  key={p.id}
+                  className="flex justify-between gap-4"
+                  style={{ color: "var(--fg-muted)" }}
+                >
                   <span style={{ color: p.seriesColor }}>{p.seriesId}</span>
-                  <span className="tabular-nums text-fg">
+                  <span
+                    className="tabular-nums font-medium"
+                    style={{ color: "var(--fg)" }}
+                  >
                     {formatMajor(Number(p.data.y), currency)}
                   </span>
                 </p>
