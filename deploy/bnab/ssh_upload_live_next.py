@@ -156,6 +156,12 @@ sudo -u deploy bash -lc '
     mkdir -p "$d"
     cp -a node_modules/@prisma/client/. "$d/"
   done
+  if [ -d node_modules/.prisma ]; then
+    echo "sync .next/node_modules/.prisma"
+    rm -rf .next/node_modules/.prisma
+    mkdir -p .next/node_modules
+    cp -a node_modules/.prisma .next/node_modules/
+  fi
 '
 rm -f /opt/bnab/shared/bnab-next-upload.tgz /opt/bnab/shared/bnab-overlay.tgz
 rm -rf /opt/bnab/shared/overlay
