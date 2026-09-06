@@ -1,21 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { useEffect, useMemo, useState } from "react";
+import { ResponsivePie } from "@nivo/pie";
+import { ResponsiveBar } from "@nivo/bar";
+import { ResponsiveLine } from "@nivo/line";
+import type { PartialTheme } from "@nivo/theming";
 import { BarChart3 } from "lucide-react";
 import { cardClass } from "@/components/forms/field-classes";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -28,6 +17,7 @@ type ChartColors = {
   muted: string;
   rim: string;
   fg: string;
+  overlay: string;
   slices: string[];
 };
 
@@ -38,6 +28,7 @@ const FALLBACK: ChartColors = {
   muted: "oklch(0.65 0.02 260)",
   rim: "oklch(0.35 0.02 260)",
   fg: "oklch(0.95 0.01 260)",
+  overlay: "oklch(0.22 0.02 260)",
   slices: [],
 };
 
@@ -49,10 +40,9 @@ function readThemeColors(): ChartColors {
   const muted = s.getPropertyValue("--fg-muted").trim() || FALLBACK.muted;
   const rim = s.getPropertyValue("--rim").trim() || FALLBACK.rim;
   const fg = s.getPropertyValue("--fg").trim() || FALLBACK.fg;
-  const accentHover =
-    s.getPropertyValue("--accent-hover").trim() || accent;
-  const accentMuted =
-    s.getPropertyValue("--accent-muted").trim() || accent;
+  const overlay = s.getPropertyValue("--overlay").trim() || FALLBACK.overlay;
+  const accentHover = s.getPropertyValue("--accent-hover").trim() || accent;
+  const accentMuted = s.getPropertyValue("--accent-muted").trim() || accent;
   return {
     accent,
     ok,
@@ -60,16 +50,8 @@ function readThemeColors(): ChartColors {
     muted,
     rim,
     fg,
-    slices: [
-      accent,
-      ok,
-      accentHover,
-      danger,
-      muted,
-      accentMuted,
-      fg,
-      rim,
-    ],
+    overlay,
+    slices: [accent, ok, accentHover, danger, muted, accentMuted, fg, rim],
   };
 }
 
@@ -104,47 +86,67 @@ function formatMajor(n: number, currency: string): string {
   }).format(n);
 }
 
-function OverlayTooltip({
-  active,
-  payload,
+function nivoTheme(colors: ChartColors): PartialTheme {
+  return {
+    background: "transparent",
+    text: {
+      fontSize: 11,
+      fill: colors.muted,
+      outlineWidth: 0,
+      outlineColor: "transparent",
+    },
+    axis: {
+      domain: {
+        line: { stroke: colors.rim, strokeWidth: 1 },
+      },
+      ticks: {
+        line: { stroke: colors.rim, strokeWidth: 1 },
+        text: { fill: colors.muted, fontSize: 11 },
+      },
+      legend: {
+        text: { fill: colors.muted, fontSize: 12 },
+      },
+    },
+    grid: {
+      line: { stroke: colors.rim, strokeWidth: 1, strokeOpacity: 0.35 },
+    },
+    legends: {
+      text: { fill: colors.muted, fontSize: 11 },
+    },
+    tooltip: {
+      container: {
+        background: colors.overlay,
+        color: colors.fg,
+        fontSize: 12,
+        borderRadius: 12,
+        border: `1px solid ${colors.rim}`,
+        boxShadow: "0 12px 40px color-mix(in oklch, var(--glow-accent) 25%, transparent)",
+        padding: "10px 12px",
+      },
+    },
+    crosshair: {
+      line: {
+        stroke: colors.accent,
+        strokeWidth: 1,
+        strokeOpacity: 0.45,
+      },
+    },
+  };
+}
+
+function OverlayList({
+  title,
+  value,
+  items,
   currency,
-  labelKey = "name",
 }: {
-  active?: boolean;
-  payload?: {
-    payload?: Record<string, unknown>;
-    name?: string;
-    value?: number;
-    dataKey?: string;
-  }[];
+  title: string;
+  value?: number | null;
+  items?: OverlayItem[];
   currency: string;
-  labelKey?: string;
 }) {
-  if (!active || !payload?.[0]) return null;
-  const row = payload[0].payload ?? {};
-  const dataKey = String(payload[0].dataKey ?? "");
-  const title = String(row[labelKey] ?? payload[0].name ?? "");
-  const value =
-    typeof payload[0].value === "number"
-      ? payload[0].value
-      : typeof row.value === "number"
-        ? row.value
-        : null;
-
-  let items: OverlayItem[] | undefined;
-  if (dataKey === "income" && Array.isArray(row.incomeItems)) {
-    items = row.incomeItems as OverlayItem[];
-  } else if (dataKey === "expense" && Array.isArray(row.expenseItems)) {
-    items = row.expenseItems as OverlayItem[];
-  } else if (Array.isArray(row.items)) {
-    items = row.items as OverlayItem[];
-  }
-
   return (
-    <div
-      className="max-w-xs rounded-xl border border-rim bg-overlay px-3 py-2 text-xs shadow-lg"
-      style={{ color: "var(--fg)" }}
-    >
+    <div className="max-w-xs text-xs">
       <p className="font-semibold text-fg">
         {title}
         {value != null ? (
@@ -177,6 +179,45 @@ function OverlayTooltip({
   );
 }
 
+function ChartCard({
+  title,
+  subtitle,
+  children,
+  empty,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  empty?: boolean;
+}) {
+  return (
+    <section
+      className={`${cardClass} relative overflow-hidden p-4`}
+      style={{
+        background:
+          "linear-gradient(165deg, color-mix(in oklch, var(--surface) 92%, var(--accent-muted)) 0%, var(--surface) 55%)",
+      }}
+    >
+      <div
+        className="pointer-events-none absolute -right-8 -top-10 size-36 rounded-full opacity-40 blur-2xl"
+        style={{ background: "var(--glow-accent)" }}
+        aria-hidden
+      />
+      <div className="relative">
+        <h2 className="text-sm font-semibold text-fg">{title}</h2>
+        {subtitle ? (
+          <p className="mt-1 text-xs text-fg-muted">{subtitle}</p>
+        ) : null}
+        {empty ? (
+          <div className="mt-2">{children}</div>
+        ) : (
+          <div className="mt-2 h-72 w-full sm:h-80">{children}</div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export function ReflectCharts({
   currency,
   spending,
@@ -198,14 +239,111 @@ export function ReflectCharts({
     setColors(readThemeColors());
   }, [theme]);
 
-  const tick = { fontSize: 11, fill: colors.muted };
-  const gridStroke = colors.rim;
+  const themeCfg = useMemo(() => nivoTheme(colors), [colors]);
   const receipt = receiptSpending ?? [];
+
+  const pieSpending = useMemo(
+    () =>
+      spending.map((d) => ({
+        id: d.name,
+        label: d.name,
+        value: d.value,
+        items: d.items,
+      })),
+    [spending],
+  );
+
+  const pieReceipt = useMemo(
+    () =>
+      receipt.map((d) => ({
+        id: d.name,
+        label: d.name,
+        value: d.value,
+        items: d.items,
+      })),
+    [receipt],
+  );
+
+  const payeeBars = useMemo(
+    () =>
+      payees.slice(0, 10).map((d) => ({
+        payee: d.name.length > 18 ? `${d.name.slice(0, 16)}…` : d.name,
+        amount: d.value,
+      })),
+    [payees],
+  );
+  const payeeMeta = useMemo(() => {
+    const m = new Map<string, { fullName: string; items?: OverlayItem[] }>();
+    for (const d of payees.slice(0, 10)) {
+      const key = d.name.length > 18 ? `${d.name.slice(0, 16)}…` : d.name;
+      m.set(key, { fullName: d.name, items: d.items });
+    }
+    return m;
+  }, [payees]);
+
+  const ieBars = useMemo(
+    () =>
+      incomeExpense.map((r) => ({
+        month: r.month,
+        Income: r.income,
+        Expense: r.expense,
+      })),
+    [incomeExpense],
+  );
+  const ieMeta = useMemo(() => {
+    const m = new Map<
+      string,
+      { incomeItems?: OverlayItem[]; expenseItems?: OverlayItem[] }
+    >();
+    for (const r of incomeExpense) {
+      m.set(r.month, {
+        incomeItems: r.incomeItems,
+        expenseItems: r.expenseItems,
+      });
+    }
+    return m;
+  }, [incomeExpense]);
+
+  const nwSeries = useMemo(
+    () => [
+      {
+        id: "Assets",
+        data: netWorth.map((r) => ({ x: r.month, y: r.assets })),
+      },
+      {
+        id: "Debts",
+        data: netWorth.map((r) => ({ x: r.month, y: r.debts })),
+      },
+      {
+        id: "Net",
+        data: netWorth.map((r) => ({ x: r.month, y: r.net })),
+      },
+    ],
+    [netWorth],
+  );
+
+  const receiptBars = useMemo(
+    () =>
+      receipt.slice(0, 10).map((d) => ({
+        category: d.name.length > 18 ? `${d.name.slice(0, 16)}…` : d.name,
+        amount: d.value,
+      })),
+    [receipt],
+  );
+  const receiptMeta = useMemo(() => {
+    const m = new Map<string, { fullName: string; items?: OverlayItem[] }>();
+    for (const d of receipt.slice(0, 10)) {
+      const key = d.name.length > 18 ? `${d.name.slice(0, 16)}…` : d.name;
+      m.set(key, { fullName: d.name, items: d.items });
+    }
+    return m;
+  }, [receipt]);
+
+  const lineColors = [colors.fg, colors.danger, colors.accent];
 
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:gap-6">
-      <section className={`${cardClass} p-4 md:col-span-1`}>
-        <h2 className="text-sm font-semibold text-fg">Spending by category</h2>
+      <ChartCard title="Spending by category" empty={spending.length === 0}>
         {spending.length === 0 ? (
           <EmptyState
             icon={BarChart3}
@@ -213,174 +351,267 @@ export function ReflectCharts({
             description="Categorized outflows will show up here."
           />
         ) : (
-          <div className="mt-2 h-72 w-full sm:h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={spending}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={90}
-                  paddingAngle={2}
-                >
-                  {spending.map((_, i) => (
-                    <Cell key={i} fill={colors.slices[i % colors.slices.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<OverlayTooltip currency={currency} />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: colors.muted }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          <ResponsivePie
+            data={pieSpending}
+            theme={themeCfg}
+            margin={{ top: 16, right: 16, bottom: 48, left: 16 }}
+            innerRadius={0.62}
+            padAngle={1.4}
+            cornerRadius={6}
+            activeOuterRadiusOffset={10}
+            colors={colors.slices}
+            borderWidth={0}
+            enableArcLinkLabels={false}
+            arcLabelsSkipAngle={18}
+            arcLabelsTextColor={{
+              from: "color",
+              modifiers: [["brighter", 2.2]],
+            }}
+            motionConfig="gentle"
+            transitionMode="pushIn"
+            legends={[
+              {
+                anchor: "bottom",
+                direction: "row",
+                translateY: 40,
+                itemWidth: 88,
+                itemHeight: 14,
+                symbolSize: 10,
+                symbolShape: "circle",
+              },
+            ]}
+            tooltip={({ datum }) => (
+              <OverlayList
+                title={String(datum.label)}
+                value={datum.value}
+                items={
+                  (datum.data as { items?: OverlayItem[] }).items
+                }
+                currency={currency}
+              />
+            )}
+          />
         )}
-      </section>
+      </ChartCard>
 
-      <section className={`${cardClass} p-4`}>
-        <h2 className="text-sm font-semibold text-fg">Spending by payee</h2>
+      <ChartCard title="Spending by payee" empty={payees.length === 0}>
         {payees.length === 0 ? (
           <EmptyState icon={BarChart3} title="No payee data yet" />
         ) : (
-          <div className="mt-2 h-72 w-full sm:h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={payees} layout="vertical" margin={{ left: 4, right: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.35} />
-                <XAxis type="number" tick={tick} />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={100}
-                  tick={{ ...tick, fontSize: 10 }}
+          <ResponsiveBar
+            data={payeeBars}
+            keys={["amount"]}
+            indexBy="payee"
+            layout="horizontal"
+            theme={themeCfg}
+            margin={{ top: 8, right: 24, bottom: 28, left: 108 }}
+            padding={0.28}
+            borderRadius={6}
+            colors={[colors.accent]}
+            enableLabel={false}
+            axisBottom={{
+              tickSize: 0,
+              tickPadding: 8,
+              format: (v) =>
+                typeof v === "number" ? Math.round(v).toLocaleString("ro-RO") : String(v),
+            }}
+            axisLeft={{ tickSize: 0, tickPadding: 8 }}
+            motionConfig="gentle"
+            tooltip={({ data }) => {
+              const meta = payeeMeta.get(String(data.payee));
+              return (
+                <OverlayList
+                  title={meta?.fullName ?? String(data.payee)}
+                  value={Number(data.amount)}
+                  items={meta?.items}
+                  currency={currency}
                 />
-                <Tooltip content={<OverlayTooltip currency={currency} />} />
-                <Bar dataKey="value" fill={colors.accent} radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+              );
+            }}
+          />
         )}
-      </section>
+      </ChartCard>
 
-      <section className={`${cardClass} p-4`}>
-        <h2 className="text-sm font-semibold text-fg">Income vs Expense</h2>
-        <div className="mt-2 h-64 w-full sm:h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={incomeExpense}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.35} />
-              <XAxis dataKey="month" tick={tick} />
-              <YAxis tick={tick} />
-              <Tooltip
-                content={<OverlayTooltip currency={currency} labelKey="month" />}
+      <ChartCard title="Income vs Expense">
+        <ResponsiveBar
+          data={ieBars}
+          keys={["Income", "Expense"]}
+          indexBy="month"
+          groupMode="grouped"
+          theme={themeCfg}
+          margin={{ top: 16, right: 16, bottom: 40, left: 48 }}
+          padding={0.32}
+          innerPadding={3}
+          borderRadius={6}
+          colors={[colors.ok, colors.danger]}
+          enableLabel={false}
+          axisBottom={{ tickSize: 0, tickPadding: 8 }}
+          axisLeft={{
+            tickSize: 0,
+            tickPadding: 8,
+            format: (v) =>
+              typeof v === "number" ? Math.round(v).toLocaleString("ro-RO") : String(v),
+          }}
+          legends={[
+            {
+              dataFrom: "keys",
+              anchor: "bottom",
+              direction: "row",
+              translateY: 36,
+              itemWidth: 80,
+              itemHeight: 14,
+              symbolSize: 10,
+              symbolShape: "circle",
+            },
+          ]}
+          motionConfig="gentle"
+          tooltip={({ id, value, data }) => {
+            const meta = ieMeta.get(String(data.month));
+            return (
+              <OverlayList
+                title={`${data.month} · ${String(id)}`}
+                value={value}
+                items={
+                  id === "Income" ? meta?.incomeItems : meta?.expenseItems
+                }
+                currency={currency}
               />
-              <Legend />
-              <Bar dataKey="income" fill={colors.ok} name="Income" />
-              <Bar dataKey="expense" fill={colors.danger} name="Expense" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+            );
+          }}
+        />
+      </ChartCard>
 
-      <section className={`${cardClass} p-4`}>
-        <h2 className="text-sm font-semibold text-fg">Net worth</h2>
-        <div className="mt-2 h-64 w-full sm:h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={netWorth}>
-              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} opacity={0.35} />
-              <XAxis dataKey="month" tick={tick} />
-              <YAxis tick={tick} />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--overlay)",
-                  border: "1px solid var(--rim)",
-                  borderRadius: 12,
-                  color: "var(--fg)",
-                }}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="assets" stroke={colors.fg} name="Assets" />
-              <Line type="monotone" dataKey="debts" stroke={colors.danger} name="Debts" />
-              <Line
-                type="monotone"
-                dataKey="net"
-                stroke={colors.accent}
-                name="Net"
-                strokeWidth={2}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </section>
+      <ChartCard title="Net worth">
+        <ResponsiveLine
+          data={nwSeries}
+          theme={themeCfg}
+          margin={{ top: 16, right: 20, bottom: 48, left: 52 }}
+          xScale={{ type: "point" }}
+          yScale={{ type: "linear", min: "auto", max: "auto", stacked: false }}
+          curve="monotoneX"
+          colors={lineColors}
+          lineWidth={2.5}
+          enableArea
+          areaOpacity={0.12}
+          enablePoints
+          pointSize={8}
+          pointColor={{ theme: "background" }}
+          pointBorderWidth={2}
+          pointBorderColor={{ from: "seriesColor" }}
+          enableGridX={false}
+          axisBottom={{ tickSize: 0, tickPadding: 10 }}
+          axisLeft={{
+            tickSize: 0,
+            tickPadding: 8,
+            format: (v) =>
+              typeof v === "number" ? Math.round(v).toLocaleString("ro-RO") : String(v),
+          }}
+          useMesh
+          enableSlices="x"
+          legends={[
+            {
+              anchor: "bottom",
+              direction: "row",
+              translateY: 42,
+              itemWidth: 72,
+              itemHeight: 14,
+              symbolSize: 10,
+              symbolShape: "circle",
+            },
+          ]}
+          motionConfig="gentle"
+          sliceTooltip={({ slice }) => (
+            <div className="space-y-1 text-xs">
+              <p className="font-semibold text-fg">{String(slice.points[0]?.data.x)}</p>
+              {slice.points.map((p) => (
+                <p key={p.id} className="flex justify-between gap-4 text-fg-muted">
+                  <span style={{ color: p.seriesColor }}>{p.seriesId}</span>
+                  <span className="tabular-nums text-fg">
+                    {formatMajor(Number(p.data.y), currency)}
+                  </span>
+                </p>
+              ))}
+            </div>
+          )}
+        />
+      </ChartCard>
 
       {receipt.length > 0 ? (
         <>
-          <section className={`${cardClass} p-4`}>
-            <h2 className="text-sm font-semibold text-fg">
-              Receipt-detailed by category
-            </h2>
-            <p className="mt-1 text-xs text-fg-muted">
-              Line items from bill scans — hover for top products.
-            </p>
-            <div className="mt-2 h-72 w-full sm:h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={receipt}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={88}
-                    paddingAngle={2}
-                  >
-                    {receipt.map((_, i) => (
-                      <Cell
-                        key={i}
-                        fill={colors.slices[i % colors.slices.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<OverlayTooltip currency={currency} />} />
-                  <Legend wrapperStyle={{ fontSize: 12, color: colors.muted }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
+          <ChartCard
+            title="Receipt-detailed by category"
+            subtitle="Line items from bill scans — hover for top products."
+          >
+            <ResponsivePie
+              data={pieReceipt}
+              theme={themeCfg}
+              margin={{ top: 16, right: 16, bottom: 48, left: 16 }}
+              innerRadius={0.58}
+              padAngle={1.4}
+              cornerRadius={6}
+              activeOuterRadiusOffset={10}
+              colors={colors.slices}
+              enableArcLinkLabels={false}
+              arcLabelsSkipAngle={18}
+              motionConfig="gentle"
+              transitionMode="pushIn"
+              legends={[
+                {
+                  anchor: "bottom",
+                  direction: "row",
+                  translateY: 40,
+                  itemWidth: 88,
+                  itemHeight: 14,
+                  symbolSize: 10,
+                  symbolShape: "circle",
+                },
+              ]}
+              tooltip={({ datum }) => (
+                <OverlayList
+                  title={String(datum.label)}
+                  value={datum.value}
+                  items={(datum.data as { items?: OverlayItem[] }).items}
+                  currency={currency}
+                />
+              )}
+            />
+          </ChartCard>
 
-          <section className={`${cardClass} p-4`}>
-            <h2 className="text-sm font-semibold text-fg">
-              Receipt categories (bars)
-            </h2>
-            <div className="mt-2 h-72 w-full sm:h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={receipt.slice(0, 10)}
-                  layout="vertical"
-                  margin={{ left: 4, right: 8 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke={gridStroke}
-                    opacity={0.35}
+          <ChartCard title="Receipt categories (bars)">
+            <ResponsiveBar
+              data={receiptBars}
+              keys={["amount"]}
+              indexBy="category"
+              layout="horizontal"
+              theme={themeCfg}
+              margin={{ top: 8, right: 24, bottom: 28, left: 108 }}
+              padding={0.28}
+              borderRadius={6}
+              colors={[colors.ok]}
+              enableLabel={false}
+              axisBottom={{
+                tickSize: 0,
+                tickPadding: 8,
+                format: (v) =>
+                  typeof v === "number"
+                    ? Math.round(v).toLocaleString("ro-RO")
+                    : String(v),
+              }}
+              axisLeft={{ tickSize: 0, tickPadding: 8 }}
+              motionConfig="gentle"
+              tooltip={({ data }) => {
+                const meta = receiptMeta.get(String(data.category));
+                return (
+                  <OverlayList
+                    title={meta?.fullName ?? String(data.category)}
+                    value={Number(data.amount)}
+                    items={meta?.items}
+                    currency={currency}
                   />
-                  <XAxis type="number" tick={tick} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={100}
-                    tick={{ ...tick, fontSize: 10 }}
-                  />
-                  <Tooltip content={<OverlayTooltip currency={currency} />} />
-                  <Bar
-                    dataKey="value"
-                    fill={colors.ok}
-                    radius={[0, 4, 4, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
+                );
+              }}
+            />
+          </ChartCard>
         </>
       ) : null}
     </div>

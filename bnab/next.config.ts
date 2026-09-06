@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
   experimental: {
-    optimizePackageImports: ["lucide-react", "recharts"],
+    optimizePackageImports: ["lucide-react", "@nivo/pie", "@nivo/bar", "@nivo/line", "@nivo/core"],
   },
   async headers() {
     // Next already immutable-caches /_next/static hashed assets.
