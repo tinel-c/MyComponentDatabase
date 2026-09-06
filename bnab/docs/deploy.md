@@ -41,9 +41,12 @@ AUTH_URL="https://bnab.bogza.ro"
 AUTH_GOOGLE_ID="…"
 AUTH_GOOGLE_SECRET="…"
 ADMIN_EMAIL="you@example.com"
+GEMINI_API_KEY="…"          # Google AI — receipt bill detailing
+# GEMINI_MODEL="gemini-2.0-flash"
+# BNAB_RECEIPT_DIR="/opt/bnab/shared/receipts"
 ```
 
-You can copy Google client ID/secret from `/opt/warehouse/shared/.env`, but use a **new** `AUTH_SECRET` and `AUTH_URL` for BNAB.
+You can copy Google client ID/secret from `/opt/warehouse/shared/.env`, but use a **new** `AUTH_SECRET` and `AUTH_URL` for BNAB. Add `GEMINI_API_KEY` for bill detailing (see [receipt-agent.md](./receipt-agent.md)).
 
 ## Bootstrap (once)
 
@@ -113,11 +116,17 @@ python ../deploy/bnab/ssh_quick_restart_bnab.py
 
 ### Public brand assets
 
-`.next` does **not** include `public/` favicons. After upload (or after any `git reset` on the server), sync icons:
+`.next` does **not** include `public/` favicons or `sw.js`. After upload (or after any `git reset` on the server), sync icons + service worker:
 
 ```powershell
 python ../deploy/bnab/ssh_upload_public_brand.py
 ```
+
+### Android install / PWA
+
+- Manifest: `/manifest.webmanifest` (standalone, maskable icons, `start_url=/plan?source=pwa`)
+- Service worker: `/sw.js` (caches `/_next/static` + icons)
+- In-app **Install on Android** banner + **More** install card
 
 ### YNGSB reset / reseed (destructive)
 

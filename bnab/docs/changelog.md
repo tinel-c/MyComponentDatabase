@@ -1,5 +1,11 @@
 # BNAB changelog
 
+## Unreleased
+
+- **Receipt detailing (Gemini):** upload a bill on a transaction → line items mapped via `ReceiptCategoryRule` → category split children; Reflect receipt-detailed section; More → Receipt mappings
+- Favicon / PWA icons regenerated as padded envelope mark (fixes green-square tab icon); chrome mark no longer sits in a solid accent tile
+- Mobile cards for transactions register, ING import preview, Reflect income table
+
 ## 1.0.0 — 2026-09-06
 
 First tagged production release of **Bogza Needs A Budget** (https://bnab.bogza.ro).

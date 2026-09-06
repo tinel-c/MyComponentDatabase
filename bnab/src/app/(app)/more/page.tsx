@@ -7,6 +7,7 @@ import {
 } from "@/components/forms/field-classes";
 import { logoutAction } from "./actions";
 import { ThemeSelector } from "@/components/ui/ThemeSelector";
+import { InstallAppCard } from "@/components/pwa/InstallAppPrompt";
 
 const links = [
   {
@@ -30,6 +31,11 @@ const links = [
     desc: "Substring → category rules",
   },
   {
+    href: "/more/receipt-rules",
+    label: "Receipt mappings",
+    desc: "Bill line → category (Gemini detailing)",
+  },
+  {
     href: "/more/import-history",
     label: "Import history",
     desc: "Revert batches and leftovers",
@@ -48,6 +54,8 @@ export default async function MorePage() {
           {budget.name} · {budget.currency} · {session?.user?.email}
         </p>
       </div>
+
+      <InstallAppCard />
 
       <ul className={`${cardClass} divide-y divide-rim-subtle/60`}>
         {links.map((l) => (

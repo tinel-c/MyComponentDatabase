@@ -2,7 +2,7 @@ import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { addMonths, currentMonth, formatMoney } from "@/lib/money";
 import { cardClass } from "@/components/forms/field-classes";
-import { ReflectCharts } from "@/components/reflect/ReflectCharts";
+import { ReflectChartsLazy as ReflectCharts } from "@/components/reflect/ReflectChartsLazy";
 
 export default async function ReflectPage({
   searchParams,
@@ -118,12 +118,64 @@ export default async function ReflectPage({
 
   const totalSpend = spendingData.reduce((s, x) => s + x.value, 0);
 
+  const receiptLines = await prisma.receiptScanLine.findMany({
+    where: {
+      scan: {
+        budgetId: budget.id,
+        status: { in: ["ok", "preview"] },
+        transaction: {
+          date: { gte: `${start}-01`, lte: `${end}-31` },
+        },
+      },
+      amountCents: { gt: 0 },
+    },
+    include: {
+      matchedRule: { include: { category: true } },
+      scan: { select: { status: true } },
+    },
+    take: 500,
+  });
+
+  const receiptByCat = new Map<string, number>();
+  const topReceiptItems: { description: string; amountCents: number; category: string }[] =
+    [];
+  for (const line of receiptLines) {
+    if (line.matchedRule?.ignore) continue;
+    const cat =
+      line.matchedRule?.category?.name ||
+      line.categoryHint ||
+      "Unknown";
+    receiptByCat.set(cat, (receiptByCat.get(cat) ?? 0) + line.amountCents);
+    topReceiptItems.push({
+      description: line.description,
+      amountCents: line.amountCents,
+      category: cat,
+    });
+  }
+  topReceiptItems.sort((a, b) => b.amountCents - a.amountCents);
+  const receiptCatRows = [...receiptByCat.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+  const detailedParentIds = await prisma.receiptScan.findMany({
+    where: {
+      budgetId: budget.id,
+      status: "ok",
+      transaction: { date: { gte: `${start}-01`, lte: `${end}-31` } },
+    },
+    select: { transactionId: true },
+    distinct: ["transactionId"],
+  });
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-fg">Reflect</h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Last {span} months · {formatMoney(totalSpend, budget.currency)} spending in top categories
+          Last {span} months · {formatMoney(totalSpend, budget.currency)} spending
+          in top categories
+          {detailedParentIds.length > 0
+            ? ` · ${detailedParentIds.length} receipt-detailed`
+            : ""}
         </p>
       </div>
 
@@ -135,38 +187,139 @@ export default async function ReflectPage({
         netWorth={netWorth}
       />
 
-      <section className={`${cardClass} overflow-x-auto p-4`}>
+      {receiptCatRows.length > 0 ? (
+        <section className={`${cardClass} p-4`}>
+          <h2 className="text-sm font-semibold text-fg">
+            Receipt-detailed spending
+          </h2>
+          <p className="mt-1 text-sm text-fg-muted">
+            From Gemini bill scans in this range (line items, not bank memos).
+          </p>
+          <ul className="mt-3 divide-y divide-rim-subtle md:hidden">
+            {receiptCatRows.slice(0, 12).map((row) => (
+              <li
+                key={row.name}
+                className="flex justify-between gap-3 py-2 text-sm"
+              >
+                <span className="text-fg">{row.name}</span>
+                <span className="tabular-nums text-fg">
+                  {formatMoney(row.value, budget.currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 hidden overflow-x-auto md:block">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="text-fg-muted">
+                  <th className="py-2 pr-3 font-medium">Category</th>
+                  <th className="py-2 font-medium text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receiptCatRows.slice(0, 12).map((row) => (
+                  <tr key={row.name} className="border-t border-rim-subtle">
+                    <td className="py-2 pr-3 text-fg">{row.name}</td>
+                    <td className="py-2 text-right tabular-nums text-fg">
+                      {formatMoney(row.value, budget.currency)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {topReceiptItems.length > 0 ? (
+            <div className="mt-4">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+                Top line items
+              </h3>
+              <ul className="mt-2 space-y-1 text-sm text-fg-muted">
+                {topReceiptItems.slice(0, 8).map((item, i) => (
+                  <li
+                    key={`${item.description}-${i}`}
+                    className="flex justify-between gap-2"
+                  >
+                    <span className="min-w-0 truncate">
+                      {item.description}
+                      <span className="text-fg-subtle"> · {item.category}</span>
+                    </span>
+                    <span className="shrink-0 tabular-nums">
+                      {formatMoney(item.amountCents, budget.currency)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <section className={`${cardClass} p-4`}>
         <h2 className="text-sm font-semibold text-fg">Income vs Expense</h2>
-        <table className="mt-3 w-full min-w-[28rem] text-left text-sm">
-          <thead>
-            <tr className="text-fg-muted">
-              <th className="py-2 pr-3 font-medium">Month</th>
-              <th className="py-2 pr-3 font-medium">Income</th>
-              <th className="py-2 pr-3 font-medium">Expense</th>
-              <th className="py-2 font-medium">Net</th>
-            </tr>
-          </thead>
-          <tbody>
-            {incomeExpense.map((row) => (
-              <tr key={row.month} className="border-t border-rim-subtle">
-                <td className="py-2 pr-3 text-fg">{row.month}</td>
-                <td className="py-2 pr-3 tabular-nums text-ok">
+        <ul className="mt-3 divide-y divide-rim-subtle md:hidden">
+          {incomeExpense.map((row) => (
+            <li key={row.month} className="space-y-1 py-3 text-sm">
+              <div className="font-medium text-fg">{row.month}</div>
+              <div className="flex justify-between text-fg-muted">
+                <span>Income</span>
+                <span className="tabular-nums text-ok">
                   {formatMoney(Math.round(row.income * 100), budget.currency)}
-                </td>
-                <td className="py-2 pr-3 tabular-nums text-fg">
+                </span>
+              </div>
+              <div className="flex justify-between text-fg-muted">
+                <span>Expense</span>
+                <span className="tabular-nums">
                   {formatMoney(Math.round(row.expense * 100), budget.currency)}
-                </td>
-                <td
-                  className={`py-2 tabular-nums font-medium ${
+                </span>
+              </div>
+              <div className="flex justify-between font-medium">
+                <span>Net</span>
+                <span
+                  className={`tabular-nums ${
                     row.net >= 0 ? "text-ok" : "text-danger"
                   }`}
                 >
                   {formatMoney(Math.round(row.net * 100), budget.currency)}
-                </td>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 hidden overflow-x-auto md:block">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-fg-muted">
+                <th className="py-2 pr-3 font-medium">Month</th>
+                <th className="py-2 pr-3 font-medium">Income</th>
+                <th className="py-2 pr-3 font-medium">Expense</th>
+                <th className="py-2 font-medium">Net</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {incomeExpense.map((row) => (
+                <tr key={row.month} className="border-t border-rim-subtle">
+                  <td className="py-2 pr-3 text-fg">{row.month}</td>
+                  <td className="py-2 pr-3 tabular-nums text-ok">
+                    {formatMoney(Math.round(row.income * 100), budget.currency)}
+                  </td>
+                  <td className="py-2 pr-3 tabular-nums text-fg">
+                    {formatMoney(
+                      Math.round(row.expense * 100),
+                      budget.currency,
+                    )}
+                  </td>
+                  <td
+                    className={`py-2 tabular-nums font-medium ${
+                      row.net >= 0 ? "text-ok" : "text-danger"
+                    }`}
+                  >
+                    {formatMoney(Math.round(row.net * 100), budget.currency)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );

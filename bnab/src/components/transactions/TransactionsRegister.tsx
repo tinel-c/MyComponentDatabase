@@ -305,7 +305,55 @@ export function TransactionsRegister({
           </form>
         ))}
       </div>
-      <div className="overflow-x-auto overscroll-x-contain">
+
+      {/* Mobile cards */}
+      <ul className="divide-y divide-rim-subtle md:hidden">
+        {rows.map((row) => {
+          const payeeDisplay = row.isTransfer
+            ? row.transferLabel
+              ? `Transfer: ${row.transferLabel}`
+              : "Transfer"
+            : row.isSplit
+              ? row.payee || "Split"
+              : row.payee || "—";
+          const catName =
+            groups
+              .flatMap((g) => g.categories)
+              .find((c) => c.id === row.categoryId)?.name ??
+            (row.isSplit ? "Split" : row.isTransfer ? "—" : "RTA");
+          return (
+            <li key={row.id} className="px-3 py-3">
+              <a
+                href={`/transactions/${row.id}`}
+                className="block space-y-1 hover:opacity-90"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-fg">{payeeDisplay}</p>
+                    <p className="truncate text-xs text-fg-muted">
+                      {row.date} · {row.accountName} · {catName}
+                      {row.isSplit ? " · split" : ""}
+                    </p>
+                  </div>
+                  <p
+                    className={`shrink-0 tabular-nums text-sm font-medium ${
+                      row.isInflow ? "text-ok" : "text-fg"
+                    }`}
+                  >
+                    {row.isInflow ? "+" : "−"}
+                    {row.absAmount}
+                  </p>
+                </div>
+              </a>
+              <div className="mt-2 flex items-center justify-end">
+                <DeleteTransactionButton id={row.id} returnTo="stay" compact />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden overflow-x-auto overscroll-x-contain md:block">
         <table className={sheetTableClass}>
           <colgroup>
             <col className="w-10" />
@@ -348,7 +396,8 @@ export function TransactionsRegister({
         </table>
       </div>
       <p className="border-t border-rim-subtle px-3 py-2 text-[11px] text-fg-subtle">
-        Leave a cell to save · swipe sideways on small screens · {currency}
+        Tap a row on phone to edit or upload a bill · desktop sheet saves on leave ·{" "}
+        {currency}
       </p>
     </div>
   );

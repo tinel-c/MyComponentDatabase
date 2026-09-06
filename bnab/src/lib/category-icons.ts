@@ -80,6 +80,7 @@ const BY_NAME: Record<string, LucideIcon> = {
   Clothing: Shirt,
   "Household Goods": ShoppingBasket,
   Pets: PawPrint,
+  Tools: Wrench,
   "Pocket Money Tinel": Wallet,
   "Pocket Money Monica": Briefcase,
   Atelier: Hammer,

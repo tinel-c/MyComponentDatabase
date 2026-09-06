@@ -11,3 +11,5 @@ tsconfig.tsbuildinfo
 # Real bank statements — never commit
 ING/
 data/snapshots/
+bills/
+.data/

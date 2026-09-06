@@ -4,6 +4,12 @@ import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/money";
 import { TransactionSheetEditor } from "@/components/transactions/TransactionSheetEditor";
+import { ReceiptUploadPanel } from "@/components/receipts/ReceiptUploadPanel";
+import {
+  ensureYngsbCategories,
+  seedDefaultReceiptRules,
+} from "@/lib/starter-categories";
+import { cardClass } from "@/components/forms/field-classes";
 
 export default async function EditTransactionPage({
   params,
@@ -12,6 +18,8 @@ export default async function EditTransactionPage({
 }) {
   const { budget } = await requireBudgetAccess();
   const { id } = await params;
+  await ensureYngsbCategories(prisma, budget.id);
+  await seedDefaultReceiptRules(prisma, budget.id);
 
   const txn = await prisma.transaction.findFirst({
     where: { id, account: { budgetId: budget.id }, isChild: false },
@@ -106,6 +114,39 @@ export default async function EditTransactionPage({
           isInflow: c.amount > 0,
         }))}
       />
+
+      {!isTransfer && txn.amount < 0 ? (
+        <ReceiptUploadPanel
+          transactionId={txn.id}
+          currency={budget.currency}
+        />
+      ) : null}
+
+      {isSplit && txn.children.length > 0 ? (
+        <div className={`${cardClass} p-4`}>
+          <h2 className="text-sm font-semibold text-fg">Split lines</h2>
+          <ul className="mt-2 divide-y divide-rim-subtle">
+            {txn.children.map((c) => (
+              <li
+                key={c.id}
+                className="flex justify-between gap-3 py-2 text-sm"
+              >
+                <span className="text-fg">
+                  {c.category?.name ?? "—"}
+                  {c.notes ? (
+                    <span className="block truncate text-fg-muted">
+                      {c.notes}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 tabular-nums text-fg">
+                  {formatMoney(c.amount, budget.currency)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

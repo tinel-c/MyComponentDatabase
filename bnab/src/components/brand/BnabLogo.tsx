@@ -60,7 +60,7 @@ export function BnabLogo({
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
       <span
-        className="inline-flex shrink-0 items-center justify-center rounded-xl bg-accent p-1.5 text-accent-fg shadow-[0_8px_24px_color-mix(in_oklch,var(--glow-accent)_45%,transparent)]"
+        className="inline-flex shrink-0 items-center justify-center rounded-xl text-accent"
         aria-hidden
       >
         <BnabMark className={markClassName} />

@@ -80,7 +80,11 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Desktop sidebar (More with primary nav)
 - [x] Theme system (CSS semantic tokens)
 - [x] PWA installable + favicon / apple-touch / maskable icons
+- [x] **Install on Android** prompt (`beforeinstallprompt` + More card; iOS Add to Home Screen hints)
+- [x] Service worker caching for static assets / faster return visits
 - [x] BNAB envelope mark + wordmark (`BnabLogo`)
+- [x] **Receipt detailing** — Gemini vision bill upload → split children via `ReceiptCategoryRule`
+- [x] Reflect “Receipt-detailed spending” from scan lines
 
 ---
 

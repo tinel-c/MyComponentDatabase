@@ -57,8 +57,11 @@ def main() -> None:
         "icon.svg",
         "icon-192.png",
         "icon-512.png",
+        "icon-192-maskable.png",
+        "icon-512-maskable.png",
         "apple-touch-icon.png",
         "manifest.webmanifest",
+        "sw.js",
         "brand/mark.svg",
         "brand/icon-master.png",
         "brand/logo-lockup.png",
@@ -102,7 +105,7 @@ sudo -u deploy bash -lc '
   cd /opt/bnab/green/bnab/public
   mkdir -p brand
   tar -xzf /opt/bnab/shared/bnab-public.tgz
-  ls -la favicon.ico icon.svg icon-192.png apple-touch-icon.png manifest.webmanifest brand/mark.svg
+  ls -la favicon.ico icon.svg icon-192.png icon-512-maskable.png apple-touch-icon.png manifest.webmanifest sw.js brand/mark.svg
   echo PUBLIC_OK
 '
 rm -f /opt/bnab/shared/bnab-public.tgz

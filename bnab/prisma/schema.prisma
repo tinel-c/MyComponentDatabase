@@ -104,6 +104,8 @@ model Budget {
   schedules   ScheduledTransaction[]
   importRules ImportCategoryRule[]
   importBatches ImportBatch[]
+  receiptRules ReceiptCategoryRule[]
+  receiptScans ReceiptScan[]
 }
 
 model BudgetMember {
@@ -169,6 +171,7 @@ model Category {
   creditAccount FinanceAccount?    @relation("CreditPaymentCategory")
   schedules ScheduledTransaction[]
   importRules ImportCategoryRule[]
+  receiptRules ReceiptCategoryRule[]
 
   @@index([groupId])
 }
@@ -236,6 +239,7 @@ model Transaction {
   parent            Transaction?  @relation("SplitChildren", fields: [parentId], references: [id], onDelete: Cascade)
   children          Transaction[] @relation("SplitChildren")
   importBatch       ImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  receiptScans      ReceiptScan[]
 
   @@unique([accountId, importFingerprint])
   @@index([accountId, date])
@@ -277,6 +281,58 @@ model ImportBatch {
 
   @@index([budgetId, createdAt])
   @@index([accountId])
+}
+
+/** Substring → category mapping for receipt line items (Gemini detailing). */
+model ReceiptCategoryRule {
+  id         String    @id @default(cuid())
+  budgetId   String
+  matchText  String
+  categoryId String?
+  ignore     Boolean   @default(false)
+  sortOrder  Float     @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  budget     Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  scanLines  ReceiptScanLine[]
+
+  @@index([budgetId, sortOrder])
+  @@unique([budgetId, matchText])
+}
+
+model ReceiptScan {
+  id            String            @id @default(cuid())
+  budgetId      String
+  transactionId String
+  imagePath     String?
+  status        String            @default("pending")
+  model         String?
+  rawJson       String?
+  errorText     String?
+  createdAt     DateTime          @default(now())
+  budget        Budget            @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  transaction   Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  lines         ReceiptScanLine[]
+
+  @@index([budgetId, createdAt])
+  @@index([transactionId])
+}
+
+model ReceiptScanLine {
+  id                 String               @id @default(cuid())
+  scanId             String
+  description        String
+  amountCents        Int
+  categoryHint       String?
+  matchedRuleId      String?
+  childTransactionId String?
+  sortOrder          Float                @default(0)
+  scan               ReceiptScan          @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  matchedRule        ReceiptCategoryRule? @relation(fields: [matchedRuleId], references: [id], onDelete: SetNull)
+
+  @@index([scanId])
+  @@index([matchedRuleId])
 }
 
 model ImportBatchItem {

@@ -11,6 +11,7 @@ import {
   ArrowLeftRight,
 } from "lucide-react";
 import { BnabLogo, BnabMark } from "@/components/brand/BnabLogo";
+import { InstallAppPrompt } from "@/components/pwa/InstallAppPrompt";
 
 const tabs: {
   href: string;
@@ -123,8 +124,8 @@ export function AppChrome({
       </aside>
       <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
         <header className="sticky top-0 z-30 flex h-14 items-center gap-2.5 border-b border-rim/60 bg-canvas/80 px-4 backdrop-blur-md md:hidden">
-          <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-fg">
-            <BnabMark className="size-5" />
+          <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-accent">
+            <BnabMark className="size-7" />
           </span>
           <div className="min-w-0">
             <p className="text-sm font-semibold leading-tight tracking-tight text-fg">
@@ -144,6 +145,7 @@ export function AppChrome({
         >
           {children}
         </main>
+        <InstallAppPrompt />
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-rim/60 bg-surface/95 backdrop-blur md:hidden">

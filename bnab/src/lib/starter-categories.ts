@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { DEFAULT_IMPORT_RULES } from "@/lib/ing-import/default-rules";
+import { DEFAULT_RECEIPT_RULES } from "@/lib/receipt-ai/default-rules";
 
 /** YNGSB groups (= Code.gs defaultMainCategories) + Income for BNAB RTA. */
 export const STARTER_GROUPS: {
@@ -45,6 +46,7 @@ export const STARTER_GROUPS: {
       "Clothing",
       "Household Goods",
       "Pets",
+      "Tools",
       "Pocket Money Tinel",
       "Pocket Money Monica",
       "Atelier",
@@ -104,6 +106,7 @@ export async function seedStarterCategories(
 ) {
   await ensureYngsbCategories(prisma, budgetId);
   await seedDefaultImportRules(prisma, budgetId);
+  await seedDefaultReceiptRules(prisma, budgetId);
 }
 
 /** Ensure YNGSB tree exists (idempotent by group/category name). */
@@ -197,6 +200,48 @@ export async function seedDefaultImportRules(
     const categoryId = byName.get(rule.categoryName);
     if (!categoryId) continue;
     await prisma.importCategoryRule.create({
+      data: {
+        budgetId,
+        matchText: rule.matchText,
+        ignore: false,
+        categoryId,
+        sortOrder: sortOrder++,
+      },
+    });
+  }
+}
+
+/** Seed default receipt line→category rules once (skip if any rules exist). */
+export async function seedDefaultReceiptRules(
+  prisma: PrismaClient,
+  budgetId: string,
+) {
+  const count = await prisma.receiptCategoryRule.count({ where: { budgetId } });
+  if (count > 0) return;
+
+  const categories = await prisma.category.findMany({
+    where: { group: { budgetId } },
+    select: { id: true, name: true },
+  });
+  const byName = new Map(categories.map((c) => [c.name, c.id]));
+
+  let sortOrder = 0;
+  for (const rule of DEFAULT_RECEIPT_RULES) {
+    if (rule.ignore) {
+      await prisma.receiptCategoryRule.create({
+        data: {
+          budgetId,
+          matchText: rule.matchText,
+          ignore: true,
+          categoryId: null,
+          sortOrder: sortOrder++,
+        },
+      });
+      continue;
+    }
+    const categoryId = byName.get(rule.categoryName);
+    if (!categoryId) continue;
+    await prisma.receiptCategoryRule.create({
       data: {
         budgetId,
         matchText: rule.matchText,

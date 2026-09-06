@@ -69,6 +69,7 @@ def main() -> None:
         root / "bnab" / "src" / "lib" / "email.ts",
         root / "bnab" / "src" / "lib" / "ing-import" / "default-rules.ts",
         root / "bnab" / "src" / "lib" / "budget-engine" / "index.ts",
+        root / "bnab" / "src" / "lib" / "receipt-ai",
     ]
 
     env = load_secrets(Path(__file__).resolve().parent.parent / "deploy.secrets")
@@ -113,6 +114,9 @@ def main() -> None:
             tar.add(migrations_dir, arcname="prisma/migrations")
             for lib in overlay_libs:
                 if lib.is_file():
+                    rel = lib.relative_to(root / "bnab").as_posix()
+                    tar.add(lib, arcname=rel)
+                elif lib.is_dir():
                     rel = lib.relative_to(root / "bnab").as_posix()
                     tar.add(lib, arcname=rel)
         run(

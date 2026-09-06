@@ -236,7 +236,58 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
       )}
 
       {rows && (
-        <section className="overflow-x-auto rounded-xl border border-rim bg-surface">
+        <section className="rounded-xl border border-rim bg-surface">
+          <ul className="divide-y divide-rim-subtle md:hidden">
+            {rows.map((row) => (
+              <li key={row.fingerprint} className="space-y-2 px-3 py-3 text-sm">
+                <div className="flex justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-fg">{row.payeeGuess}</p>
+                    <p className="text-xs text-fg-muted">
+                      {row.date} · {row.status.replaceAll("_", " ")}
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-mono tabular-nums text-fg">
+                    {formatMoney(row.amount, currency)}
+                  </p>
+                </div>
+                <p className="text-xs text-fg-muted">
+                  {row.ignored ? "—" : row.categoryName ?? "(uncategorized)"}
+                </p>
+                {row.status === "possible_manual_match" ? (
+                  <select
+                    className={inputClass}
+                    value={decisions[row.fingerprint]?.action ?? "link"}
+                    onChange={(e) =>
+                      setDecision(row.fingerprint, {
+                        action: e.target.value as ConfirmDecision["action"],
+                        manualMatchId: row.manualMatchId,
+                      })
+                    }
+                  >
+                    <option value="link">Link manual</option>
+                    <option value="replace">Replace manual</option>
+                    <option value="import_anyway">Import anyway</option>
+                    <option value="skip">Skip</option>
+                  </select>
+                ) : row.status === "new" || row.status === "unmatched" ? (
+                  <select
+                    className={inputClass}
+                    value={decisions[row.fingerprint]?.action ?? "import"}
+                    onChange={(e) =>
+                      setDecision(row.fingerprint, {
+                        action: e.target.value as ConfirmDecision["action"],
+                      })
+                    }
+                  >
+                    <option value="import">Import</option>
+                    <option value="skip">Skip</option>
+                  </select>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
           <table className="min-w-full text-left text-sm">
             <thead className="border-b border-rim-subtle text-fg-muted">
               <tr>
@@ -300,6 +351,7 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
               ))}
             </tbody>
           </table>
+          </div>
         </section>
       )}
     </div>
