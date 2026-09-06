@@ -10,6 +10,7 @@ import {
   MoreHorizontal,
   ArrowLeftRight,
 } from "lucide-react";
+import { BnabLogo, BnabMark } from "@/components/brand/BnabLogo";
 
 const tabs: {
   href: string;
@@ -56,6 +57,7 @@ export function AppChrome({
     pathname === "/transactions" ||
     (pathname.startsWith("/transactions/") &&
       !pathname.startsWith("/transactions/new"));
+  const widePlan = pathname === "/plan" || pathname.startsWith("/plan?");
 
   return (
     <div
@@ -67,11 +69,11 @@ export function AppChrome({
       }}
     >
       <aside className="hidden w-56 shrink-0 border-r border-rim/60 bg-surface/90 backdrop-blur-sm md:flex md:flex-col">
-        <div className="border-b border-rim/60 px-5 py-5">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-fg-subtle">
-            BNAB
-          </p>
-          <p className="mt-1 truncate text-sm font-medium text-fg">{budgetName}</p>
+        <div className="border-b border-rim/60 px-4 py-4">
+          <Link href="/plan" prefetch className="block">
+            <BnabLogo showTagline compact markClassName="size-7" />
+          </Link>
+          <p className="mt-2 truncate pl-0.5 text-xs text-fg-subtle">{budgetName}</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
           {desktopLinks.map(({ href, label, icon: Icon }) => {
@@ -96,6 +98,18 @@ export function AppChrome({
             );
           })}
           <Link
+            href="/more"
+            prefetch
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+              pathname.startsWith("/more")
+                ? "bg-accent-muted text-accent"
+                : "text-fg-muted hover:bg-overlay hover:text-fg"
+            }`}
+          >
+            <MoreHorizontal className="size-5" />
+            More
+          </Link>
+          <Link
             href="/transactions/new"
             className="mt-2 flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-3 py-2.5 text-sm font-medium text-accent-fg hover:bg-accent-hover"
             style={{
@@ -105,28 +119,27 @@ export function AppChrome({
             <Plus className="size-4" />
             Add transaction
           </Link>
-          <Link
-            href="/more"
-            className={`mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium ${
-              pathname.startsWith("/more")
-                ? "bg-accent-muted text-accent"
-                : "text-fg-muted hover:bg-overlay hover:text-fg"
-            }`}
-          >
-            <MoreHorizontal className="size-5" />
-            More
-          </Link>
         </nav>
       </aside>
-
       <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
-        <header className="sticky top-0 z-30 flex h-14 items-center border-b border-rim/60 bg-canvas/80 px-4 backdrop-blur-md md:hidden">
-          <p className="text-sm font-semibold tracking-tight text-fg">BNAB</p>
-          <p className="ml-2 truncate text-sm text-fg-muted">{budgetName}</p>
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2.5 border-b border-rim/60 bg-canvas/80 px-4 backdrop-blur-md md:hidden">
+          <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-fg">
+            <BnabMark className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold leading-tight tracking-tight text-fg">
+              BNAB
+            </p>
+            <p className="truncate text-xs text-fg-muted">{budgetName}</p>
+          </div>
         </header>
         <main
-          className={`mx-auto w-full flex-1 px-3 py-4 sm:px-5 md:py-8 ${
-            wideRegister ? "max-w-6xl md:px-6" : "max-w-3xl md:px-8"
+          className={`mx-auto w-full flex-1 px-3 py-4 sm:px-5 md:py-6 ${
+            widePlan
+              ? "max-w-none md:px-6 lg:px-8"
+              : wideRegister
+                ? "max-w-6xl md:px-6"
+                : "max-w-3xl md:px-8 md:py-8"
           }`}
         >
           {children}

@@ -31,6 +31,55 @@ export async function assignToCategory(formData: FormData) {
   return;
 }
 
+/**
+ * Quick assign helpers (+ cover overspend, − release available, = assign all RTA).
+ * Recomputes plan numbers server-side so the UI cannot send stale/tampered amounts.
+ */
+export async function quickAdjustAssigned(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const categoryId = String(formData.get("categoryId") ?? "");
+  const month = String(formData.get("month") ?? "");
+  const mode = String(formData.get("mode") ?? "");
+  if (!categoryId || !/^\d{4}-\d{2}$/.test(month)) return;
+  if (mode !== "cover" && mode !== "release" && mode !== "assignRta") return;
+
+  const cat = await prisma.category.findFirst({
+    where: { id: categoryId, group: { budgetId: budget.id } },
+  });
+  if (!cat || cat.isIncome) return;
+
+  const { loadPlanMonth } = await import("@/lib/plan-data");
+  const { plan } = await loadPlanMonth(budget.id, month);
+  const row = plan.categories[categoryId];
+  if (!row) return;
+
+  const assigned = row.assigned;
+  const available = row.available;
+  const rta = plan.rta;
+
+  let next = assigned;
+  if (mode === "cover") {
+    // Available is negative when overspent — add that shortfall to Assigned
+    if (available >= 0) return;
+    next = assigned - available;
+  } else if (mode === "release") {
+    // Pull Available back out of Assigned (returns money to Ready to Assign)
+    if (available <= 0) return;
+    next = Math.max(0, assigned - available);
+  } else if (mode === "assignRta") {
+    if (rta <= 0) return;
+    next = assigned + rta;
+  }
+
+  await prisma.monthlyCategoryBudget.upsert({
+    where: { categoryId_month: { categoryId, month } },
+    create: { categoryId, month, assigned: next },
+    update: { assigned: next },
+  });
+
+  revalidatePath("/plan");
+}
+
 export async function moveMoney(formData: FormData) {
   const { budget } = await requireBudgetAccess();
   const fromId = String(formData.get("fromId") ?? "");
@@ -235,4 +284,116 @@ export async function renameAccount(formData: FormData) {
   revalidatePath("/plan");
   revalidatePath("/more/categories");
   return;
+}
+
+/**
+ * Set account balance to match an external statement (e.g. ING).
+ * Inserts a cleared adjustment transaction for (statement − current).
+ * Positive difference → inflow (Ready to Assign); negative → outflow.
+ */
+export async function adjustAccountBalance(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const accountId = String(formData.get("accountId") ?? "");
+  const statementRaw = String(formData.get("statementBalance") ?? "");
+  const dateRaw = String(formData.get("date") ?? "");
+  const noteExtra = String(formData.get("notes") ?? "").trim();
+
+  const statement = parseMoneyInput(statementRaw);
+  if (!accountId || statement === null) return;
+
+  const account = await prisma.financeAccount.findFirst({
+    where: { id: accountId, budgetId: budget.id },
+  });
+  if (!account) return;
+
+  const sumAgg = await prisma.transaction.aggregate({
+    where: { accountId, isChild: false },
+    _sum: { amount: true },
+  });
+  const current = sumAgg._sum.amount ?? 0;
+  const diff = statement - current;
+  if (diff === 0) return;
+
+  const date =
+    /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : new Date().toISOString().slice(0, 10);
+
+  const payee = await prisma.payee.upsert({
+    where: {
+      budgetId_name: { budgetId: budget.id, name: "Balance Adjustment" },
+    },
+    create: { budgetId: budget.id, name: "Balance Adjustment" },
+    update: {},
+  });
+
+  // Positive adjustments → Income / Other income so Plan Income + RTA both reflect them.
+  // Negative adjustments stay uncategorized so they reduce Ready to Assign.
+  let categoryId: string | null = null;
+  if (diff > 0) {
+    let otherIncome = await prisma.category.findFirst({
+      where: {
+        name: "Other income",
+        isIncome: true,
+        group: { budgetId: budget.id },
+      },
+    });
+    if (!otherIncome) {
+      let incomeGroup = await prisma.categoryGroup.findFirst({
+        where: { budgetId: budget.id, isIncome: true },
+      });
+      if (!incomeGroup) {
+        incomeGroup = await prisma.categoryGroup.create({
+          data: {
+            budgetId: budget.id,
+            name: "Income",
+            isIncome: true,
+            sortOrder: 0,
+          },
+        });
+      }
+      otherIncome = await prisma.category.create({
+        data: {
+          groupId: incomeGroup.id,
+          name: "Other income",
+          isIncome: true,
+          sortOrder: 99,
+        },
+      });
+    }
+    categoryId = otherIncome.id;
+  }
+
+  const direction = diff > 0 ? "increased" : "decreased";
+  const notes = [
+    `ING/statement balance adjustment (${direction})`,
+    `Was ${(current / 100).toFixed(2)}, set to ${(statement / 100).toFixed(2)}`,
+    noteExtra || null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  await prisma.transaction.create({
+    data: {
+      accountId,
+      date,
+      amount: diff,
+      payeeId: payee.id,
+      categoryId,
+      notes,
+      cleared: true,
+      isStartingBalance: false,
+    },
+  });
+
+  if (categoryId) {
+    await prisma.payee.update({
+      where: { id: payee.id },
+      data: { lastCategoryId: categoryId },
+    });
+  }
+
+  revalidatePath(`/accounts/${accountId}`);
+  revalidatePath("/accounts");
+  revalidatePath("/plan");
+  revalidatePath("/transactions");
+  revalidatePath("/reflect");
 }

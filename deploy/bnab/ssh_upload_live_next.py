@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 import sys
+import tarfile
+import tempfile
 import time
 from pathlib import Path
 
@@ -53,6 +55,22 @@ def main() -> None:
         print(f"missing {tarball}", file=sys.stderr)
         sys.exit(1)
 
+    # Keep Prisma models that are not on origin/main yet (git reset would wipe them).
+    schema_files = [
+        root / "bnab" / "prisma" / "schema.prisma",
+        root / "bnab" / "prisma" / "seed.ts",
+    ]
+    migrations_dir = root / "bnab" / "prisma" / "migrations"
+    overlay_libs = [
+        root / "bnab" / "src" / "lib" / "plan-data.ts",
+        root / "bnab" / "src" / "lib" / "money.ts",
+        root / "bnab" / "src" / "lib" / "yngsb-banner.ts",
+        root / "bnab" / "src" / "lib" / "starter-categories.ts",
+        root / "bnab" / "src" / "lib" / "email.ts",
+        root / "bnab" / "src" / "lib" / "ing-import" / "default-rules.ts",
+        root / "bnab" / "src" / "lib" / "budget-engine" / "index.ts",
+    ]
+
     env = load_secrets(Path(__file__).resolve().parent.parent / "deploy.secrets")
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -79,7 +97,31 @@ def main() -> None:
         sftp = client.open_sftp()
         print(f"upload {tarball.stat().st_size/1e6:.1f} MB", flush=True)
         sftp.put(str(tarball), "/opt/bnab/shared/bnab-next-upload.tgz")
+
+        # Overlay schema + key libs after git reset (before prisma generate).
+        for local in schema_files:
+            remote = f"/opt/bnab/shared/overlay/{local.name}"
+            run(
+                client,
+                f"mkdir -p /opt/bnab/shared/overlay && "
+                f"install -o deploy -g deploy -m 664 /dev/null {remote}",
+            )
+            sftp.put(str(local), remote)
+        with tempfile.NamedTemporaryFile(suffix=".tgz", delete=False) as tmp:
+            overlay_tgz = Path(tmp.name)
+        with tarfile.open(overlay_tgz, "w:gz") as tar:
+            tar.add(migrations_dir, arcname="prisma/migrations")
+            for lib in overlay_libs:
+                if lib.is_file():
+                    rel = lib.relative_to(root / "bnab").as_posix()
+                    tar.add(lib, arcname=rel)
+        run(
+            client,
+            "install -o deploy -g deploy -m 664 /dev/null /opt/bnab/shared/bnab-overlay.tgz",
+        )
+        sftp.put(str(overlay_tgz), "/opt/bnab/shared/bnab-overlay.tgz")
         sftp.close()
+        overlay_tgz.unlink(missing_ok=True)
 
         code = run(
             client,
@@ -93,11 +135,26 @@ sudo -u deploy bash -lc '
   tar -xzf /opt/bnab/shared/bnab-next-upload.tgz
   test -f .next/BUILD_ID
   echo BUILD_ID=$(cat .next/BUILD_ID)
+  # Restore Prisma schema / migrations / libs that are ahead of origin/main
+  cp -f /opt/bnab/shared/overlay/schema.prisma prisma/schema.prisma
+  cp -f /opt/bnab/shared/overlay/seed.ts prisma/seed.ts
+  tar -xzf /opt/bnab/shared/bnab-overlay.tgz
   set -a; . /opt/bnab/shared/.env; set +a
   export DATABASE_URL=file:/opt/bnab/shared/bnab.db
   npx prisma generate
+  npx prisma migrate deploy
+  node -e "const {PrismaClient}=require(\"@prisma/client\"); const p=new PrismaClient(); if(!p.importCategoryRule){console.error(\"MISSING importCategoryRule\"); process.exit(1)}; console.log(\"PRISMA_OK\")"
+  # Next vendors a hashed client copy — keep it aligned with generate
+  shopt -s nullglob
+  for d in .next/node_modules/@prisma/client-*; do
+    echo "sync $d"
+    rm -rf "$d"
+    mkdir -p "$d"
+    cp -a node_modules/@prisma/client/. "$d/"
+  done
 '
-rm -f /opt/bnab/shared/bnab-next-upload.tgz
+rm -f /opt/bnab/shared/bnab-next-upload.tgz /opt/bnab/shared/bnab-overlay.tgz
+rm -rf /opt/bnab/shared/overlay
 chown -R deploy:deploy /opt/bnab/green/bnab/.next
 sudo -u deploy -H bash -lc '
   cd /opt/bnab/green/bnab

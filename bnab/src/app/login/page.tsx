@@ -11,6 +11,7 @@ import {
   inputClass,
   labelClass,
 } from "@/components/forms/field-classes";
+import { BnabLogo } from "@/components/brand/BnabLogo";
 import { loginLocalDev, loginWithGoogle } from "./actions";
 
 export default async function LoginPage({
@@ -55,13 +56,10 @@ export default async function LoginPage({
           "radial-gradient(ellipse 50% 35% at 100% 10%, var(--glow-accent), transparent 55%)",
       }}
     >
-      <Link
-        href="/"
-        className="text-xs font-medium uppercase tracking-[0.2em] text-fg-subtle hover:text-fg"
-      >
-        BNAB
+      <Link href="/" className="inline-flex hover:opacity-90">
+        <BnabLogo showTagline markClassName="size-8" />
       </Link>
-      <h1 className="mt-4 text-4xl font-semibold tracking-tight text-fg">
+      <h1 className="mt-8 text-4xl font-semibold tracking-tight text-fg">
         Sign in
       </h1>
       <p className="mt-2 text-sm text-fg-muted">

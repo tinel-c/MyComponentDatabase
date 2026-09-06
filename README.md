@@ -7,7 +7,7 @@ Web application to **register and track parts and components** for a hobby wareh
 ## Documentation
 
 - **[IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)** — researched features, technology choices, data model outline, and phased implementation steps.
-- **[BNAB_IMPLEMENTATION_PLAN.md](./BNAB_IMPLEMENTATION_PLAN.md)** — Bogza Needs A Budget (envelope budgeting at bnab.bogza.ro); details in [`bnab/docs/`](./bnab/docs/README.md).
+- **[BNAB_IMPLEMENTATION_PLAN.md](./BNAB_IMPLEMENTATION_PLAN.md)** — Bogza Needs A Budget (envelope budgeting at bnab.bogza.ro); details in [`bnab/docs/`](./bnab/docs/README.md) (features, math, data model, deploy, [changelog](./bnab/docs/changelog.md)).
 
 ## Application code
 
@@ -73,7 +73,7 @@ npm run dev
 
 Open [http://localhost:3010](http://localhost:3010). Invite a second household member under **More → Team**.
 
-Production: separate stack at `/opt/bnab` + `bnab.bogza.ro` — see [`bnab/docs/deploy.md`](./bnab/docs/deploy.md) and [`deploy/bnab/`](./deploy/bnab/).
+Production: separate stack at `/opt/bnab` + `bnab.bogza.ro` — see [`bnab/docs/deploy.md`](./bnab/docs/deploy.md) and [`deploy/bnab/`](./deploy/bnab/). Prefer **PC build + live `.next` upload** on small VPS instances.
 
 ## License
 

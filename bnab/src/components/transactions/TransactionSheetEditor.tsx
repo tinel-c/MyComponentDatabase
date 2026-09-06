@@ -3,15 +3,12 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
-  buttonDangerClass,
   buttonPrimaryClass,
   buttonSecondaryClass,
   cardClass,
 } from "@/components/forms/field-classes";
-import {
-  deleteTransaction,
-  updateTransaction,
-} from "@/app/(app)/transactions/actions";
+import { updateTransaction } from "@/app/(app)/transactions/actions";
+import { DeleteTransactionButton } from "@/components/transactions/DeleteTransactionButton";
 import type {
   SheetCategoryGroup,
   SheetChildRow,
@@ -304,16 +301,7 @@ export function TransactionSheetEditor({
         </div>
       </form>
 
-      <form action={deleteTransaction}>
-        <input type="hidden" name="id" value={txnId} />
-        <input type="hidden" name="returnTo" value={returnTo} />
-        <button
-          type="submit"
-          className={`${buttonDangerClass} w-full md:w-auto`}
-        >
-          Delete transaction
-        </button>
-      </form>
+      <DeleteTransactionButton id={txnId} returnTo={returnTo} />
     </div>
   );
 }

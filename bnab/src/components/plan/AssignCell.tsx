@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { formatMoney } from "@/lib/money";
 import { assignToCategory } from "@/app/(app)/plan/actions";
-import { inputClass, moneyClass } from "@/components/forms/field-classes";
+import { moneyClass } from "@/components/forms/field-classes";
 
 export function AssignCell({
   categoryId,
@@ -37,7 +37,7 @@ export function AssignCell({
         defaultValue={(assigned / 100).toFixed(2)}
         inputMode="decimal"
         disabled={pending}
-        className={`${inputClass} ${moneyClass} mt-0 min-h-10 w-[6rem] py-2 text-right`}
+        className={`${moneyClass} w-full min-w-0 rounded-md border border-rim/80 bg-canvas/60 px-1.5 py-1.5 text-right text-xs text-fg outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/30 disabled:opacity-50`}
         onBlur={(e) => e.currentTarget.form?.requestSubmit()}
         aria-label={`Assign ${formatMoney(assigned, currency)}`}
       />

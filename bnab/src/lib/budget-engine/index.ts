@@ -29,6 +29,8 @@ export type EngineTxn = {
   isChild: boolean;
   transferTwinId: string | null;
   isStartingBalance: boolean;
+  /** Import ignore-rule matches (e.g. credit-line cover) — keep for balance, skip RTA/envelopes. */
+  excludeFromRta?: boolean;
 };
 
 export type EngineAssigned = {
@@ -101,8 +103,10 @@ export function computeBudgetMonths(input: {
 
   const months: string[] = [];
   {
+    // Guard inverted ranges (e.g. viewing a month before budget.firstMonth).
+    const last = endMonth < firstMonth ? firstMonth : endMonth;
     let m = firstMonth;
-    while (m <= endMonth) {
+    while (m <= last) {
       months.push(m);
       const [y, mo] = m.split("-").map(Number);
       const d = new Date(y, mo, 1);
@@ -139,6 +143,7 @@ export function computeBudgetMonths(input: {
 
       for (const t of transactions) {
         if (t.isParent) continue;
+        if (t.excludeFromRta) continue;
         if (monthOf(t.date) !== month) continue;
         const acct = accountById.get(t.accountId);
         if (!acct?.onBudget) continue;
@@ -196,24 +201,32 @@ export function computeBudgetMonths(input: {
       };
     }
 
-    // Income to RTA from transactions
+    // Income to RTA from transactions (starting balances, income cats, uncategorized).
+    // Uncategorized outflows (e.g. balance adjustments down) reduce Ready to Assign.
+    // Import ignore-rule matches never contribute (excludeFromRta).
     for (const t of transactions) {
       if (t.isParent || t.transferTwinId) continue;
+      if (t.excludeFromRta) continue;
       if (monthOf(t.date) !== month) continue;
       const acct = accountById.get(t.accountId);
       if (!acct?.onBudget) continue;
-      if (t.amount <= 0) continue;
+
       if (t.isStartingBalance) {
         incomeToRta += t.amount;
         continue;
       }
+
       if (!t.categoryId) {
+        // Uncategorized inflow/outflow moves Ready to Assign directly
         incomeToRta += t.amount;
         continue;
       }
+
       const cat = categories.find((c) => c.id === t.categoryId);
-      if (cat?.isIncome) incomeToRta += t.amount;
-      // Categorized to a spending category as inflow (refund) — already in activity, not RTA
+      if (cat?.isIncome) {
+        incomeToRta += t.amount;
+      }
+      // Spending-category activity (incl. refunds) stays in envelopes, not RTA
     }
 
     const meta = input.monthMetas?.find((x) => x.month === month);

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { updateTransaction } from "@/app/(app)/transactions/actions";
+import { DeleteTransactionButton } from "@/components/transactions/DeleteTransactionButton";
 import type { SheetCategoryGroup } from "@/components/transactions/sheet-types";
 import {
   sheetCell,
@@ -266,6 +267,11 @@ function RegisterRowCells({
           </span>
         ) : null}
       </td>
+      <td className={`${sheetCell} px-1 text-center`}>
+        <div className="flex justify-center">
+          <DeleteTransactionButton id={row.id} returnTo="stay" compact />
+        </div>
+      </td>
     </tr>
   );
 }
@@ -310,6 +316,7 @@ export function TransactionsRegister({
             <col className="min-w-[5rem]" />
             <col className="w-[5.5rem]" />
             <col className="w-[5.5rem]" />
+            <col className="w-11" />
           </colgroup>
           <thead>
             <tr>
@@ -325,6 +332,7 @@ export function TransactionsRegister({
               <th className={`${sheetHeaderCell} hidden sm:table-cell`}>Memo</th>
               <th className={`${sheetHeaderCell} text-right`}>Out</th>
               <th className={`${sheetHeaderCell} text-right`}>In</th>
+              <th className={`${sheetHeaderCell} text-center`}>Del</th>
             </tr>
           </thead>
           <tbody>

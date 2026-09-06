@@ -102,6 +102,8 @@ model Budget {
   payees      Payee[]
   monthMetas  MonthMeta[]
   schedules   ScheduledTransaction[]
+  importRules ImportCategoryRule[]
+  importBatches ImportBatch[]
 }
 
 model BudgetMember {
@@ -166,6 +168,7 @@ model Category {
   payees    Payee[]
   creditAccount FinanceAccount?    @relation("CreditPaymentCategory")
   schedules ScheduledTransaction[]
+  importRules ImportCategoryRule[]
 
   @@index([groupId])
 }
@@ -222,6 +225,9 @@ model Transaction {
   parentId          String?
   transferTwinId    String?
   isStartingBalance Boolean       @default(false)
+  importFingerprint String?
+  importContentHash String?
+  importBatchId     String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   account           FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
@@ -229,11 +235,61 @@ model Transaction {
   category          Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   parent            Transaction?  @relation("SplitChildren", fields: [parentId], references: [id], onDelete: Cascade)
   children          Transaction[] @relation("SplitChildren")
+  importBatch       ImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
+  @@unique([accountId, importFingerprint])
   @@index([accountId, date])
   @@index([categoryId, date])
   @@index([parentId])
   @@index([transferTwinId])
+  @@index([importBatchId])
+}
+
+/** Substring → category mapping for bank imports (ING HomeBank). */
+model ImportCategoryRule {
+  id         String    @id @default(cuid())
+  budgetId   String
+  matchText  String
+  categoryId String?
+  ignore     Boolean   @default(false)
+  sortOrder  Float     @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  budget     Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([budgetId, sortOrder])
+  @@unique([budgetId, matchText])
+}
+
+model ImportBatch {
+  id           String            @id @default(cuid())
+  budgetId     String
+  accountId    String
+  sourceLabel  String
+  createdAt    DateTime          @default(now())
+  createdById  String?
+  snapshotPath String?
+  statsJson    String?
+  budget       Budget            @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  items        ImportBatchItem[]
+  transactions Transaction[]
+
+  @@index([budgetId, createdAt])
+  @@index([accountId])
+}
+
+model ImportBatchItem {
+  id            String      @id @default(cuid())
+  batchId       String
+  action        String
+  transactionId String?
+  fingerprint   String
+  memoPreview   String?
+  batch         ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([fingerprint])
 }
 
 model ScheduledTransaction {

@@ -10,11 +10,12 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 | Envelopes | Categories inside category groups |
 | True expenses | Non-monthly categories + targets |
 | Age your money | Hold income / budget next month |
-| Flexibility | Move money, cover overspending |
+| Flexibility | Move money, cover overspending, quick assign |
+| Bank import | ING CSV → rules → fingerprints (dedupe) |
 
 ---
 
-## v1 (must ship)
+## Shipped
 
 ### Accounts
 
@@ -22,20 +23,27 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Credit cards with Credit Card Payment category
 - [x] Tracking / off-budget (assets & liabilities for net worth)
 - [x] Starting balance transactions
-- [x] Close / reopen accounts
+- [x] Close / reopen / rename accounts
 - [x] Reconcile (cleared vs reconciled)
+- [x] **Adjust to statement** — one correction txn toward ING/HomeBank balance (positive → Other income / RTA; negative → uncategorized outflow)
 
 ### Plan (Budget)
 
 - [x] Category groups + categories (reorder, hide, notes)
 - [x] Month navigator
-- [x] Assigned / Activity / Available columns
-- [x] Ready to Assign header (ok / warning / over-assigned)
-- [x] Move money between categories
-- [x] Cover overspending
+- [x] Assigned / Activity / Available columns (desktop)
+- [x] Ready to Assign banner (ok / ready / over-assigned)
+- [x] Income section + **Accounts · remaining** (desktop)
+- [x] Move money between categories (desktop)
+- [x] Cover overspending / release available / assign all RTA (**Quick** +, −, =)
 - [x] Monthly carryover of Available
 - [x] Targets: monthly spending, needed by date, weekly, savings balance
-- [x] Default starter groups (Bills, Frequent, Non-Monthly, Goals, Quality of Life, Income)
+- [x] Category icons by name/group
+- [x] YNGSB-style starter tree + seeded mapping rules
+- [x] **Responsive Plan**
+  - Desktop: full width, two-column category groups
+  - Mobile: single-row categories (Activity + Available), hide Assigned / Income / Move money
+  - Mobile: hide empty categories (0/0/0) with “show empty” toggle
 
 ### Transactions
 
@@ -44,9 +52,15 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Split transactions
 - [x] Cleared / uncleared
 - [x] Scheduled / recurring + enter now
-- [x] Search / filter
-- [x] Mobile quick-add
-- [x] CSV import
+- [x] Search / filter + Excel-style register
+- [x] Mobile quick-add / sheet editor
+- [x] **Delete transaction** (account list, register, edit sheet) with confirm
+- [x] **ING CSV import**
+  - Preview unmatched / matched / ignored / duplicates
+  - Confirm creates batch + fingerprints
+  - Mapping rules CRUD + create-from-unmatched
+  - Ignore patterns (e.g. credit-line covers) excluded from RTA & Activity
+  - Import history: revert batch, DB snapshots
 
 ### Household
 
@@ -60,16 +74,17 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Income vs Expense monthly matrix
 - [x] Net Worth over time
 
-### UX
+### UX / brand
 
-- [x] Mobile bottom tabs: Plan | Accounts | Add | Reflect | More
-- [x] Desktop sidebar
-- [x] Theme system (same tokens as part-db)
-- [x] PWA installable
+- [x] Mobile bottom tabs: Plan | Txns | Add | Accounts | More
+- [x] Desktop sidebar (More with primary nav)
+- [x] Theme system (CSS semantic tokens)
+- [x] PWA installable + favicon / apple-touch / maskable icons
+- [x] BNAB envelope mark + wordmark (`BnabLogo`)
 
 ---
 
-## v2 (deferred)
+## Deferred
 
 - [ ] Bank sync / Open Banking / Plaid
 - [ ] Loan payoff / interest tools
@@ -78,3 +93,4 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [ ] Native Android WebView client
 - [ ] Advanced Fresh Start wizard
 - [ ] Wish Farm / goal harvesting helpers
+- [ ] Mobile inline Assign (currently desktop / edit flows)

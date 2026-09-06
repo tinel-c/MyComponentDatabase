@@ -2,19 +2,37 @@ import Link from "next/link";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import {
-  buttonPrimaryClass,
-  cardClass,
-  inputClass,
-  labelClass,
-} from "@/components/forms/field-classes";
-import { importCsv } from "../actions";
+  ensureYngsbCategories,
+  seedDefaultImportRules,
+} from "@/lib/starter-categories";
+import { IngImportClient } from "@/components/import/IngImportClient";
 
 export default async function ImportPage() {
   const { budget } = await requireBudgetAccess();
+  await ensureYngsbCategories(prisma, budget.id);
+  await seedDefaultImportRules(prisma, budget.id);
+
   const accounts = await prisma.financeAccount.findMany({
     where: { budgetId: budget.id, closed: false },
     orderBy: { sortOrder: "asc" },
   });
+  const groups = await prisma.categoryGroup.findMany({
+    where: { budgetId: budget.id, hidden: false },
+    include: {
+      categories: {
+        where: { hidden: false },
+        orderBy: { sortOrder: "asc" },
+      },
+    },
+    orderBy: { sortOrder: "asc" },
+  });
+  const categories = groups.flatMap((g) =>
+    g.categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      groupName: g.name,
+    })),
+  );
 
   return (
     <div className="space-y-6">
@@ -22,38 +40,25 @@ export default async function ImportPage() {
         <Link href="/more" className="text-sm text-fg-muted hover:text-fg">
           ← More
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-fg">CSV import</h1>
+        <h1 className="mt-2 text-2xl font-semibold text-fg">ING CSV import</h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Format: <code className="text-accent">date,amount,payee,memo</code> — one
-          row per transaction. Amounts: negative = outflow.
+          Upload a HomeBank ING statement. Rules auto-categorize; unmatched rows
+          can become mappings in one click.{" "}
+          <Link href="/more/import-rules" className="text-accent hover:underline">
+            Edit mappings
+          </Link>
+          {" · "}
+          <Link href="/more/import-history" className="text-accent hover:underline">
+            Import history
+          </Link>
         </p>
       </div>
 
-      <form action={importCsv} className={`${cardClass} space-y-3 p-4`}>
-        <label className={labelClass}>
-          Account
-          <select name="accountId" required className={inputClass}>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className={labelClass}>
-          CSV
-          <textarea
-            name="csv"
-            required
-            rows={12}
-            className={`${inputClass} font-mono text-xs`}
-            placeholder={"date,amount,payee,memo\n2026-03-01,-45.90,Lidl,Groceries"}
-          />
-        </label>
-        <button type="submit" className={buttonPrimaryClass}>
-          Import
-        </button>
-      </form>
+      <IngImportClient
+        accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
+        categories={categories}
+        currency={budget.currency}
+      />
     </div>
   );
 }

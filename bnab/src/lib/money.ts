@@ -40,6 +40,12 @@ export function monthLabel(month: string, locale = "en-US"): string {
   });
 }
 
+/** e.g. "September" — YNGSB-style month header without year. */
+export function monthNameOnly(month: string, locale = "en-US"): string {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(locale, { month: "long" });
+}
+
 export function dateInMonth(date: string, month: string): boolean {
   return date.startsWith(month);
 }

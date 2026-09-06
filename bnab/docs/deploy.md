@@ -8,7 +8,7 @@ Parallel stack next to part-db. **Do not** reuse `/opt/warehouse` or `warehouse.
 |------|-------|
 | Domain | `bnab.bogza.ro` |
 | App root | `/opt/bnab` |
-| Shared | `/opt/bnab/shared` (`.env`, `bnab.db`) |
+| Shared | `/opt/bnab/shared` (`.env`, `bnab.db`, optional `snapshots/`) |
 | Blue/green ports | `3010` / `3011` |
 | PM2 names | `bnab-blue` / `bnab-green` |
 | nginx site | `/etc/nginx/sites-available/bnab` |
@@ -65,53 +65,86 @@ sudo -u deploy bash /opt/bnab/blue/deploy/bnab/deploy-bnab.sh
 # Seed admin + starter budget (once)
 cd /opt/bnab/blue/bnab   # or the active slot
 export DATABASE_URL="file:/opt/bnab/shared/bnab.db"
-# load AUTH_* from shared .env if needed for seed ADMIN_EMAIL
 npx prisma db seed
 ```
 
 `setup-bnab-server.sh` clones blue/green under `/opt/bnab`, creates shared SQLite + `.env` template, and enables the nginx site (HTTP until certbot).
 
-## Ongoing deploy
+---
 
-**GitHub Actions:** push to `main` that touches `bnab/**` or `deploy/bnab/**` runs [`.github/workflows/deploy-bnab.yml`](../../.github/workflows/deploy-bnab.yml) (reuses `DEPLOY_HOST` / `DEPLOY_USER` / `DEPLOY_SSH_PASSWORD`).
+## Recommended: PC build → live upload (fast path)
 
-**Manual** (from PC, with `deploy/deploy.secrets` loaded):
+On a **1 GB RAM** VPS, remote `next build` is slow and can OOM. Prefer building on your PC and uploading `.next`.
 
-```bash
-sshpass -e ssh … "${DEPLOY_USER}@${DEPLOY_HOST}" 'bash -s' < deploy/bnab/deploy-bnab.sh
+Requires local `deploy/deploy.secrets` (gitignored) with `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_PASSWORD`.
+
+```powershell
+cd bnab
+npm run build
+# remove old tarball if present
+tar -czf .next-upload.tgz .next
+python ../deploy/bnab/ssh_upload_live_next.py
+python ../deploy/bnab/ssh_upload_public_brand.py   # favicons / PWA icons / manifest
+python ../deploy/bnab/ssh_quick_restart_bnab.py     # if PM2 did not pick up cleanly
 ```
 
-Or on the VPS:
+### What `ssh_upload_live_next.py` does
+
+1. Stops BNAB PM2 processes on ports 3010/3011  
+2. Uploads `.next-upload.tgz`  
+3. On green: `git fetch` + `git reset --hard origin/main` (slot matches GitHub)  
+4. Extracts `.next`  
+5. **Overlays** local Prisma schema/migrations + key `src/lib` files (features ahead of `origin/main`)  
+6. `prisma generate` + `migrate deploy`  
+7. Syncs generated Prisma client into Next’s traced `.next/node_modules/@prisma/client-*` copy  
+8. Starts `bnab-green` on **3011**, reloads nginx  
+
+### Why overlays + Prisma sync
+
+`git reset --hard origin/main` drops uncommitted server files. Until BNAB changes are on GitHub, the upload script restores schema/libs from your PC. After a release is pushed, overlays still keep Prisma generate aligned with the live schema.
+
+If Plan 500s with `importCategoryRule` / `findMany` undefined, run:
+
+```powershell
+python ../deploy/bnab/ssh_resync_prisma.py
+python ../deploy/bnab/ssh_sync_prisma_next_copy.py
+python ../deploy/bnab/ssh_quick_restart_bnab.py
+```
+
+### Public brand assets
+
+`.next` does **not** include `public/` favicons. After upload (or after any `git reset` on the server), sync icons:
+
+```powershell
+python ../deploy/bnab/ssh_upload_public_brand.py
+```
+
+### YNGSB reset / reseed (destructive)
+
+```powershell
+# Sets BNAB_RESET=1 style wipe + seed — only when you intend to reset household data
+python ../deploy/bnab/ssh_reset_seed_yngsb.py
+```
+
+---
+
+## Ongoing deploy (full remote build)
+
+**GitHub Actions:** push to `main` that touches `bnab/**` or `deploy/bnab/**` runs [`.github/workflows/deploy-bnab.yml`](../../.github/workflows/deploy-bnab.yml).
+
+**Manual** on the VPS:
 
 ```bash
 bash /opt/bnab/blue/deploy/bnab/deploy-bnab.sh
 ```
 
-`deploy-bnab.sh` updates the **inactive** slot, runs a **verbose** `npm install`, `prisma migrate deploy`, `npm run build`, switches nginx upstream (ports 3010/3011), stops the previous PM2 process.
+`deploy-bnab.sh` updates the **inactive** slot, `npm install`, `prisma migrate deploy`, `npm run build`, switches nginx upstream, stops the previous PM2 process.
 
-### Watching `npm install` (progress vs stuck)
-
-During install the script prints:
-
-- `[HH:MM:SS] …` — each npm log line (spinner disabled)
-- `[deploy-bnab][heartbeat +Ns] pkgs=… node_modules=… last_npm_line=…s_ago` every **10s**
-- `[deploy-bnab][STALL?]` if no npm line for **60s**
-
-On the server you can also:
-
-```bash
-# Live status (pkgs / size / silence age) — written under the inactive slot’s bnab/
-tail -f /opt/bnab/green/bnab/.deploy-npm-status
-# or: /opt/bnab/blue/bnab/.deploy-npm-status
-```
-
-If `pkgs`/`size` stop growing and `STALL?` appears, kill npm under that slot and retry after `rm -rf node_modules`.
-
-On a **1 GB RAM** VPS, install uses `--maxsockets=3` and a capped Node heap. If swap is full (`free -h`), stop other heavy processes (or wait) before retrying — thrashing looks like a silent hang even with heartbeats.
+On a **1 GB RAM** VPS prefer the PC-build path above.
 
 ## CI
 
-[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) job **bnab**: migrate, unit tests (`budget-engine`), production build.
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) job **bnab**: migrate, unit tests, production build.
 
 ## Checklist
 
@@ -119,6 +152,7 @@ On a **1 GB RAM** VPS, install uses `--maxsockets=3` and a capped Node heap. I
 2. Certbot TLS
 3. Google redirect URI added
 4. `/opt/bnab/shared/.env` filled (separate `bnab.db`)
-5. First `deploy-bnab.sh` + optional `prisma db seed`
-6. Smoke: login → Plan → add transaction → Reflect
+5. First deploy + optional `prisma db seed`
+6. Smoke: login → Plan → add / import transaction → Reflect
 7. Invite partner under **More → Team**
+8. After PC upload: confirm `/favicon.ico` and `/icon-192.png` return 200

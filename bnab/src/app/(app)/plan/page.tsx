@@ -1,11 +1,17 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Landmark, Wallet } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { loadPlanMonth } from "@/lib/plan-data";
 import { addMonths, currentMonth, formatMoney, monthLabel } from "@/lib/money";
-import { AssignCell } from "@/components/plan/AssignCell";
 import { MoveMoneyForm } from "@/components/plan/MoveMoneyForm";
-import { buttonSecondaryClass, cardClass, moneyClass } from "@/components/forms/field-classes";
+import { PlanSummaryBanner } from "@/components/plan/PlanSummaryBanner";
+import { CategoryIcon } from "@/components/plan/CategoryIcon";
+import { PlanCategoryList } from "@/components/plan/PlanCategoryList";
+import {
+  buttonSecondaryClass,
+  cardClass,
+  moneyClass,
+} from "@/components/forms/field-classes";
 import { groupAccent } from "@/lib/ui-accents";
 
 export default async function PlanPage({
@@ -18,7 +24,10 @@ export default async function PlanPage({
   const month =
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentMonth();
 
-  const { groups, plan, currency } = await loadPlanMonth(budget.id, month);
+  const { groups, plan, currency, accountBalances } = await loadPlanMonth(
+    budget.id,
+    month,
+  );
   const prev = addMonths(month, -1);
   const next = addMonths(month, 1);
 
@@ -32,15 +41,11 @@ export default async function PlanPage({
     );
   }, 0);
 
-  const rtaClass =
-    plan.rta === 0
-      ? "bg-ok/15 text-ok border-ok/30"
-      : plan.rta < 0
-        ? "bg-danger-muted text-danger-fg border-danger/40"
-        : "bg-accent-muted text-accent border-accent/30";
+  const onBudgetAccounts = accountBalances.filter((a) => a.onBudget);
+  const totalOnBudget = onBudgetAccounts.reduce((s, a) => s + a.balance, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:space-y-5">
       <div className="flex items-center justify-between gap-2">
         <Link
           href={`/plan?month=${prev}`}
@@ -61,28 +66,16 @@ export default async function PlanPage({
         </Link>
       </div>
 
-      <div className={`sticky top-14 z-20 rounded-2xl border px-4 py-3 md:top-4 ${rtaClass}`}>
-        <p className="text-xs font-medium uppercase tracking-wide opacity-80">
-          Ready to Assign
-        </p>
-        <p className={`text-2xl font-semibold ${moneyClass}`}>
-          {formatMoney(plan.rta, currency)}
-        </p>
-        <p className="mt-1 text-xs opacity-80">
-          Income to budget{" "}
-          <span className={moneyClass}>
-            {formatMoney(plan.incomeToRta, currency)}
-          </span>
-          {" · "}
-          Assigned{" "}
-          <span className={moneyClass}>
-            {formatMoney(plan.totalAssigned, currency)}
-          </span>
-        </p>
-      </div>
+      <PlanSummaryBanner
+        rta={plan.rta}
+        incomeToRta={plan.incomeToRta}
+        totalAssigned={plan.totalAssigned}
+        currency={currency}
+      />
 
+      {/* Income + accounts — desktop only for Income; accounts stay visible */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-2 px-1">
+        <div className="hidden items-center justify-between gap-2 px-1 md:flex">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
               Income
@@ -101,126 +94,168 @@ export default async function PlanPage({
           </Link>
         </div>
 
-        {incomeGroups.length === 0 ? (
-          <section
-            className={`${cardClass} px-4 py-6 text-center text-sm text-fg-muted`}
-          >
-            No income categories yet. Add an Income group under More → Categories.
-          </section>
-        ) : (
-          incomeGroups.map((group) => (
-            <section key={group.id} className={`${cardClass} overflow-hidden`}>
-              <h3
-                className="border-b border-rim-subtle px-4 py-3 text-sm font-semibold text-fg"
-                style={{
-                  borderLeft: `4px solid ${groupAccent(group.name)}`,
-                  background: "color-mix(in oklch, var(--ok) 12%, transparent)",
-                }}
-              >
-                {group.name}
-              </h3>
-              <ul className="divide-y divide-rim-subtle/60">
-                <li className="hidden grid-cols-[minmax(0,1fr)_6.5rem] gap-2 px-4 py-2 text-[10px] uppercase tracking-wide text-fg-subtle sm:grid">
-                  <span>Category</span>
-                  <span className="text-right">Received</span>
-                </li>
-                {group.categories.map((cat) => {
-                  const activity = plan.categories[cat.id]?.activity ?? 0;
-                  return (
-                    <li
-                      key={cat.id}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
-                    >
-                      <p className="min-w-0 truncate font-medium text-fg">
-                        {cat.name}
-                      </p>
-                      <p
-                        className={`shrink-0 text-sm font-semibold tabular-nums ${
-                          activity > 0 ? "text-ok" : "text-fg-muted"
-                        }`}
-                      >
-                        {formatMoney(activity, currency)}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
+        <div className="hidden space-y-3 md:block">
+          {incomeGroups.length === 0 ? (
+            <section
+              className={`${cardClass} px-4 py-6 text-center text-sm text-fg-muted`}
+            >
+              No income categories yet. Add an Income group under More →
+              Categories.
             </section>
-          ))
+          ) : (
+            incomeGroups.map((group) => (
+              <section key={group.id} className={`${cardClass} overflow-hidden`}>
+                <h3
+                  className="border-b border-rim-subtle px-4 py-3 text-sm font-semibold text-fg"
+                  style={{
+                    borderLeft: `4px solid ${groupAccent(group.name)}`,
+                    background:
+                      "color-mix(in oklch, var(--ok) 12%, transparent)",
+                  }}
+                >
+                  {group.name}
+                </h3>
+                <ul className="divide-y divide-rim-subtle/60">
+                  {group.categories.map((cat) => {
+                    const activity = plan.categories[cat.id]?.activity ?? 0;
+                    return (
+                      <li
+                        key={cat.id}
+                        className="flex items-center justify-between gap-3 px-3 py-2.5"
+                      >
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <CategoryIcon name={cat.name} groupName={group.name} />
+                          <p className="min-w-0 truncate text-sm font-medium text-fg">
+                            {cat.name}
+                          </p>
+                        </div>
+                        <p
+                          className={`shrink-0 text-sm font-semibold ${moneyClass} ${
+                            activity > 0 ? "text-ok" : "text-fg-muted"
+                          }`}
+                        >
+                          {formatMoney(activity, currency)}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))
+          )}
+        </div>
+
+        {onBudgetAccounts.length > 0 && (
+          <section className={`hidden ${cardClass} overflow-hidden md:block`}>
+            <h3
+              className="border-b border-rim-subtle px-4 py-2.5 text-sm font-semibold text-fg"
+              style={{
+                borderLeft: `4px solid var(--ok)`,
+                background: "color-mix(in oklch, var(--ok) 10%, transparent)",
+              }}
+            >
+              Accounts · remaining
+            </h3>
+            <ul className="divide-y divide-rim-subtle/60 px-3 py-1">
+              {onBudgetAccounts.map((a) => (
+                <li
+                  key={a.id}
+                  className="flex items-center justify-between gap-2 py-2 text-sm"
+                >
+                  <span className="flex min-w-0 items-center gap-2 text-fg-muted">
+                    <Landmark
+                      className="size-3.5 shrink-0"
+                      style={{ color: "var(--accent)" }}
+                      aria-hidden
+                    />
+                    <Link
+                      href={`/accounts/${a.id}`}
+                      className="truncate hover:text-fg"
+                    >
+                      {a.name}
+                    </Link>
+                  </span>
+                  <span
+                    className={`shrink-0 font-semibold ${moneyClass} ${
+                      a.balance < 0 ? "text-danger" : "text-fg"
+                    }`}
+                  >
+                    {formatMoney(a.balance, currency)}
+                  </span>
+                </li>
+              ))}
+              <li className="flex items-center justify-between gap-2 py-2 text-sm">
+                <span className="flex items-center gap-2 font-medium text-fg">
+                  <Wallet
+                    className="size-3.5 shrink-0"
+                    style={{ color: "var(--ok)" }}
+                    aria-hidden
+                  />
+                  Total on-budget
+                </span>
+                <span
+                  className={`font-semibold ${moneyClass} ${
+                    totalOnBudget < 0 ? "text-danger" : "text-ok"
+                  }`}
+                >
+                  {formatMoney(totalOnBudget, currency)}
+                </span>
+              </li>
+            </ul>
+          </section>
         )}
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         <h2 className="px-1 text-sm font-semibold uppercase tracking-wide text-fg-muted">
           Categories
         </h2>
-        {spendingGroups.map((group) => (
-          <section key={group.id} className={`${cardClass} overflow-hidden`}>
-            <h2
-              className="border-b border-rim-subtle px-4 py-3 text-sm font-semibold text-fg"
-              style={{
-                borderLeft: `4px solid ${groupAccent(group.name)}`,
-                background:
-                  "color-mix(in oklch, var(--accent-muted) 40%, transparent)",
-              }}
-            >
-              {group.name}
-            </h2>
-            <ul className="divide-y divide-rim-subtle/60">
-              <li className="hidden grid-cols-[minmax(0,1.2fr)_5.5rem_5.5rem_5rem] gap-2 px-4 py-2 text-[10px] uppercase tracking-wide text-fg-subtle sm:grid">
-                <span>Category</span>
-                <span className="text-right">Activity</span>
-                <span className="text-right">Assigned</span>
-                <span className="text-right">Available</span>
-              </li>
-              {group.categories.map((cat) => {
-                const row = plan.categories[cat.id];
-                const available = row?.available ?? 0;
-                const activity = row?.activity ?? 0;
-                const assigned = row?.assigned ?? 0;
-                return (
-                  <li
-                    key={cat.id}
-                    className="grid grid-cols-[1fr_auto] items-center gap-x-2 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,1.2fr)_5.5rem_5.5rem_5rem]"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-fg">{cat.name}</p>
-                      <p className="text-xs text-fg-subtle sm:hidden">
-                        Act {formatMoney(activity, currency)}
-                      </p>
-                    </div>
-                    <div className={`hidden text-right text-sm text-fg-muted sm:block ${moneyClass}`}>
-                      {formatMoney(activity, currency)}
-                    </div>
-                    <AssignCell
-                      categoryId={cat.id}
-                      month={month}
-                      assigned={assigned}
-                      currency={currency}
-                    />
-                    <p
-                      className={`text-right text-sm font-semibold ${moneyClass} ${
-                        available < 0
-                          ? "text-danger"
-                          : available > 0
-                            ? "text-ok"
-                            : "text-fg-muted"
-                      }`}
-                    >
-                      {formatMoney(available, currency)}
-                    </p>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ))}
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 xl:gap-4">
+          {spendingGroups.map((group) => (
+            <section key={group.id} className={`${cardClass} overflow-hidden`}>
+              <h2
+                className="border-b border-rim-subtle px-3 py-2 text-sm font-semibold text-fg md:px-4 md:py-2.5"
+                style={{
+                  borderLeft: `4px solid ${groupAccent(group.name)}`,
+                  background:
+                    "color-mix(in oklch, var(--accent-muted) 40%, transparent)",
+                }}
+              >
+                {group.name}
+              </h2>
+              <PlanCategoryList
+                groupName={group.name}
+                categories={group.categories.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                }))}
+                month={month}
+                currency={currency}
+                rta={plan.rta}
+                rows={Object.fromEntries(
+                  group.categories.map((c) => {
+                    const row = plan.categories[c.id];
+                    return [
+                      c.id,
+                      {
+                        available: row?.available ?? 0,
+                        activity: row?.activity ?? 0,
+                        assigned: row?.assigned ?? 0,
+                      },
+                    ];
+                  }),
+                )}
+              />
+            </section>
+          ))}
+        </div>
       </div>
 
-      <div className={`${cardClass} p-4`}>
+      <div className={`hidden ${cardClass} p-4 md:block`}>
         <h2 className="text-sm font-semibold text-fg">Move money</h2>
         <p className="mt-1 text-xs text-fg-muted">
-          Shift assigned amounts between envelopes without changing Ready to Assign.
+          Shift assigned amounts between envelopes without changing Ready to
+          Assign.
         </p>
         <div className="mt-3">
           <MoveMoneyForm
@@ -232,9 +267,9 @@ export default async function PlanPage({
         </div>
       </div>
 
-      <p className="px-1 text-center text-xs text-fg-subtle">
-        Income increases Ready to Assign. Assign dollars into categories until RTA
-        is 0.
+      <p className="hidden px-1 text-center text-xs text-fg-subtle md:block">
+        Income increases Ready to Assign. Assign dollars into categories until
+        RTA is 0.
       </p>
     </div>
   );

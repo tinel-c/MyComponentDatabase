@@ -145,4 +145,106 @@ describe("computeBudgetMonths", () => {
     assert.equal(results[0].categories.c1.available, 10_000);
     assert.equal(results[1].categories.c1.available, 10_000);
   });
+
+  it("applies balance adjustments to Ready to Assign", () => {
+    const checking = {
+      id: "chk",
+      onBudget: true,
+      type: "CHECKING",
+      creditCategoryId: null,
+    };
+    const income = {
+      id: "inc",
+      isIncome: true,
+      isSystem: false,
+      systemKey: null,
+    };
+
+    const results = computeBudgetMonths({
+      firstMonth: "2026-09",
+      endMonth: "2026-09",
+      accounts: [checking],
+      categories: [income],
+      transactions: [
+        {
+          id: "up",
+          accountId: "chk",
+          date: "2026-09-01",
+          amount: 50_000,
+          categoryId: "inc",
+          isParent: false,
+          isChild: false,
+          transferTwinId: null,
+          isStartingBalance: false,
+        },
+        {
+          id: "down",
+          accountId: "chk",
+          date: "2026-09-02",
+          amount: -12_000,
+          categoryId: null,
+          isParent: false,
+          isChild: false,
+          transferTwinId: null,
+          isStartingBalance: false,
+        },
+      ],
+      assigned: [],
+    });
+
+    const m = results[0];
+    assert.equal(m.incomeToRta, 38_000);
+    assert.equal(m.rta, 38_000);
+  });
+
+  it("excludes ignore-matched transactions from Ready to Assign", () => {
+    const checking = {
+      id: "chk",
+      onBudget: true,
+      type: "CHECKING",
+      creditCategoryId: null,
+    };
+    const income = {
+      id: "inc",
+      isIncome: true,
+      isSystem: false,
+      systemKey: null,
+    };
+
+    const results = computeBudgetMonths({
+      firstMonth: "2026-09",
+      endMonth: "2026-09",
+      accounts: [checking],
+      categories: [income],
+      transactions: [
+        {
+          id: "pay",
+          accountId: "chk",
+          date: "2026-09-01",
+          amount: 100_000,
+          categoryId: "inc",
+          isParent: false,
+          isChild: false,
+          transferTwinId: null,
+          isStartingBalance: false,
+        },
+        {
+          id: "credit-line",
+          accountId: "chk",
+          date: "2026-09-02",
+          amount: 11_417,
+          categoryId: null,
+          isParent: false,
+          isChild: false,
+          transferTwinId: null,
+          isStartingBalance: false,
+          excludeFromRta: true,
+        },
+      ],
+      assigned: [],
+    });
+
+    assert.equal(results[0].incomeToRta, 100_000);
+    assert.equal(results[0].rta, 100_000);
+  });
 });

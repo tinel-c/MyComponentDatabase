@@ -18,6 +18,8 @@ import {
 } from "@/app/(app)/plan/actions";
 import { reconcileAccount } from "@/app/(app)/transactions/actions";
 import { ClearToggle } from "@/components/accounts/ClearToggle";
+import { AdjustBalanceForm } from "@/components/accounts/AdjustBalanceForm";
+import { DeleteTransactionButton } from "@/components/transactions/DeleteTransactionButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 const PAGE_SIZE = 40;
@@ -100,6 +102,21 @@ export default async function AccountDetailPage({
       </div>
 
       <section className={`${cardClass} space-y-3 p-4`}>
+        <h2 className="text-sm font-semibold text-fg">
+          Adjust to ING / statement
+        </h2>
+        <p className="text-xs text-fg-muted">
+          Enter the balance shown in HomeBank/ING. BNAB inserts one transaction
+          for the difference so you can see when the account was corrected.
+        </p>
+        <AdjustBalanceForm
+          accountId={account.id}
+          currentBalance={balance}
+          currency={budget.currency}
+        />
+      </section>
+
+      <section className={`${cardClass} space-y-3 p-4`}>
         <h2 className="text-sm font-semibold text-fg">Rename</h2>
         <form action={renameAccount} className="flex flex-col gap-2 sm:flex-row">
           <input type="hidden" name="id" value={account.id} />
@@ -164,6 +181,9 @@ export default async function AccountDetailPage({
                     <p className="text-xs text-fg-subtle">
                       {t.date}
                       {t.category ? ` · ${t.category.name}` : ""}
+                      {t.payee?.name === "Balance Adjustment"
+                        ? " · adjustment"
+                        : ""}
                       {t.isParent ? " · split" : ""}
                       {t.reconciled ? " · reconciled" : ""}
                     </p>
@@ -176,6 +196,11 @@ export default async function AccountDetailPage({
                     {formatMoney(t.amount, budget.currency)}
                   </p>
                 </Link>
+                <DeleteTransactionButton
+                  id={t.id}
+                  returnTo={`/accounts/${account.id}`}
+                  compact
+                />
               </div>
             </li>
           ))

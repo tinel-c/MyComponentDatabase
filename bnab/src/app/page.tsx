@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { buttonPrimaryClass } from "@/components/forms/field-classes";
+import { BnabMark } from "@/components/brand/BnabLogo";
 import { prisma } from "@/lib/prisma";
 import { ensureAdminHouseholdBudget } from "@/lib/ensure-budget";
 
@@ -30,13 +31,20 @@ export default async function HomePage() {
         }}
       />
       <div className="relative z-10 mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-6 py-16">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-fg-muted">
-          bogza.ro
-        </p>
-        <h1 className="mt-3 text-5xl font-semibold tracking-tight text-fg sm:text-6xl">
-          BNAB
-        </h1>
-        <p className="mt-2 text-lg text-fg-muted">Bogza Needs A Budget</p>
+        <div className="flex items-center gap-4">
+          <span className="inline-flex size-16 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-fg shadow-[0_16px_40px_color-mix(in_oklch,var(--glow-accent)_55%,transparent)]">
+            <BnabMark className="size-11" />
+          </span>
+          <div>
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-fg-muted">
+              bogza.ro
+            </p>
+            <h1 className="mt-1 text-5xl font-semibold tracking-tight text-fg sm:text-6xl">
+              BNAB
+            </h1>
+          </div>
+        </div>
+        <p className="mt-4 text-lg text-fg-muted">Bogza Needs A Budget</p>
         <p className="mt-6 max-w-md text-base leading-relaxed text-fg-muted">
           Zero-based envelope budgeting for two. Give every leu a job — plan,
           spend, and reflect together from your phone.

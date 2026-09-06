@@ -1,6 +1,6 @@
 {
   "name": "bnab",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "prisma generate && next dev -p 3010",
@@ -12,7 +12,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "test": "tsx --test src/lib/budget-engine/**/*.test.ts"
+    "test": "tsx --test src/lib/budget-engine/**/*.test.ts src/lib/ing-import/**/*.test.ts src/lib/yngsb-banner.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

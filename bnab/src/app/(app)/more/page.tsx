@@ -23,7 +23,17 @@ const links = [
   { href: "/more/categories", label: "Categories & targets", desc: "Organize envelopes" },
   { href: "/more/payees", label: "Payees", desc: "Merchant list" },
   { href: "/more/schedules", label: "Scheduled", desc: "Recurring transactions" },
-  { href: "/more/import", label: "CSV import", desc: "Import bank CSV" },
+  { href: "/more/import", label: "ING import", desc: "Import HomeBank ING CSV" },
+  {
+    href: "/more/import-rules",
+    label: "Import mappings",
+    desc: "Substring → category rules",
+  },
+  {
+    href: "/more/import-history",
+    label: "Import history",
+    desc: "Revert batches and leftovers",
+  },
 ];
 
 export default async function MorePage() {

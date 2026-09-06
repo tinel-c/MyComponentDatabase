@@ -42,61 +42,8 @@ export async function inviteMember(formData: FormData) {
   return;
 }
 
-export async function importCsv(formData: FormData) {
-  const { budget } = await requireBudgetAccess();
-  const accountId = String(formData.get("accountId") ?? "");
-  const csv = String(formData.get("csv") ?? "");
-  const account = await prisma.financeAccount.findFirst({
-    where: { id: accountId, budgetId: budget.id },
-  });
-  if (!account) return;
-  if (!csv.trim()) return;
-
-  const lines = csv.trim().split(/\r?\n/);
-  let imported = 0;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    if (i === 0 && /date/i.test(line) && /amount/i.test(line)) continue;
-    // date,amount,payee,memo
-    const parts = line.split(",").map((p) => p.trim().replace(/^"|"$/g, ""));
-    const [dateRaw, amountRaw, payeeName, memo] = parts;
-    if (!dateRaw || !amountRaw) continue;
-    let date = dateRaw;
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
-      const [d, m, y] = date.split("/");
-      date = `${y}-${m}-${d}`;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-    const amount = parseMoneyInput(amountRaw);
-    if (amount === null || amount === 0) continue;
-
-    let payeeId: string | null = null;
-    if (payeeName) {
-      const payee = await prisma.payee.upsert({
-        where: { budgetId_name: { budgetId: budget.id, name: payeeName } },
-        create: { budgetId: budget.id, name: payeeName },
-        update: {},
-      });
-      payeeId = payee.id;
-    }
-
-    await prisma.transaction.create({
-      data: {
-        accountId,
-        date,
-        amount,
-        payeeId,
-        notes: memo || null,
-        cleared: true,
-      },
-    });
-    imported++;
-  }
-
-  revalidatePath("/accounts");
-  revalidatePath("/plan");
-  revalidatePath("/reflect");
+export async function importCsv(_formData: FormData) {
+  // Legacy simple CSV import removed — use /more/import (ING).
   return;
 }
 

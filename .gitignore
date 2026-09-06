@@ -26,3 +26,12 @@ npm-debug.log*
 # Local BNAB upload artifact
 bnab/.next-upload.tgz
 bnab/.next/
+
+# Real ING bank statements — never commit
+bnab/ING/
+bnab/data/snapshots/
+
+# Scratch downloads from planning
+deploy/bnab/_ing_convert_to_ynab.py
+deploy/bnab/_Code.gs
+deploy/bnab/_yngsb_raw.csv

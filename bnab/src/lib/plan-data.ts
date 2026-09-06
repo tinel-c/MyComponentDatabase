@@ -4,6 +4,7 @@ import {
   type EngineAccount,
   type EngineCategory,
   type EngineTxn,
+  type MonthResult,
 } from "@/lib/budget-engine";
 
 export async function loadPlanMonth(budgetId: string, month: string) {
@@ -11,7 +12,11 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     where: { id: budgetId },
   });
 
-  const [accounts, groups, assigned, transactions, monthMetas] =
+  // Never ask the engine for a range that starts after the viewed month
+  // (empty results → undefined plan → Plan page 500).
+  const endMonth = month < budget.firstMonth ? budget.firstMonth : month;
+
+  const [accounts, groups, assigned, transactions, monthMetas, balanceRows] =
     await Promise.all([
       prisma.financeAccount.findMany({
         where: { budgetId },
@@ -31,7 +36,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
       prisma.monthlyCategoryBudget.findMany({
         where: {
           category: { group: { budgetId } },
-          month: { gte: budget.firstMonth, lte: month },
+          month: { gte: budget.firstMonth, lte: endMonth },
         },
       }),
       prisma.transaction.findMany({
@@ -39,14 +44,34 @@ export async function loadPlanMonth(budgetId: string, month: string) {
           account: { budgetId },
           date: {
             gte: `${budget.firstMonth}-01`,
-            lte: `${month}-31`,
+            lte: `${endMonth}-31`,
           },
         },
       }),
       prisma.monthMeta.findMany({
-        where: { budgetId, month: { gte: budget.firstMonth, lte: month } },
+        where: { budgetId, month: { gte: budget.firstMonth, lte: endMonth } },
+      }),
+      prisma.transaction.groupBy({
+        by: ["accountId"],
+        where: {
+          account: { budgetId },
+          date: { lte: `${endMonth}-31` },
+        },
+        _sum: { amount: true },
       }),
     ]);
+
+  const balanceMap = new Map(
+    balanceRows.map((b) => [b.accountId, b._sum.amount ?? 0]),
+  );
+  const accountBalances = accounts
+    .filter((a) => !a.closed)
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      onBudget: a.onBudget,
+      balance: balanceMap.get(a.id) ?? 0,
+    }));
 
   const engineAccounts: EngineAccount[] = accounts.map((a) => ({
     id: a.id,
@@ -65,6 +90,23 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     })),
   );
 
+  const ignoreRules =
+    "importCategoryRule" in prisma && prisma.importCategoryRule
+      ? await prisma.importCategoryRule.findMany({
+          where: { budgetId, ignore: true },
+          select: { matchText: true },
+          orderBy: { sortOrder: "asc" },
+        })
+      : [];
+  const ignorePatterns = ignoreRules
+    .map((r) => r.matchText)
+    .filter((t) => t.length >= 3);
+
+  const notesMatchIgnore = (notes: string | null) => {
+    if (!notes || ignorePatterns.length === 0) return false;
+    return ignorePatterns.some((p) => notes.includes(p));
+  };
+
   const engineTxns: EngineTxn[] = transactions.map((t) => ({
     id: t.id,
     accountId: t.accountId,
@@ -75,11 +117,12 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     isChild: t.isChild,
     transferTwinId: t.transferTwinId,
     isStartingBalance: t.isStartingBalance,
+    excludeFromRta: notesMatchIgnore(t.notes),
   }));
 
   const months = computeBudgetMonths({
     firstMonth: budget.firstMonth,
-    endMonth: month,
+    endMonth,
     accounts: engineAccounts,
     categories,
     transactions: engineTxns,
@@ -95,7 +138,39 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     })),
   });
 
-  const plan = months.find((m) => m.month === month) ?? months[months.length - 1];
+  const emptyPlan = (m: string): MonthResult => ({
+    month: m,
+    rta: 0,
+    incomeToRta: 0,
+    totalAssigned: 0,
+    cashOverspendDebt: 0,
+    categories: Object.fromEntries(
+      categories.map((c) => [
+        c.id,
+        {
+          categoryId: c.id,
+          assigned: 0,
+          activity: 0,
+          ccFundingIn: 0,
+          available: 0,
+          overspent: false,
+        },
+      ]),
+    ),
+  });
 
-  return { budget, accounts, groups, plan, currency: budget.currency };
+  const plan =
+    months.find((m) => m.month === month) ??
+    months.find((m) => m.month === endMonth) ??
+    months[months.length - 1] ??
+    emptyPlan(endMonth);
+
+  return {
+    budget,
+    accounts,
+    accountBalances,
+    groups,
+    plan,
+    currency: budget.currency,
+  };
 }

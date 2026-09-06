@@ -39,8 +39,11 @@ For a normal spending category, Activity is usually ≤ 0.
 For month `M`:
 
 ```
-IncomeToRta(M) = sum of inflows on on-budget accounts in M
-                 categorized to an Income category (or Ready to Assign)
+IncomeToRta(M) = sum of on-budget inflows in M that feed RTA:
+                 - categorized to an Income category
+                 - starting balances
+                 - uncategorized inflows/outflows (e.g. balance adjustments)
+                 — excluding txs flagged excludeFromRta
 
 TotalAssigned(M) = sum of Assigned(c, M) for all non-income categories
 
@@ -53,6 +56,8 @@ RTA(M) = IncomeToRta(M)
        - CashOverspendDebt(M-1)
 ```
 
+**Import ignore rules:** transactions whose notes match an `ImportCategoryRule` with `ignore: true` set `excludeFromRta` and do **not** change RTA or category Activity (used for ING credit-line covers, etc.).
+
 UI states:
 
 | RTA | Meaning | Color |
@@ -62,6 +67,14 @@ UI states:
 | `< 0` | Over-assigned | danger / red |
 
 Zero-based goal: drive RTA to **0**.
+
+### Quick assign (desktop)
+
+| Control | Effect |
+|---------|--------|
+| **+** | Cover overspend (raise Assigned until Available ≥ 0) |
+| **−** | Release Available back toward RTA (lower Assigned) |
+| **=** | Assign all current RTA into this category |
 
 ---
 
