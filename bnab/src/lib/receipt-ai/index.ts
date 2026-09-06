@@ -199,3 +199,8 @@ export async function processReceiptDetailing(params: {
 export { applyReceiptSplits } from "./apply-split";
 export { aggregateProposedSplits, mapReceiptLines } from "./map-lines";
 export { parseReceiptWithGemini } from "./gemini";
+export {
+  scanBillForImport,
+  bindBillScanToTransaction,
+} from "./scan-import";
+export { findTransactionsForReceipt } from "./match-transactions";

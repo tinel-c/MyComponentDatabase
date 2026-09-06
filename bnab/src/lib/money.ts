@@ -53,3 +53,13 @@ export function dateInMonth(date: string, month: string): boolean {
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+/** Add calendar days to YYYY-MM-DD (local). */
+export function addDaysISO(dateISO: string, delta: number): string {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  const dt = new Date(y, m - 1, d + delta);
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}

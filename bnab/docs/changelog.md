@@ -3,6 +3,7 @@
 ## Unreleased
 
 - **Receipt detailing (Gemini):** upload a bill on a transaction → line items mapped via `ReceiptCategoryRule` → category split children; Reflect receipt-detailed section; More → Receipt mappings
+- **Import bill** main flow (`/more/import-bill` + desktop nav): photo → match bank txn by date+amount, or pick manually → apply splits
 - Favicon / PWA icons regenerated as padded envelope mark (fixes green-square tab icon); chrome mark no longer sits in a solid accent tile
 - Mobile cards for transactions register, ING import preview, Reflect income table
 

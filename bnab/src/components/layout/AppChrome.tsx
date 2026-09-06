@@ -9,6 +9,7 @@ import {
   BarChart3,
   MoreHorizontal,
   ArrowLeftRight,
+  Receipt,
 } from "lucide-react";
 import { BnabLogo, BnabMark } from "@/components/brand/BnabLogo";
 import { InstallAppPrompt } from "@/components/pwa/InstallAppPrompt";
@@ -43,6 +44,7 @@ const desktopLinks: {
   { href: "/plan", label: "Plan", icon: LayoutGrid },
   { href: "/accounts", label: "Accounts", icon: PiggyBank },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/more/import-bill", label: "Import bill", icon: Receipt },
   { href: "/reflect", label: "Reflect", icon: BarChart3 },
 ];
 

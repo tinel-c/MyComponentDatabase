@@ -22,7 +22,11 @@ Rules:
 - categoryHint MUST be one of: ${cats}
 - Prefer fine categories: Clothing (trening, chiloti), Pets (Whiskas, silicat), Education (caiet, creioane), Household Goods (detergent, zewa, fairy), Tools (manusi nitril), Look&Feel (periuta), Presents (buchet), else Groceries for food.
 - Even if the bank labeled the whole purchase Groceries, still split clothing/pets/education/household separately.
-- Expected bank total ≈ ${params.expectedTotalMajor.toFixed(2)} ${params.currency}. Sum(lines) should match within 0.02; if not, adjust the largest Groceries line or add Unknown residual.
+${
+  params.expectedTotalMajor > 0
+    ? `- Expected bank total ≈ ${params.expectedTotalMajor.toFixed(2)} ${params.currency}. Sum(lines) should match within 0.02; if not, adjust the largest Groceries line or add Unknown residual.`
+    : `- Read TOTAL and date carefully from the receipt (used to match a bank transaction). Sum(lines) should equal total within 0.02.`
+}
 ${params.merchantHint ? `- Bank merchant hint: ${params.merchantHint}` : ""}
 ${params.dateHint ? `- Bank date hint: ${params.dateHint}` : ""}
 Romanian Lidl receipts often mix food, clothing, stationery, and pet items on one bon fiscal.`;

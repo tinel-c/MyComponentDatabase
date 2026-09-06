@@ -5,6 +5,10 @@ import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { processReceiptDetailing } from "@/lib/receipt-ai";
 import {
+  bindBillScanToTransaction,
+  scanBillForImport,
+} from "@/lib/receipt-ai/scan-import";
+import {
   ensureYngsbCategories,
   seedDefaultReceiptRules,
 } from "@/lib/starter-categories";
@@ -13,6 +17,48 @@ export type ReceiptDetailActionState = {
   ok: boolean;
   error?: string;
   scanId?: string;
+  proposedSplits?: {
+    categoryId: string;
+    categoryName: string;
+    amountCents: number;
+    notes: string;
+  }[];
+  lines?: {
+    description: string;
+    amountCents: number;
+    categoryName: string | null;
+    ignored: boolean;
+  }[];
+};
+
+export type BillImportActionState = {
+  ok: boolean;
+  error?: string;
+  phase?: "upload" | "mapping" | "preview" | "done";
+  scanId?: string;
+  merchant?: string | null;
+  receiptDate?: string | null;
+  receiptTotalCents?: number;
+  transactionId?: string | null;
+  needsMapping?: boolean;
+  candidates?: {
+    id: string;
+    date: string;
+    amount: number;
+    payee: string | null;
+    accountName: string;
+    notes: string | null;
+    alreadySplit: boolean;
+  }[];
+  nearby?: {
+    id: string;
+    date: string;
+    amount: number;
+    payee: string | null;
+    accountName: string;
+    notes: string | null;
+    alreadySplit: boolean;
+  }[];
   proposedSplits?: {
     categoryId: string;
     categoryName: string;
@@ -38,6 +84,145 @@ async function readImage(formData: FormData): Promise<{
   }
   const buf = Buffer.from(await file.arrayBuffer());
   return { bytes: buf, mimeType: file.type || "image/jpeg" };
+}
+
+function mapImportResult(
+  result: Awaited<ReturnType<typeof scanBillForImport>>,
+): BillImportActionState {
+  if (result.status === "error") {
+    return {
+      ok: false,
+      error: result.errorText ?? "Scan failed",
+      scanId: result.scanId,
+      phase: "upload",
+    };
+  }
+  const needsMapping = result.status === "needs_mapping" || !result.transactionId;
+  return {
+    ok: true,
+    phase: needsMapping ? "mapping" : "preview",
+    scanId: result.scanId,
+    merchant: result.merchant,
+    receiptDate: result.receiptDate,
+    receiptTotalCents: result.receiptTotalCents,
+    transactionId: result.transactionId,
+    needsMapping,
+    candidates: result.candidates,
+    nearby: result.nearby,
+    proposedSplits: result.proposedSplits,
+    lines: result.lines.map((l) => ({
+      description: l.description,
+      amountCents: l.amountCents,
+      categoryName: l.categoryName,
+      ignored: l.ignored,
+    })),
+  };
+}
+
+/** Main Import bill: upload photo → Gemini → match by date+amount. */
+export async function importBillScanAction(
+  _prev: BillImportActionState,
+  formData: FormData,
+): Promise<BillImportActionState> {
+  try {
+    const { budget } = await requireBudgetAccess();
+    await ensureYngsbCategories(prisma, budget.id);
+    await seedDefaultReceiptRules(prisma, budget.id);
+
+    const image = await readImage(formData);
+    if (!image) return { ok: false, error: "Choose a bill photo", phase: "upload" };
+
+    const result = await scanBillForImport({
+      prisma,
+      budgetId: budget.id,
+      currency: budget.currency,
+      imageBytes: image.bytes,
+      mimeType: image.mimeType,
+    });
+    return mapImportResult(result);
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Scan failed",
+      phase: "upload",
+    };
+  }
+}
+
+/** User picks a bank transaction when auto-match failed or was ambiguous. */
+export async function importBillMapAction(
+  _prev: BillImportActionState,
+  formData: FormData,
+): Promise<BillImportActionState> {
+  try {
+    const { budget } = await requireBudgetAccess();
+    const scanId = String(formData.get("scanId") ?? "");
+    const transactionId = String(formData.get("transactionId") ?? "");
+    if (!scanId || !transactionId) {
+      return { ok: false, error: "Pick a transaction", phase: "mapping", scanId };
+    }
+
+    const result = await bindBillScanToTransaction({
+      prisma,
+      budgetId: budget.id,
+      scanId,
+      transactionId,
+    });
+    return mapImportResult({ ...result, status: "ok" });
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Mapping failed",
+      phase: "mapping",
+    };
+  }
+}
+
+/** Apply splits after Import bill preview. */
+export async function importBillConfirmAction(
+  _prev: BillImportActionState,
+  formData: FormData,
+): Promise<BillImportActionState> {
+  try {
+    const { budget } = await requireBudgetAccess();
+    const transactionId = String(formData.get("transactionId") ?? "");
+    const scanId = String(formData.get("scanId") ?? "");
+    if (!transactionId || !scanId) {
+      return { ok: false, error: "Missing scan", phase: "preview" };
+    }
+
+    // Reuse confirm path via form-shaped call
+    const confirmFd = new FormData();
+    confirmFd.set("transactionId", transactionId);
+    confirmFd.set("scanId", scanId);
+    const confirmed = await confirmReceiptDetail(
+      { ok: false },
+      confirmFd,
+    );
+    if (!confirmed.ok) {
+      return {
+        ok: false,
+        error: confirmed.error,
+        phase: "preview",
+        scanId,
+        transactionId,
+      };
+    }
+    revalidatePath("/more/import-bill");
+    return {
+      ok: true,
+      phase: "done",
+      scanId,
+      transactionId,
+      proposedSplits: confirmed.proposedSplits,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Apply failed",
+      phase: "preview",
+    };
+  }
 }
 
 export async function previewReceiptDetail(

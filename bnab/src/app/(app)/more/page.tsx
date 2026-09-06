@@ -11,6 +11,11 @@ import { InstallAppCard } from "@/components/pwa/InstallAppPrompt";
 
 const links = [
   {
+    href: "/more/import-bill",
+    label: "Import bill",
+    desc: "Photo a receipt → match bank txn → split categories",
+  },
+  {
     href: "/reflect",
     label: "Reflect",
     desc: "Spending trends and net worth reports",

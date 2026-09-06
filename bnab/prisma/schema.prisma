@@ -304,7 +304,7 @@ model ReceiptCategoryRule {
 model ReceiptScan {
   id            String            @id @default(cuid())
   budgetId      String
-  transactionId String
+  transactionId String?
   imagePath     String?
   status        String            @default("pending")
   model         String?
@@ -312,7 +312,7 @@ model ReceiptScan {
   errorText     String?
   createdAt     DateTime          @default(now())
   budget        Budget            @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  transaction   Transaction       @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  transaction   Transaction?      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   lines         ReceiptScanLine[]
 
   @@index([budgetId, createdAt])
