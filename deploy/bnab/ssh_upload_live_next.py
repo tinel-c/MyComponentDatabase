@@ -169,7 +169,16 @@ chown -R deploy:deploy /opt/bnab/green/bnab/.next
 sudo -u deploy -H bash -lc '
   cd /opt/bnab/green/bnab
   pm2 delete bnab-blue bnab-green >/dev/null 2>&1 || true
-  PORT=3011 NODE_ENV=production pm2 start ./node_modules/next/dist/bin/next --name bnab-green -- start --port 3011
+'
+sleep 1
+fuser -k 3011/tcp >/dev/null 2>&1 || true
+fuser -k 3010/tcp >/dev/null 2>&1 || true
+sleep 1
+sudo -u deploy -H bash -lc '
+  cd /opt/bnab/green/bnab
+  set -a; . /opt/bnab/shared/.env; set +a
+  export DATABASE_URL=file:/opt/bnab/shared/bnab.db
+  PORT=3011 NODE_ENV=production pm2 start ./node_modules/next/dist/bin/next --name bnab-green --cwd /opt/bnab/green/bnab -f -- start --port 3011
   pm2 save
 '
 printf "upstream bnab_app {\n    server 127.0.0.1:3011;\n}\n" > /opt/bnab/nginx-active-upstream.conf
