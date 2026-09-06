@@ -376,7 +376,7 @@ export function findManualMatch(
 
   if (scored.length === 0) return null;
   if (scored.length === 1) return scored[0].id;
-  // Ambiguous: only auto-pick when clearly ahead
+  // Ambiguous: only auto-pick when clearly ahead; otherwise force a human choice
   if (scored[0].score >= scored[1].score + 15) return scored[0].id;
-  return scored[0].id;
+  return null;
 }

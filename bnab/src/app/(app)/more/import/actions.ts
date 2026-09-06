@@ -9,10 +9,10 @@ import {
 } from "@/lib/starter-categories";
 import {
   applyRules,
-  findManualMatch,
   parseIngCsv,
   type AppliedRow,
 } from "@/lib/ing-import/parse";
+import { classifyIngRowAgainstLedger, planIngConfirmAction } from "@/lib/ing-import/overlap";
 import { createDbSnapshot } from "@/lib/ing-import/snapshot";
 
 export type PreviewRow = AppliedRow & {
@@ -99,25 +99,20 @@ export async function previewIngImport(formData: FormData): Promise<PreviewResul
     },
   });
 
+  const manualLedger = manuals.map((m) => ({
+    id: m.id,
+    date: m.date,
+    amount: m.amount,
+    notes: m.notes,
+    payeeName: m.payee?.name ?? null,
+  }));
+
   const rows: PreviewRow[] = appliedRows.map((r) => {
-    let status: AppliedRow["status"] = "new";
-    let manualMatchId: string | null = null;
-    if (r.ignored) {
-      status = "ignored";
-    } else if (existingSet.has(r.fingerprint)) {
-      status = "already_imported";
-    } else {
-      manualMatchId = findManualMatch(r, manuals.map((m) => ({
-        id: m.id,
-        date: m.date,
-        amount: m.amount,
-        notes: m.notes,
-        payeeName: m.payee?.name ?? null,
-      })));
-      if (manualMatchId) status = "possible_manual_match";
-      else if (!r.categoryId) status = "unmatched";
-      else status = "new";
-    }
+    const { status, manualMatchId } = classifyIngRowAgainstLedger(
+      r,
+      existingSet,
+      manualLedger,
+    );
     return {
       ...r,
       status,
@@ -225,24 +220,29 @@ export async function confirmIngImport(formData: FormData): Promise<
     const existing = await prisma.transaction.findFirst({
       where: { accountId, importFingerprint: row.fingerprint },
     });
-    if (existing) {
-      skipped++;
-      await prisma.importBatchItem.create({
-        data: {
-          batchId: batch.id,
-          action: "skipped_duplicate",
-          transactionId: existing.id,
-          fingerprint: row.fingerprint,
-          memoPreview: row.memo.slice(0, 160),
-        },
-      });
-      continue;
-    }
-
     const decision = decisionByFp.get(row.fingerprint);
-    const action = decision?.action ?? "import";
+    const plan = planIngConfirmAction({
+      ignored: false,
+      fingerprint: row.fingerprint,
+      fingerprintAlreadyOnAccount: Boolean(existing),
+      decision,
+    });
 
-    if (action === "skip") {
+    if (plan.kind === "skip_duplicate") {
+      skipped++;
+      await prisma.importBatchItem.create({
+        data: {
+          batchId: batch.id,
+          action: "skipped_duplicate",
+          transactionId: existing?.id,
+          fingerprint: row.fingerprint,
+          memoPreview: row.memo.slice(0, 160),
+        },
+      });
+      continue;
+    }
+
+    if (plan.kind === "skip_user") {
       skipped++;
       await prisma.importBatchItem.create({
         data: {
@@ -255,9 +255,9 @@ export async function confirmIngImport(formData: FormData): Promise<
       continue;
     }
 
-    if (action === "link" && decision?.manualMatchId) {
+    if (plan.kind === "link") {
       await prisma.transaction.update({
-        where: { id: decision.manualMatchId },
+        where: { id: plan.manualMatchId },
         data: {
           importFingerprint: row.fingerprint,
           importContentHash: row.contentHash,
@@ -269,7 +269,7 @@ export async function confirmIngImport(formData: FormData): Promise<
       });
       // Keep split children on the same date as the parent
       await prisma.transaction.updateMany({
-        where: { parentId: decision.manualMatchId },
+        where: { parentId: plan.manualMatchId },
         data: { date: row.date, cleared: true },
       });
       linked++;
@@ -277,7 +277,7 @@ export async function confirmIngImport(formData: FormData): Promise<
         data: {
           batchId: batch.id,
           action: "linked_manual",
-          transactionId: decision.manualMatchId,
+          transactionId: plan.manualMatchId,
           fingerprint: row.fingerprint,
           memoPreview: row.memo.slice(0, 160),
         },
@@ -285,11 +285,11 @@ export async function confirmIngImport(formData: FormData): Promise<
       continue;
     }
 
-    if (action === "replace" && decision?.manualMatchId) {
-      await prisma.transaction.delete({ where: { id: decision.manualMatchId } });
+    if (plan.kind === "replace_then_create") {
+      await prisma.transaction.delete({ where: { id: plan.manualMatchId } });
     }
 
-    // import / import_anyway / replace
+    // create (import / import_anyway / replace)
     let payeeId: string | null = null;
     const payeeName = row.payeeGuess?.trim();
     if (payeeName && payeeName !== "Unknown") {

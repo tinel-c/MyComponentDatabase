@@ -5,6 +5,7 @@ import { aggregateProposedSplits, mapReceiptLines } from "./map-lines";
 import { applyReceiptSplits } from "./apply-split";
 import { saveReceiptImage } from "./storage";
 import { todayISO } from "@/lib/money";
+import { BILL_IMPORT_PENDING_NOTE } from "@/lib/ing-import/overlap";
 import type { MappedReceiptLine, ProposedSplit } from "./types";
 
 const ALLOWED_MIME = new Set([
@@ -427,7 +428,7 @@ export async function createTransactionFromBillScan(params: {
     .slice(0, 160);
 
   const notes = [
-    "Bill import · pending statement",
+    BILL_IMPORT_PENDING_NOTE,
     linePreview || null,
   ]
     .filter(Boolean)
