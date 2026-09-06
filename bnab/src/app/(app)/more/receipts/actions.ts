@@ -35,6 +35,8 @@ export type ReceiptDetailActionState = {
 export type BillImportActionState = {
   ok: boolean;
   error?: string;
+  /** Human-readable status for the UI banner (success or context). */
+  message?: string;
   phase?: "upload" | "mapping" | "preview" | "done";
   scanId?: string;
   merchant?: string | null;
@@ -95,6 +97,7 @@ function mapImportResult(
     return {
       ok: false,
       error: result.errorText ?? "Scan failed",
+      message: result.errorText ?? "Scan failed",
       scanId: result.scanId,
       phase: "upload",
     };
@@ -103,6 +106,9 @@ function mapImportResult(
   return {
     ok: true,
     phase: needsMapping ? "mapping" : "preview",
+    message: needsMapping
+      ? "Bill scanned. Match a bank transaction or create a new entry."
+      : "Bill matched to a bank transaction. Review splits and confirm.",
     scanId: result.scanId,
     merchant: result.merchant,
     receiptDate: result.receiptDate,
@@ -132,7 +138,14 @@ export async function importBillScanAction(
     await seedDefaultReceiptRules(prisma, budget.id);
 
     const image = await readImage(formData);
-    if (!image) return { ok: false, error: "Choose a bill photo", phase: "upload" };
+    if (!image) {
+      return {
+        ok: false,
+        error: "Choose a bill photo",
+        message: "Choose a bill photo",
+        phase: "upload",
+      };
+    }
 
     const result = await scanBillForImport({
       prisma,
@@ -143,9 +156,11 @@ export async function importBillScanAction(
     });
     return mapImportResult(result);
   } catch (err) {
+    const msg = err instanceof Error ? err.message : "Scan failed";
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Scan failed",
+      error: msg,
+      message: msg,
       phase: "upload",
     };
   }
@@ -161,7 +176,13 @@ export async function importBillMapAction(
     const scanId = String(formData.get("scanId") ?? "");
     const transactionId = String(formData.get("transactionId") ?? "");
     if (!scanId || !transactionId) {
-      return { ok: false, error: "Pick a transaction", phase: "mapping", scanId };
+      return {
+        ok: false,
+        error: "Pick a transaction",
+        message: "Pick a transaction to map this bill",
+        phase: "mapping",
+        scanId,
+      };
     }
 
     const result = await bindBillScanToTransaction({
@@ -170,11 +191,17 @@ export async function importBillMapAction(
       scanId,
       transactionId,
     });
-    return mapImportResult({ ...result, status: "ok" });
+    return {
+      ...mapImportResult({ ...result, status: "ok" }),
+      message: "Transaction selected. Review proposed splits and confirm.",
+      phase: "preview",
+    };
   } catch (err) {
+    const msg = err instanceof Error ? err.message : "Mapping failed";
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Mapping failed",
+      error: msg,
+      message: msg,
       phase: "mapping",
     };
   }
@@ -200,6 +227,7 @@ export async function importBillCreateAction(
       return {
         ok: false,
         error: "Pick an account for the new entry",
+        message: "Pick an account for the new entry",
         phase: "mapping",
         scanId: scanId || undefined,
       };
@@ -222,12 +250,18 @@ export async function importBillCreateAction(
     revalidatePath("/transactions");
     revalidatePath("/reflect");
     revalidatePath("/more/import-bill");
+    revalidatePath("/more/bills");
     revalidatePath(`/accounts/${accountId}`);
     revalidatePath(`/transactions/${result.transactionId}`);
 
+    const splitCount = result.proposedSplits.length;
     return {
       ok: true,
       phase: "done",
+      message:
+        splitCount > 0
+          ? `Success — created entry with ${splitCount} categor${splitCount === 1 ? "y" : "ies"}. Link it from ING import when the statement arrives.`
+          : "Success — created entry from the bill total (no category splits). Link it from ING import when the statement arrives.",
       scanId: result.scanId,
       merchant: result.merchant,
       receiptDate: result.receiptDate,
@@ -243,9 +277,11 @@ export async function importBillCreateAction(
       })),
     };
   } catch (err) {
+    const msg = err instanceof Error ? err.message : "Could not create entry";
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Could not create entry",
+      error: msg,
+      message: msg,
       phase: "mapping",
     };
   }
@@ -261,7 +297,12 @@ export async function importBillConfirmAction(
     const transactionId = String(formData.get("transactionId") ?? "");
     const scanId = String(formData.get("scanId") ?? "");
     if (!transactionId || !scanId) {
-      return { ok: false, error: "Missing scan", phase: "preview" };
+      return {
+        ok: false,
+        error: "Missing scan",
+        message: "Missing scan — upload the bill again",
+        phase: "preview",
+      };
     }
 
     // Reuse confirm path via form-shaped call
@@ -273,26 +314,36 @@ export async function importBillConfirmAction(
       confirmFd,
     );
     if (!confirmed.ok) {
+      const msg = confirmed.error ?? "Could not apply splits";
       return {
         ok: false,
-        error: confirmed.error,
+        error: msg,
+        message: msg,
         phase: "preview",
         scanId,
         transactionId,
       };
     }
     revalidatePath("/more/import-bill");
+    revalidatePath("/more/bills");
+    const splitCount = confirmed.proposedSplits?.length ?? 0;
     return {
       ok: true,
       phase: "done",
+      message:
+        splitCount > 0
+          ? `Success — applied ${splitCount} categor${splitCount === 1 ? "y" : "ies"} to the bank transaction.`
+          : "Success — bill detailing finished.",
       scanId,
       transactionId,
       proposedSplits: confirmed.proposedSplits,
     };
   } catch (err) {
+    const msg = err instanceof Error ? err.message : "Apply failed";
     return {
       ok: false,
-      error: err instanceof Error ? err.message : "Apply failed",
+      error: msg,
+      message: msg,
       phase: "preview",
     };
   }

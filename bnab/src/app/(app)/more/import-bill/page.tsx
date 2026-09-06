@@ -30,6 +30,10 @@ export default async function ImportBillPage() {
         <p className="mt-1 text-sm text-fg-muted">
           Photo → categories now. Match an existing ING row, or create a new
           entry and link it when the statement arrives.{" "}
+          <Link href="/more/bills" className="text-accent hover:underline">
+            View imported bills
+          </Link>
+          {" · "}
           <Link href="/more/receipt-rules" className="text-accent hover:underline">
             Receipt mappings
           </Link>

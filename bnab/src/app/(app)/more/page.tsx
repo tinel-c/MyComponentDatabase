@@ -37,6 +37,12 @@ const links: {
     featured: true,
   },
   {
+    href: "/more/bills",
+    label: "Imported bills",
+    desc: "Bill scans and ING / register linkage",
+    icon: History,
+  },
+  {
     href: "/reflect",
     label: "Reflect",
     desc: "Spending trends and net worth reports",

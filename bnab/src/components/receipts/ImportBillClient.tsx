@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Receipt, Upload } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, Receipt, Upload } from "lucide-react";
 import {
   importBillConfirmAction,
   importBillCreateAction,
@@ -13,7 +13,6 @@ import {
 } from "@/app/(app)/more/receipts/actions";
 import {
   buttonPrimaryClass,
-  buttonSecondaryClass,
   cardClass,
   inputClass,
   labelClass,
@@ -21,6 +20,82 @@ import {
 import { formatMoney } from "@/lib/money";
 
 const initial: BillImportActionState = { ok: false, phase: "upload" };
+
+function StatusBanner({
+  kind,
+  title,
+  detail,
+  transactionId,
+  showBillsLink,
+}: {
+  kind: "success" | "error" | "info";
+  title: string;
+  detail?: string | null;
+  transactionId?: string | null;
+  showBillsLink?: boolean;
+}) {
+  const styles =
+    kind === "success"
+      ? "border-ok/40 bg-ok/10 text-fg"
+      : kind === "error"
+        ? "border-danger/40 bg-danger-muted text-danger-fg"
+        : "border-rim bg-overlay/60 text-fg";
+  const Icon =
+    kind === "success" ? CheckCircle2 : kind === "error" ? AlertCircle : Info;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={`rounded-xl border px-4 py-3 ${styles}`}
+    >
+      <div className="flex items-start gap-3">
+        <Icon
+          className={`mt-0.5 size-5 shrink-0 ${
+            kind === "success"
+              ? "text-ok"
+              : kind === "error"
+                ? "text-danger"
+                : "text-accent"
+          }`}
+          aria-hidden
+        />
+        <div className="min-w-0 space-y-1">
+          <p className="text-sm font-semibold leading-snug">{title}</p>
+          {detail ? (
+            <p
+              className={`text-sm leading-snug ${
+                kind === "error" ? "text-danger-fg/90" : "text-fg-muted"
+              }`}
+            >
+              {detail}
+            </p>
+          ) : null}
+          {kind === "success" ? (
+            <p className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+              {transactionId ? (
+                <Link
+                  href={`/transactions/${transactionId}`}
+                  className="font-medium text-accent underline hover:text-fg"
+                >
+                  Open transaction
+                </Link>
+              ) : null}
+              {showBillsLink ? (
+                <Link
+                  href="/more/bills"
+                  className="font-medium text-accent underline hover:text-fg"
+                >
+                  View imported bills
+                </Link>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TxnPickList({
   title,
@@ -101,40 +176,93 @@ export function ImportBillClient({
     initial,
   );
 
-  const state =
-    confirmed.phase === "done"
+  const scanTouched = Boolean(scan.ok || scan.error || scan.scanId);
+  const finished =
+    confirmed.phase === "done" &&
+    (!scanTouched || confirmed.scanId === scan.scanId)
       ? confirmed
-      : created.phase === "done" || created.createdAsNew
+      : created.phase === "done" &&
+          (!scanTouched || created.scanId === scan.scanId)
         ? created
-        : mapped.ok || mapped.phase === "preview" || mapped.phase === "mapping"
-          ? { ...scan, ...mapped }
-          : scan;
+        : null;
+
+  // Prefer the most recently failed action that belongs to the current scan
+  const failure = (() => {
+    const candidates = [confirmed, created, mapped, scan].filter(
+      (s) => s.error && !s.ok,
+    );
+    if (candidates.length === 0) return null;
+    if (!scan.scanId) return candidates[0];
+    return (
+      candidates.find((s) => !s.scanId || s.scanId === scan.scanId) ??
+      candidates[0]
+    );
+  })();
+
+  const state =
+    finished ??
+    (mapped.ok || mapped.phase === "preview" || mapped.phase === "mapping"
+      ? { ...scan, ...mapped }
+      : scan);
 
   useEffect(() => {
-    if (
-      (confirmed.phase === "done" || created.phase === "done") &&
-      (confirmed.transactionId || created.transactionId)
-    ) {
+    if (finished?.transactionId) {
       router.refresh();
     }
-  }, [
-    confirmed.phase,
-    confirmed.transactionId,
-    created.phase,
-    created.transactionId,
-    router,
-  ]);
+  }, [finished?.transactionId, router]);
 
   const pending =
     scanPending || mapPending || confirmPending || createPending;
-  const error =
-    (!confirmed.ok && confirmed.error) ||
-    (!created.ok && created.error) ||
-    (!mapped.ok && mapped.error) ||
-    (!scan.ok && scan.error) ||
-    null;
-
   const defaultAccountId = accounts[0]?.id ?? "";
+
+  const statusBanner = (() => {
+    if (pending) return null;
+    if (finished?.ok) {
+      return (
+        <StatusBanner
+          kind="success"
+          title={
+            finished.createdAsNew
+              ? "Bill import succeeded"
+              : "Bill detailing succeeded"
+          }
+          detail={
+            finished.message ??
+            (finished.createdAsNew
+              ? "Entry created from the bill."
+              : "Splits applied to the bank transaction.")
+          }
+          transactionId={finished.transactionId}
+          showBillsLink
+        />
+      );
+    }
+    if (failure) {
+      return (
+        <StatusBanner
+          kind="error"
+          title="Bill import failed"
+          detail={failure.message ?? failure.error ?? "Something went wrong"}
+        />
+      );
+    }
+    if (state.ok && state.message && state.phase !== "upload") {
+      return (
+        <StatusBanner
+          kind="info"
+          title={
+            state.phase === "preview"
+              ? "Ready to confirm"
+              : state.phase === "mapping"
+                ? "Action needed"
+                : "Bill scanned"
+          }
+          detail={state.message}
+        />
+      );
+    }
+    return null;
+  })();
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 lg:mx-0 lg:max-w-none lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
@@ -176,11 +304,7 @@ export function ImportBillClient({
       </div>
 
       <div className="space-y-4">
-        {error ? (
-          <p className="rounded-lg bg-danger-muted px-3 py-2 text-sm text-danger-fg">
-            {error}
-          </p>
-        ) : null}
+        {statusBanner}
 
         {state.ok && (state.receiptTotalCents || state.receiptDate) ? (
           <div className={`${cardClass} space-y-1 p-4 text-sm`}>
@@ -196,7 +320,7 @@ export function ImportBillClient({
           </div>
         ) : null}
 
-        {state.phase === "mapping" && state.scanId ? (
+        {!finished && state.phase === "mapping" && state.scanId ? (
           <div className={`${cardClass} space-y-4 p-4`}>
             <div>
               <h2 className="text-sm font-semibold text-fg">
@@ -208,7 +332,10 @@ export function ImportBillClient({
               </p>
             </div>
 
-            <form action={createAction} className="space-y-3 rounded-xl border border-accent/30 bg-accent-muted/20 p-3">
+            <form
+              action={createAction}
+              className="space-y-3 rounded-xl border border-accent/30 bg-accent-muted/20 p-3"
+            >
               <input type="hidden" name="scanId" value={state.scanId} />
               <input
                 type="hidden"
@@ -296,11 +423,7 @@ export function ImportBillClient({
         state.proposedSplits.length > 0 ? (
           <div className={`${cardClass} space-y-3 p-4`}>
             <h2 className="text-sm font-semibold text-fg">
-              {state.phase === "done"
-                ? state.createdAsNew
-                  ? "Created from bill"
-                  : "Applied splits"
-                : "Proposed splits"}
+              {state.phase === "done" ? "Applied categories" : "Proposed splits"}
             </h2>
             <ul className="divide-y divide-rim-subtle rounded-lg border border-rim-subtle">
               {state.proposedSplits.map((s) => (
@@ -338,51 +461,10 @@ export function ImportBillClient({
                 </button>
               </form>
             ) : null}
-
-            {state.phase === "done" && state.transactionId ? (
-              <div className="space-y-2 text-sm">
-                {state.createdAsNew ? (
-                  <p className="text-fg-muted">
-                    Entry is in the register (uncleared). When you import the
-                    ING CSV, choose{" "}
-                    <span className="font-medium text-fg">Link</span> on the
-                    matching statement line.
-                  </p>
-                ) : null}
-                <p className="text-accent">
-                  Done.{" "}
-                  <Link
-                    href={`/transactions/${state.transactionId}`}
-                    className="underline hover:text-fg"
-                  >
-                    Open transaction
-                  </Link>
-                </p>
-              </div>
-            ) : null}
           </div>
         ) : null}
 
-        {state.phase === "done" &&
-        state.createdAsNew &&
-        (!state.proposedSplits || state.proposedSplits.length === 0) &&
-        state.transactionId ? (
-          <div className={`${cardClass} space-y-2 p-4 text-sm`}>
-            <p className="font-medium text-fg">Created from bill</p>
-            <p className="text-fg-muted">
-              No category splits were available — entry saved with the bill
-              total. Link it from ING import later.
-            </p>
-            <Link
-              href={`/transactions/${state.transactionId}`}
-              className={`${buttonSecondaryClass} inline-flex`}
-            >
-              Open transaction
-            </Link>
-          </div>
-        ) : null}
-
-        {state.lines && state.lines.length > 0 ? (
+        {state.lines && state.lines.length > 0 && !finished ? (
           <details className={`${cardClass} p-4 text-sm`}>
             <summary className="cursor-pointer text-fg-muted hover:text-fg">
               {state.lines.length} scanned lines
@@ -407,7 +489,7 @@ export function ImportBillClient({
           </details>
         ) : null}
 
-        {!error && state.phase === "upload" && !state.ok ? (
+        {!statusBanner && !pending && state.phase === "upload" && !state.ok ? (
           <div className={`${cardClass} border-dashed p-6 text-center sm:p-8`}>
             <p className="text-sm text-fg-muted">
               Results appear here after you scan a bill.
