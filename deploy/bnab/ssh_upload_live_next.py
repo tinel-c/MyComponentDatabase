@@ -168,7 +168,9 @@ rm -rf /opt/bnab/shared/overlay
 chown -R deploy:deploy /opt/bnab/green/bnab/.next
 sudo -u deploy -H bash -lc '
   cd /opt/bnab/green/bnab
-  pm2 delete bnab-blue bnab-green >/dev/null 2>&1 || true
+  pm2 delete bnab-blue >/dev/null 2>&1 || true
+  # Delete every bnab-green id (pm2 -f start can leave duplicates)
+  pm2 jlist | python3 -c "import json,sys; apps=json.load(sys.stdin); [print(a[\"pm_id\"]) for a in apps if a.get(\"name\")==\"bnab-green\"]" | while read -r id; do pm2 delete "$id" >/dev/null 2>&1 || true; done
 '
 sleep 1
 fuser -k 3011/tcp >/dev/null 2>&1 || true
@@ -178,7 +180,7 @@ sudo -u deploy -H bash -lc '
   cd /opt/bnab/green/bnab
   set -a; . /opt/bnab/shared/.env; set +a
   export DATABASE_URL=file:/opt/bnab/shared/bnab.db
-  PORT=3011 NODE_ENV=production pm2 start ./node_modules/next/dist/bin/next --name bnab-green --cwd /opt/bnab/green/bnab -f -- start --port 3011
+  PORT=3011 NODE_ENV=production pm2 start ./node_modules/next/dist/bin/next --name bnab-green --cwd /opt/bnab/green/bnab -- start --port 3011
   pm2 save
 '
 printf "upstream bnab_app {\n    server 127.0.0.1:3011;\n}\n" > /opt/bnab/nginx-active-upstream.conf
