@@ -42,7 +42,7 @@ AUTH_GOOGLE_ID="…"
 AUTH_GOOGLE_SECRET="…"
 ADMIN_EMAIL="you@example.com"
 GEMINI_API_KEY="…"          # Google AI — receipt bill detailing
-# GEMINI_MODEL="gemini-2.0-flash"
+# GEMINI_MODEL="gemini-3.6-flash"
 # BNAB_RECEIPT_DIR="/opt/bnab/shared/receipts"
 ```
 

@@ -2,7 +2,7 @@ import { buildReceiptSystemPrompt } from "./prompt";
 import type { GeminiReceiptResult, ReceiptLineParsed } from "./types";
 
 function geminiModel(): string {
-  return process.env.GEMINI_MODEL?.trim() || "gemini-2.0-flash";
+  return process.env.GEMINI_MODEL?.trim() || "gemini-3.6-flash";
 }
 
 function geminiKey(): string {
@@ -84,7 +84,6 @@ export async function parseReceiptWithGemini(params: {
       },
     ],
     generationConfig: {
-      temperature: 0.1,
       responseMimeType: "application/json",
     },
   };

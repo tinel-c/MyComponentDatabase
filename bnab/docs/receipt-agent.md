@@ -15,7 +15,7 @@ BNAB can split an ING bank transaction using a **bill photo** and Google **Gemin
 ```
 GEMINI_API_KEY=...
 # optional
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-3.6-flash
 BNAB_RECEIPT_DIR=/opt/bnab/shared/receipts
 ```
 
