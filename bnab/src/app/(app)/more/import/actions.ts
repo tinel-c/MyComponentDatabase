@@ -90,7 +90,13 @@ export async function previewIngImport(formData: FormData): Promise<PreviewResul
       importFingerprint: null,
       isChild: false,
     },
-    select: { id: true, date: true, amount: true, notes: true },
+    select: {
+      id: true,
+      date: true,
+      amount: true,
+      notes: true,
+      payee: { select: { name: true } },
+    },
   });
 
   const rows: PreviewRow[] = appliedRows.map((r) => {
@@ -101,7 +107,13 @@ export async function previewIngImport(formData: FormData): Promise<PreviewResul
     } else if (existingSet.has(r.fingerprint)) {
       status = "already_imported";
     } else {
-      manualMatchId = findManualMatch(r, manuals);
+      manualMatchId = findManualMatch(r, manuals.map((m) => ({
+        id: m.id,
+        date: m.date,
+        amount: m.amount,
+        notes: m.notes,
+        payeeName: m.payee?.name ?? null,
+      })));
       if (manualMatchId) status = "possible_manual_match";
       else if (!r.categoryId) status = "unmatched";
       else status = "new";
@@ -250,7 +262,15 @@ export async function confirmIngImport(formData: FormData): Promise<
           importFingerprint: row.fingerprint,
           importContentHash: row.contentHash,
           importBatchId: batch.id,
+          cleared: true,
+          // Prefer bank statement date when linking
+          date: row.date,
         },
+      });
+      // Keep split children on the same date as the parent
+      await prisma.transaction.updateMany({
+        where: { parentId: decision.manualMatchId },
+        data: { date: row.date, cleared: true },
       });
       linked++;
       await prisma.importBatchItem.create({

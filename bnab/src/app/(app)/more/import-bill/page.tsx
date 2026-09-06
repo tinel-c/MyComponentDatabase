@@ -12,6 +12,12 @@ export default async function ImportBillPage() {
   await ensureYngsbCategories(prisma, budget.id);
   await seedDefaultReceiptRules(prisma, budget.id);
 
+  const accounts = await prisma.financeAccount.findMany({
+    where: { budgetId: budget.id, closed: false, onBudget: true },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, name: true },
+  });
+
   return (
     <div className="space-y-4">
       <div>
@@ -22,15 +28,15 @@ export default async function ImportBillPage() {
           Import bill
         </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Photo of a receipt → match bank line by date & amount → split
-          categories.{" "}
+          Photo → categories now. Match an existing ING row, or create a new
+          entry and link it when the statement arrives.{" "}
           <Link href="/more/receipt-rules" className="text-accent hover:underline">
             Receipt mappings
           </Link>
         </p>
       </div>
 
-      <ImportBillClient currency={budget.currency} />
+      <ImportBillClient currency={budget.currency} accounts={accounts} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { processReceiptDetailing } from "@/lib/receipt-ai";
 import {
   bindBillScanToTransaction,
+  createTransactionFromBillScan,
   scanBillForImport,
 } from "@/lib/receipt-ai/scan-import";
 import {
@@ -41,6 +42,7 @@ export type BillImportActionState = {
   receiptTotalCents?: number;
   transactionId?: string | null;
   needsMapping?: boolean;
+  createdAsNew?: boolean;
   candidates?: {
     id: string;
     date: string;
@@ -173,6 +175,77 @@ export async function importBillMapAction(
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Mapping failed",
+      phase: "mapping",
+    };
+  }
+}
+
+/**
+ * Create a new manual transaction from the bill (categories applied now).
+ * Later ING CSV import can link it via date+amount.
+ */
+export async function importBillCreateAction(
+  _prev: BillImportActionState,
+  formData: FormData,
+): Promise<BillImportActionState> {
+  try {
+    const { budget } = await requireBudgetAccess();
+    const scanId = String(formData.get("scanId") ?? "");
+    const accountId = String(formData.get("accountId") ?? "");
+    const date = String(formData.get("date") ?? "").trim() || null;
+    const merchant = String(formData.get("merchant") ?? "").trim() || null;
+    const totalRaw = String(formData.get("receiptTotalCents") ?? "").trim();
+    const totalCents = totalRaw ? Number(totalRaw) : null;
+    if (!scanId || !accountId) {
+      return {
+        ok: false,
+        error: "Pick an account for the new entry",
+        phase: "mapping",
+        scanId: scanId || undefined,
+      };
+    }
+
+    const result = await createTransactionFromBillScan({
+      prisma,
+      budgetId: budget.id,
+      scanId,
+      accountId,
+      date,
+      merchant,
+      totalCents:
+        totalCents != null && Number.isFinite(totalCents) && totalCents > 0
+          ? Math.round(totalCents)
+          : null,
+    });
+
+    revalidatePath("/plan");
+    revalidatePath("/transactions");
+    revalidatePath("/reflect");
+    revalidatePath("/more/import-bill");
+    revalidatePath(`/accounts/${accountId}`);
+    revalidatePath(`/transactions/${result.transactionId}`);
+
+    return {
+      ok: true,
+      phase: "done",
+      scanId: result.scanId,
+      merchant: result.merchant,
+      receiptDate: result.receiptDate,
+      receiptTotalCents: result.receiptTotalCents,
+      transactionId: result.transactionId,
+      createdAsNew: true,
+      proposedSplits: result.proposedSplits,
+      lines: result.lines.map((l) => ({
+        description: l.description,
+        amountCents: l.amountCents,
+        categoryName: l.categoryName,
+        ignored: l.ignored,
+      })),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Could not create entry",
       phase: "mapping",
     };
   }

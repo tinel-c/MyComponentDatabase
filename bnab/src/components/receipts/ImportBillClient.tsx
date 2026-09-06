@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Receipt, Upload } from "lucide-react";
 import {
   importBillConfirmAction,
+  importBillCreateAction,
   importBillMapAction,
   importBillScanAction,
   type BillImportActionState,
@@ -75,7 +76,13 @@ function TxnPickList({
   );
 }
 
-export function ImportBillClient({ currency }: { currency: string }) {
+export function ImportBillClient({
+  currency,
+  accounts,
+}: {
+  currency: string;
+  accounts: { id: string; name: string }[];
+}) {
   const router = useRouter();
   const [scan, scanAction, scanPending] = useActionState(
     importBillScanAction,
@@ -83,6 +90,10 @@ export function ImportBillClient({ currency }: { currency: string }) {
   );
   const [mapped, mapAction, mapPending] = useActionState(
     importBillMapAction,
+    initial,
+  );
+  const [created, createAction, createPending] = useActionState(
+    importBillCreateAction,
     initial,
   );
   const [confirmed, confirmAction, confirmPending] = useActionState(
@@ -93,22 +104,37 @@ export function ImportBillClient({ currency }: { currency: string }) {
   const state =
     confirmed.phase === "done"
       ? confirmed
-      : mapped.ok || mapped.phase === "preview" || mapped.phase === "mapping"
-        ? { ...scan, ...mapped }
-        : scan;
+      : created.phase === "done" || created.createdAsNew
+        ? created
+        : mapped.ok || mapped.phase === "preview" || mapped.phase === "mapping"
+          ? { ...scan, ...mapped }
+          : scan;
 
   useEffect(() => {
-    if (confirmed.phase === "done" && confirmed.transactionId) {
+    if (
+      (confirmed.phase === "done" || created.phase === "done") &&
+      (confirmed.transactionId || created.transactionId)
+    ) {
       router.refresh();
     }
-  }, [confirmed.phase, confirmed.transactionId, router]);
+  }, [
+    confirmed.phase,
+    confirmed.transactionId,
+    created.phase,
+    created.transactionId,
+    router,
+  ]);
 
-  const pending = scanPending || mapPending || confirmPending;
+  const pending =
+    scanPending || mapPending || confirmPending || createPending;
   const error =
     (!confirmed.ok && confirmed.error) ||
+    (!created.ok && created.error) ||
     (!mapped.ok && mapped.error) ||
     (!scan.ok && scan.error) ||
     null;
+
+  const defaultAccountId = accounts[0]?.id ?? "";
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 lg:mx-0 lg:max-w-none lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
@@ -120,8 +146,9 @@ export function ImportBillClient({ currency }: { currency: string }) {
           <div>
             <h2 className="text-sm font-semibold text-fg">Upload a bill</h2>
             <p className="mt-1 text-sm text-fg-muted">
-              Gemini reads date and total, then matches an ING transaction. If
-              nothing matches, you pick one.
+              Gemini reads merchant, date, total, and lines. Match an existing
+              ING row, or create a new entry now and link it when you import the
+              statement.
             </p>
           </div>
         </div>
@@ -149,155 +176,244 @@ export function ImportBillClient({ currency }: { currency: string }) {
       </div>
 
       <div className="space-y-4">
-
-      {error ? (
-        <p className="rounded-lg bg-danger-muted px-3 py-2 text-sm text-danger-fg">
-          {error}
-        </p>
-      ) : null}
-
-      {state.ok && (state.receiptTotalCents || state.receiptDate) ? (
-        <div className={`${cardClass} space-y-1 p-4 text-sm`}>
-          <p className="font-medium text-fg">
-            {state.merchant || "Receipt"}
-            {state.receiptDate ? ` · ${state.receiptDate}` : ""}
+        {error ? (
+          <p className="rounded-lg bg-danger-muted px-3 py-2 text-sm text-danger-fg">
+            {error}
           </p>
-          {state.receiptTotalCents != null ? (
-            <p className="tabular-nums text-fg-muted">
-              Total {formatMoney(state.receiptTotalCents, currency)}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
 
-      {state.phase === "mapping" && state.scanId ? (
-        <div className={`${cardClass} space-y-4 p-4`}>
-          <div>
-            <h2 className="text-sm font-semibold text-fg">
-              Map to a transaction
-            </h2>
-            <p className="mt-1 text-sm text-fg-muted">
-              No single date+amount match. Choose the bank line this bill
-              belongs to.
+        {state.ok && (state.receiptTotalCents || state.receiptDate) ? (
+          <div className={`${cardClass} space-y-1 p-4 text-sm`}>
+            <p className="font-medium text-fg">
+              {state.merchant || "Receipt"}
+              {state.receiptDate ? ` · ${state.receiptDate}` : ""}
             </p>
+            {state.receiptTotalCents != null ? (
+              <p className="tabular-nums text-fg-muted">
+                Total {formatMoney(state.receiptTotalCents, currency)}
+              </p>
+            ) : null}
           </div>
-          <TxnPickList
-            title="Amount matches (±3 days)"
-            rows={state.candidates ?? []}
-            currency={currency}
-            scanId={state.scanId}
-            action={mapAction}
-            pending={pending}
-          />
-          <TxnPickList
-            title="Recent outflows"
-            rows={state.nearby ?? []}
-            currency={currency}
-            scanId={state.scanId}
-            action={mapAction}
-            pending={pending}
-          />
-          {(state.candidates?.length ?? 0) === 0 &&
-          (state.nearby?.length ?? 0) === 0 ? (
-            <p className="text-sm text-fg-muted">
-              No outflows found. Import the ING CSV first, then try again.
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+        ) : null}
 
-      {(state.phase === "preview" || state.phase === "done") &&
-      state.proposedSplits &&
-      state.proposedSplits.length > 0 ? (
-        <div className={`${cardClass} space-y-3 p-4`}>
-          <h2 className="text-sm font-semibold text-fg">
-            {state.phase === "done" ? "Applied splits" : "Proposed splits"}
-          </h2>
-          <ul className="divide-y divide-rim-subtle rounded-lg border border-rim-subtle">
-            {state.proposedSplits.map((s) => (
-              <li
-                key={s.categoryId}
-                className="flex justify-between gap-3 px-3 py-2 text-sm"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium text-fg">{s.categoryName}</div>
-                  {s.notes ? (
-                    <div className="truncate text-fg-muted">{s.notes}</div>
-                  ) : null}
-                </div>
-                <div className="shrink-0 tabular-nums">
-                  {formatMoney(-Math.abs(s.amountCents), currency)}
-                </div>
-              </li>
-            ))}
-          </ul>
+        {state.phase === "mapping" && state.scanId ? (
+          <div className={`${cardClass} space-y-4 p-4`}>
+            <div>
+              <h2 className="text-sm font-semibold text-fg">
+                Map or create entry
+              </h2>
+              <p className="mt-1 text-sm text-fg-muted">
+                Link an existing bank outflow, or create a categorized entry now
+                — ING import will offer to link it later.
+              </p>
+            </div>
 
-          {state.phase === "preview" && state.scanId && state.transactionId ? (
-            <form action={confirmAction}>
+            <form action={createAction} className="space-y-3 rounded-xl border border-accent/30 bg-accent-muted/20 p-3">
               <input type="hidden" name="scanId" value={state.scanId} />
               <input
                 type="hidden"
-                name="transactionId"
-                value={state.transactionId}
+                name="merchant"
+                value={state.merchant ?? ""}
               />
+              <input
+                type="hidden"
+                name="receiptTotalCents"
+                value={state.receiptTotalCents ?? ""}
+              />
+              <p className="text-sm font-medium text-fg">Create new entry</p>
+              <label className={labelClass}>
+                Account
+                <select
+                  name="accountId"
+                  className={inputClass}
+                  required
+                  defaultValue={defaultAccountId}
+                >
+                  {accounts.length === 0 ? (
+                    <option value="">No on-budget accounts</option>
+                  ) : (
+                    accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label className={labelClass}>
+                Date
+                <input
+                  name="date"
+                  type="date"
+                  className={inputClass}
+                  defaultValue={state.receiptDate ?? ""}
+                  required
+                />
+              </label>
               <button
                 type="submit"
-                disabled={pending}
-                className={`${buttonPrimaryClass} w-full sm:w-auto`}
+                disabled={pending || accounts.length === 0}
+                className={`${buttonPrimaryClass} w-full`}
               >
-                {confirmPending ? "Applying…" : "Confirm & apply splits"}
+                {createPending
+                  ? "Creating…"
+                  : "Create entry & apply categories"}
               </button>
+              <p className="text-xs text-fg-subtle">
+                Saves merchant, date, total, and category splits. Left uncleared
+                until an ING CSV import links the statement line.
+              </p>
             </form>
-          ) : null}
 
-          {state.phase === "done" && state.transactionId ? (
-            <p className="text-sm text-accent">
-              Done.{" "}
-              <Link
-                href={`/transactions/${state.transactionId}`}
-                className="underline hover:text-fg"
-              >
-                Open transaction
-              </Link>
+            <TxnPickList
+              title="Amount matches (±3 days)"
+              rows={state.candidates ?? []}
+              currency={currency}
+              scanId={state.scanId}
+              action={mapAction}
+              pending={pending}
+            />
+            <TxnPickList
+              title="Recent outflows"
+              rows={state.nearby ?? []}
+              currency={currency}
+              scanId={state.scanId}
+              action={mapAction}
+              pending={pending}
+            />
+            {(state.candidates?.length ?? 0) === 0 &&
+            (state.nearby?.length ?? 0) === 0 ? (
+              <p className="text-sm text-fg-muted">
+                No bank outflows to map yet — create a new entry above, then
+                import the ING CSV when it arrives.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {(state.phase === "preview" || state.phase === "done") &&
+        state.proposedSplits &&
+        state.proposedSplits.length > 0 ? (
+          <div className={`${cardClass} space-y-3 p-4`}>
+            <h2 className="text-sm font-semibold text-fg">
+              {state.phase === "done"
+                ? state.createdAsNew
+                  ? "Created from bill"
+                  : "Applied splits"
+                : "Proposed splits"}
+            </h2>
+            <ul className="divide-y divide-rim-subtle rounded-lg border border-rim-subtle">
+              {state.proposedSplits.map((s) => (
+                <li
+                  key={s.categoryId}
+                  className="flex justify-between gap-3 px-3 py-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-fg">{s.categoryName}</div>
+                    {s.notes ? (
+                      <div className="truncate text-fg-muted">{s.notes}</div>
+                    ) : null}
+                  </div>
+                  <div className="shrink-0 tabular-nums">
+                    {formatMoney(-Math.abs(s.amountCents), currency)}
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {state.phase === "preview" && state.scanId && state.transactionId ? (
+              <form action={confirmAction}>
+                <input type="hidden" name="scanId" value={state.scanId} />
+                <input
+                  type="hidden"
+                  name="transactionId"
+                  value={state.transactionId}
+                />
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className={`${buttonPrimaryClass} w-full sm:w-auto`}
+                >
+                  {confirmPending ? "Applying…" : "Confirm & apply splits"}
+                </button>
+              </form>
+            ) : null}
+
+            {state.phase === "done" && state.transactionId ? (
+              <div className="space-y-2 text-sm">
+                {state.createdAsNew ? (
+                  <p className="text-fg-muted">
+                    Entry is in the register (uncleared). When you import the
+                    ING CSV, choose{" "}
+                    <span className="font-medium text-fg">Link</span> on the
+                    matching statement line.
+                  </p>
+                ) : null}
+                <p className="text-accent">
+                  Done.{" "}
+                  <Link
+                    href={`/transactions/${state.transactionId}`}
+                    className="underline hover:text-fg"
+                  >
+                    Open transaction
+                  </Link>
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {state.phase === "done" &&
+        state.createdAsNew &&
+        (!state.proposedSplits || state.proposedSplits.length === 0) &&
+        state.transactionId ? (
+          <div className={`${cardClass} space-y-2 p-4 text-sm`}>
+            <p className="font-medium text-fg">Created from bill</p>
+            <p className="text-fg-muted">
+              No category splits were available — entry saved with the bill
+              total. Link it from ING import later.
             </p>
-          ) : null}
-        </div>
-      ) : null}
+            <Link
+              href={`/transactions/${state.transactionId}`}
+              className={`${buttonSecondaryClass} inline-flex`}
+            >
+              Open transaction
+            </Link>
+          </div>
+        ) : null}
 
-      {state.lines && state.lines.length > 0 ? (
-        <details className={`${cardClass} p-4 text-sm`}>
-          <summary className="cursor-pointer text-fg-muted hover:text-fg">
-            {state.lines.length} scanned lines
-          </summary>
-          <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto text-fg-muted">
-            {state.lines.map((l, i) => (
-              <li
-                key={`${l.description}-${i}`}
-                className="flex justify-between gap-2"
-              >
-                <span className="truncate">
-                  {l.ignored ? "(ignore) " : ""}
-                  {l.description}
-                  {l.categoryName ? ` · ${l.categoryName}` : ""}
-                </span>
-                <span className="shrink-0 tabular-nums">
-                  {(l.amountCents / 100).toFixed(2)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
+        {state.lines && state.lines.length > 0 ? (
+          <details className={`${cardClass} p-4 text-sm`}>
+            <summary className="cursor-pointer text-fg-muted hover:text-fg">
+              {state.lines.length} scanned lines
+            </summary>
+            <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto text-fg-muted">
+              {state.lines.map((l, i) => (
+                <li
+                  key={`${l.description}-${i}`}
+                  className="flex justify-between gap-2"
+                >
+                  <span className="truncate">
+                    {l.ignored ? "(ignore) " : ""}
+                    {l.description}
+                    {l.categoryName ? ` · ${l.categoryName}` : ""}
+                  </span>
+                  <span className="shrink-0 tabular-nums">
+                    {(l.amountCents / 100).toFixed(2)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
 
-      {!error &&
-      state.phase === "upload" &&
-      !state.ok ? (
-        <div className={`${cardClass} border-dashed p-6 text-center sm:p-8`}>
-          <p className="text-sm text-fg-muted">
-            Results appear here after you scan a bill.
-          </p>
-        </div>
-      ) : null}
+        {!error && state.phase === "upload" && !state.ok ? (
+          <div className={`${cardClass} border-dashed p-6 text-center sm:p-8`}>
+            <p className="text-sm text-fg-muted">
+              Results appear here after you scan a bill.
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

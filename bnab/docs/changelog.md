@@ -3,7 +3,7 @@
 ## Unreleased
 
 - **Receipt detailing (Gemini):** upload a bill on a transaction → line items mapped via `ReceiptCategoryRule` → category split children; Reflect receipt-detailed section; More → Receipt mappings
-- **Import bill** main flow (`/more/import-bill` + desktop nav): photo → match bank txn by date+amount, or pick manually → apply splits
+- **Import bill** main flow (`/more/import-bill` + desktop nav): photo → match bank txn by date+amount, pick manually, **or create a new entry** (categories now; link later from ING import)
 - Full-width desktop chrome for all app pages (not only Plan); mobile-first layouts for More hub, accounts grid, Reflect charts, transaction edit, schedules
 - Favicon / PWA icons regenerated as padded envelope mark (fixes green-square tab icon); chrome mark no longer sits in a solid accent tile
 - Mobile cards for transactions register, ING import preview, Reflect income table

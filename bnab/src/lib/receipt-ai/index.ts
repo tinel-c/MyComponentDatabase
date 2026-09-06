@@ -202,5 +202,6 @@ export { parseReceiptWithGemini } from "./gemini";
 export {
   scanBillForImport,
   bindBillScanToTransaction,
+  createTransactionFromBillScan,
 } from "./scan-import";
 export { findTransactionsForReceipt } from "./match-transactions";

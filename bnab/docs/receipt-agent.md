@@ -1,14 +1,21 @@
 # Receipt detailing agent (Gemini)
 
-BNAB can split an ING bank transaction using a **bill photo** and Google **Gemini** vision.
+BNAB can split spending using a **bill photo** and Google **Gemini** vision.
 
-## Flow
+## Flows
 
-1. Open an outflow transaction → **Detail from bill**.
-2. Upload JPEG/PNG/WebP → `processReceiptDetailing` (programmatic entry in `src/lib/receipt-ai`).
-3. Gemini returns line items as JSON.
-4. `ReceiptCategoryRule` (More → Receipt mappings) maps descriptions → budget categories.
-5. Confirm → parent becomes a split; one child per category (aggregated). Plan + Reflect use children.
+### A. Detail an existing bank transaction
+1. Open an outflow → **Detail from bill**, or Import bill → pick a matching row.
+2. Gemini returns line items → `ReceiptCategoryRule` maps → confirm splits.
+
+### B. Create entry now, link on ING import later
+1. **More → Import bill** → upload photo.
+2. If no bank match (or you prefer), **Create entry & apply categories**.
+3. Saves merchant, date, total, and category splits as a **manual** transaction
+   (`importFingerprint` empty, uncleared, notes `Bill import · pending statement`).
+4. When you import the ING CSV, that row shows as **possible manual match** —
+   choose **Link** to stamp the fingerprint (categories kept; date/cleared sync
+   to the statement).
 
 ## Env
 

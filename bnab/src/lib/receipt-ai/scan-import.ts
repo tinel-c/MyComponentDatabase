@@ -2,7 +2,9 @@ import type { PrismaClient } from "@prisma/client";
 import { parseReceiptWithGemini } from "./gemini";
 import { findTransactionsForReceipt, type TxnMatchCandidate } from "./match-transactions";
 import { aggregateProposedSplits, mapReceiptLines } from "./map-lines";
+import { applyReceiptSplits } from "./apply-split";
 import { saveReceiptImage } from "./storage";
+import { todayISO } from "@/lib/money";
 import type { MappedReceiptLine, ProposedSplit } from "./types";
 
 const ALLOWED_MIME = new Set([
@@ -278,5 +280,222 @@ export async function bindBillScanToTransaction(params: {
     lines: mapped,
     proposedSplits,
     transactionId: txn.id,
+  };
+}
+
+function parseStoredReceiptMeta(rawJson: string | null): {
+  merchant: string | null;
+  date: string | null;
+  totalCents: number | null;
+} {
+  if (!rawJson) return { merchant: null, date: null, totalCents: null };
+  try {
+    const obj = JSON.parse(rawJson) as Record<string, unknown>;
+    const merchant =
+      typeof obj.merchant === "string" ? obj.merchant.trim() || null : null;
+    const date =
+      typeof obj.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(obj.date)
+        ? obj.date
+        : null;
+    const totalCents =
+      typeof obj.total === "number" && obj.total > 0
+        ? Math.round(obj.total * 100)
+        : null;
+    return { merchant, date, totalCents };
+  } catch {
+    return { merchant: null, date: null, totalCents: null };
+  }
+}
+
+/**
+ * Create a manual (unfingerprint) transaction from a bill scan so Plan is
+ * correct now; ING CSV import can later link via findManualMatch.
+ */
+export async function createTransactionFromBillScan(params: {
+  prisma: PrismaClient;
+  budgetId: string;
+  scanId: string;
+  accountId: string;
+  /** Optional override; otherwise Gemini date or today. */
+  date?: string | null;
+  merchant?: string | null;
+  totalCents?: number | null;
+}): Promise<BillImportScanResult & { createdAsNew: true }> {
+  const account = await params.prisma.financeAccount.findFirst({
+    where: {
+      id: params.accountId,
+      budgetId: params.budgetId,
+      closed: false,
+      onBudget: true,
+    },
+  });
+  if (!account) throw new Error("Pick an on-budget account");
+
+  const scan = await params.prisma.receiptScan.findFirst({
+    where: { id: params.scanId, budgetId: params.budgetId },
+    include: { lines: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (!scan) throw new Error("Scan not found");
+  if (scan.transactionId) {
+    throw new Error("This bill is already linked to a transaction");
+  }
+
+  const meta = parseStoredReceiptMeta(scan.rawJson);
+  const lineSum = scan.lines.reduce((s, l) => s + l.amountCents, 0);
+  const totalCents =
+    (params.totalCents && params.totalCents > 0
+      ? params.totalCents
+      : null) ??
+    meta.totalCents ??
+    (lineSum > 0 ? lineSum : null);
+  if (!totalCents || totalCents <= 0) {
+    throw new Error("Receipt total is missing — scan again");
+  }
+
+  const dateCandidate =
+    params.date?.trim() ||
+    meta.date ||
+    todayISO();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(dateCandidate)
+    ? dateCandidate
+    : todayISO();
+
+  const merchantName = (
+    params.merchant?.trim() ||
+    meta.merchant ||
+    ""
+  ).slice(0, 120);
+
+  const categories = await params.prisma.category.findMany({
+    where: { group: { budgetId: params.budgetId }, hidden: false },
+    select: { id: true, name: true },
+  });
+  const categoriesByName = new Map(
+    categories.map((c) => [c.name, { id: c.id, name: c.name }]),
+  );
+  const unknown = categoriesByName.get("Unknown") ?? null;
+  const rules = await params.prisma.receiptCategoryRule.findMany({
+    where: { budgetId: params.budgetId },
+    include: { category: { select: { name: true } } },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  const mapped = mapReceiptLines({
+    lines: scan.lines.map((l) => ({
+      description: l.description,
+      amount: l.amountCents / 100,
+      categoryHint: l.categoryHint ?? undefined,
+    })),
+    rules: rules.map((r) => ({
+      id: r.id,
+      matchText: r.matchText,
+      ignore: r.ignore,
+      categoryId: r.categoryId,
+      categoryName: r.category?.name ?? null,
+      sortOrder: r.sortOrder,
+    })),
+    categoriesByName,
+    unknownCategoryId: unknown?.id ?? null,
+    unknownCategoryName: unknown?.name ?? "Unknown",
+  });
+
+  const proposedSplits = aggregateProposedSplits(mapped, totalCents);
+
+  let payeeId: string | null = null;
+  if (merchantName) {
+    const primaryCat =
+      proposedSplits.length === 1 ? proposedSplits[0].categoryId : null;
+    const payee = await params.prisma.payee.upsert({
+      where: {
+        budgetId_name: { budgetId: params.budgetId, name: merchantName },
+      },
+      create: {
+        budgetId: params.budgetId,
+        name: merchantName,
+        lastCategoryId: primaryCat,
+      },
+      update: primaryCat ? { lastCategoryId: primaryCat } : {},
+    });
+    payeeId = payee.id;
+  }
+
+  const linePreview = mapped
+    .filter((l) => !l.ignored)
+    .slice(0, 6)
+    .map((l) => l.description)
+    .join("; ")
+    .slice(0, 160);
+
+  const notes = [
+    "Bill import · pending statement",
+    linePreview || null,
+  ]
+    .filter(Boolean)
+    .join(" — ")
+    .slice(0, 240);
+
+  const singleCategory =
+    proposedSplits.length === 1 ? proposedSplits[0].categoryId : null;
+
+  const txn = await params.prisma.transaction.create({
+    data: {
+      accountId: account.id,
+      date,
+      amount: -Math.abs(totalCents),
+      payeeId,
+      categoryId: proposedSplits.length === 1 ? singleCategory : null,
+      notes,
+      cleared: false,
+      // no importFingerprint — ING import will link later
+    },
+  });
+
+  if (proposedSplits.length >= 1) {
+    const { childIdsByCategory } = await applyReceiptSplits({
+      prisma: params.prisma,
+      transactionId: txn.id,
+      budgetId: params.budgetId,
+      splits: proposedSplits,
+    });
+    for (const line of scan.lines) {
+      const m = mapped.find(
+        (x) =>
+          x.description === line.description &&
+          x.amountCents === line.amountCents,
+      );
+      const childId = m?.categoryId
+        ? childIdsByCategory.get(m.categoryId)
+        : undefined;
+      if (childId) {
+        await params.prisma.receiptScanLine.update({
+          where: { id: line.id },
+          data: { childTransactionId: childId },
+        });
+      }
+    }
+  }
+
+  await params.prisma.receiptScan.update({
+    where: { id: scan.id },
+    data: {
+      transactionId: txn.id,
+      status: "ok",
+      errorText: null,
+    },
+  });
+
+  return {
+    scanId: scan.id,
+    status: "ok",
+    merchant: merchantName || null,
+    receiptDate: date,
+    receiptTotalCents: totalCents,
+    autoMatchId: txn.id,
+    candidates: [],
+    nearby: [],
+    lines: mapped,
+    proposedSplits,
+    transactionId: txn.id,
+    createdAsNew: true,
   };
 }

@@ -338,15 +338,45 @@ export function dayOffset(iso: string, delta: number): string {
 }
 
 export function findManualMatch(
-  row: { date: string; amount: number },
-  manuals: { id: string; date: string; amount: number; notes: string | null }[],
+  row: { date: string; amount: number; memo?: string },
+  manuals: {
+    id: string;
+    date: string;
+    amount: number;
+    notes: string | null;
+    payeeName?: string | null;
+  }[],
 ): string | null {
-  const candidates = manuals.filter(
-    (m) =>
-      m.amount === row.amount &&
-      m.date >= dayOffset(row.date, -1) &&
-      m.date <= dayOffset(row.date, 1),
-  );
-  if (candidates.length === 0) return null;
-  return candidates[0].id;
+  const absRow = Math.abs(row.amount);
+  const memoLower = (row.memo ?? "").toLowerCase();
+  const scored = manuals
+    .map((m) => {
+      if (Math.abs(Math.abs(m.amount) - absRow) > 2) return null;
+      if (
+        m.date < dayOffset(row.date, -3) ||
+        m.date > dayOffset(row.date, 3)
+      ) {
+        return null;
+      }
+      const dayDiff = Math.abs(
+        (Date.parse(m.date) - Date.parse(row.date)) / 86_400_000,
+      );
+      let score = 100 - dayDiff * 12;
+      const payee = (m.payeeName ?? "").toLowerCase().trim();
+      if (payee && memoLower.includes(payee)) score += 25;
+      else if (payee && payee.length >= 4) {
+        const token = payee.slice(0, Math.min(8, payee.length));
+        if (memoLower.includes(token)) score += 12;
+      }
+      if (m.notes?.toLowerCase().includes("bill import")) score += 15;
+      return { id: m.id, score };
+    })
+    .filter((x): x is { id: string; score: number } => Boolean(x))
+    .sort((a, b) => b.score - a.score);
+
+  if (scored.length === 0) return null;
+  if (scored.length === 1) return scored[0].id;
+  // Ambiguous: only auto-pick when clearly ahead
+  if (scored[0].score >= scored[1].score + 15) return scored[0].id;
+  return scored[0].id;
 }
