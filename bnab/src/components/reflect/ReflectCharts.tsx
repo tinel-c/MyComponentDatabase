@@ -12,6 +12,7 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 
 type ChartColors = {
   accent: string;
+  accentFg: string;
   ok: string;
   danger: string;
   muted: string;
@@ -26,6 +27,7 @@ type ChartColors = {
 
 const FALLBACK: ChartColors = {
   accent: "oklch(0.72 0.17 160)",
+  accentFg: "#ffffff",
   ok: "oklch(0.72 0.17 160)",
   danger: "oklch(0.65 0.2 25)",
   muted: "oklch(0.65 0.02 260)",
@@ -41,6 +43,8 @@ const FALLBACK: ChartColors = {
 function readThemeColors(): ChartColors {
   const s = getComputedStyle(document.documentElement);
   const accent = s.getPropertyValue("--accent").trim() || FALLBACK.accent;
+  const accentFg =
+    s.getPropertyValue("--accent-fg").trim() || FALLBACK.accentFg;
   const ok = s.getPropertyValue("--ok").trim() || accent;
   const danger = s.getPropertyValue("--danger").trim() || FALLBACK.danger;
   const muted = s.getPropertyValue("--fg-muted").trim() || FALLBACK.muted;
@@ -55,6 +59,7 @@ function readThemeColors(): ChartColors {
   const accentMuted = s.getPropertyValue("--accent-muted").trim() || accent;
   return {
     accent,
+    accentFg,
     ok,
     danger,
     muted,
@@ -125,6 +130,15 @@ function nivoTheme(colors: ChartColors): PartialTheme {
     },
     legends: {
       text: { fill: colors.muted, fontSize: 11 },
+    },
+    labels: {
+      text: {
+        fill: colors.accentFg,
+        fontSize: 12,
+        fontWeight: 700,
+        outlineWidth: 3,
+        outlineColor: colors.surface,
+      },
     },
     tooltip: {
       // Custom tooltips render their own panel; keep wrapper chrome empty
@@ -412,7 +426,7 @@ export function ReflectCharts({
             borderWidth={0}
             enableArcLinkLabels={false}
             arcLabelsSkipAngle={18}
-            arcLabelsTextColor={colors.fg}
+            arcLabelsTextColor={colors.accentFg}
             motionConfig="gentle"
             transitionMode="pushIn"
             legends={[
@@ -623,6 +637,7 @@ export function ReflectCharts({
               colors={colors.slices}
               enableArcLinkLabels={false}
               arcLabelsSkipAngle={18}
+              arcLabelsTextColor={colors.accentFg}
               motionConfig="gentle"
               transitionMode="pushIn"
               legends={[
