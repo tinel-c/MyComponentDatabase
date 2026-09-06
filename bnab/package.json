@@ -12,7 +12,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "test": "tsx --test src/lib/budget-engine/**/*.test.ts src/lib/ing-import/**/*.test.ts src/lib/yngsb-banner.test.ts src/lib/receipt-ai/**/*.test.ts"
+    "test": "tsx --test src/lib/budget-engine/*.test.ts src/lib/ing-import/*.test.ts src/lib/yngsb-banner.test.ts src/lib/receipt-ai/*.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
