@@ -8,8 +8,8 @@ prisma/dev.db-journal
 
 tsconfig.tsbuildinfo
 
-# Real bank statements — never commit
+# Real bank statements / receipt photos — never commit (repo root only)
 ING/
 data/snapshots/
-bills/
+/bills/
 .data/
