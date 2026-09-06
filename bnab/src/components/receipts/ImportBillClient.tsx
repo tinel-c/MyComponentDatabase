@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle2, Info, Receipt, Upload } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, Receipt, ScanLine, Upload } from "lucide-react";
 import {
   importBillConfirmAction,
   importBillCreateAction,
@@ -282,14 +282,29 @@ export function ImportBillClient({
         </div>
 
         <form action={scanAction} className="space-y-3">
-          <label className={labelClass}>
-            Bill photo
+          <label
+            className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-rim bg-accent-muted/20 px-4 py-10 text-center transition-colors hover:border-accent hover:bg-accent-muted/35 ${
+              scanPending ? "animate-pulse" : ""
+            }`}
+          >
+            <span className="inline-flex size-14 items-center justify-center rounded-2xl bg-accent-muted text-accent">
+              <ScanLine className="size-7" aria-hidden />
+            </span>
+            <span className="space-y-1">
+              <span className="block text-sm font-semibold text-fg">
+                {scanPending ? "Scanning bill…" : "Drop or choose a bill photo"}
+              </span>
+              <span className="block text-xs text-fg-muted">
+                JPEG, PNG, or WebP
+              </span>
+            </span>
             <input
               type="file"
               name="bill"
               accept="image/jpeg,image/png,image/webp"
               required
-              className={inputClass}
+              disabled={pending}
+              className="sr-only"
             />
           </label>
           <button

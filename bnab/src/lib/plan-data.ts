@@ -15,51 +15,97 @@ export async function loadPlanMonth(budgetId: string, month: string) {
   // Never ask the engine for a range that starts after the viewed month
   // (empty results → undefined plan → Plan page 500).
   const endMonth = month < budget.firstMonth ? budget.firstMonth : month;
+  const dateFrom = `${budget.firstMonth}-01`;
+  const dateTo = `${endMonth}-31`;
 
-  const [accounts, groups, assigned, transactions, monthMetas, balanceRows] =
-    await Promise.all([
-      prisma.financeAccount.findMany({
-        where: { budgetId },
-        orderBy: { sortOrder: "asc" },
-      }),
-      prisma.categoryGroup.findMany({
-        where: { budgetId, hidden: false },
-        orderBy: { sortOrder: "asc" },
-        include: {
-          categories: {
-            where: { hidden: false },
-            orderBy: { sortOrder: "asc" },
-            include: { targets: true, creditAccount: true },
+  const [
+    accounts,
+    groups,
+    assigned,
+    transactions,
+    monthMetas,
+    balanceRows,
+    ignoreRules,
+  ] = await Promise.all([
+    prisma.financeAccount.findMany({
+      where: { budgetId },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        onBudget: true,
+        closed: true,
+        type: true,
+        creditCategoryId: true,
+        sortOrder: true,
+      },
+    }),
+    prisma.categoryGroup.findMany({
+      where: { budgetId, hidden: false },
+      orderBy: { sortOrder: "asc" },
+      include: {
+        categories: {
+          where: { hidden: false },
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            name: true,
+            isIncome: true,
+            isSystem: true,
+            systemKey: true,
+            sortOrder: true,
+            creditAccount: { select: { id: true } },
           },
         },
-      }),
-      prisma.monthlyCategoryBudget.findMany({
-        where: {
-          category: { group: { budgetId } },
-          month: { gte: budget.firstMonth, lte: endMonth },
-        },
-      }),
-      prisma.transaction.findMany({
-        where: {
-          account: { budgetId },
-          date: {
-            gte: `${budget.firstMonth}-01`,
-            lte: `${endMonth}-31`,
-          },
-        },
-      }),
-      prisma.monthMeta.findMany({
-        where: { budgetId, month: { gte: budget.firstMonth, lte: endMonth } },
-      }),
-      prisma.transaction.groupBy({
-        by: ["accountId"],
-        where: {
-          account: { budgetId },
-          date: { lte: `${endMonth}-31` },
-        },
-        _sum: { amount: true },
-      }),
-    ]);
+      },
+    }),
+    prisma.monthlyCategoryBudget.findMany({
+      where: {
+        category: { group: { budgetId } },
+        month: { gte: budget.firstMonth, lte: endMonth },
+      },
+      select: { categoryId: true, month: true, assigned: true },
+    }),
+    prisma.transaction.findMany({
+      where: {
+        account: { budgetId },
+        date: { gte: dateFrom, lte: dateTo },
+      },
+      select: {
+        id: true,
+        accountId: true,
+        date: true,
+        amount: true,
+        categoryId: true,
+        isParent: true,
+        isChild: true,
+        transferTwinId: true,
+        isStartingBalance: true,
+        notes: true,
+      },
+    }),
+    prisma.monthMeta.findMany({
+      where: { budgetId, month: { gte: budget.firstMonth, lte: endMonth } },
+      select: {
+        month: true,
+        holdForNextMonth: true,
+        heldAmount: true,
+      },
+    }),
+    prisma.transaction.groupBy({
+      by: ["accountId"],
+      where: {
+        account: { budgetId },
+        date: { lte: dateTo },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.importCategoryRule.findMany({
+      where: { budgetId, ignore: true },
+      select: { matchText: true },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
 
   const balanceMap = new Map(
     balanceRows.map((b) => [b.accountId, b._sum.amount ?? 0]),
@@ -90,14 +136,6 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     })),
   );
 
-  const ignoreRules =
-    "importCategoryRule" in prisma && prisma.importCategoryRule
-      ? await prisma.importCategoryRule.findMany({
-          where: { budgetId, ignore: true },
-          select: { matchText: true },
-          orderBy: { sortOrder: "asc" },
-        })
-      : [];
   const ignorePatterns = ignoreRules
     .map((r) => r.matchText)
     .filter((t) => t.length >= 3);

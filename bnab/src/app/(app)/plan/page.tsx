@@ -49,7 +49,7 @@ export default async function PlanPage({
       <div className="flex items-center justify-between gap-2">
         <Link
           href={`/plan?month=${prev}`}
-          className="rounded-full border border-rim p-2 text-fg-muted hover:bg-overlay"
+          className="rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
           aria-label="Previous month"
         >
           <ChevronLeft className="size-5" />
@@ -59,7 +59,7 @@ export default async function PlanPage({
         </h1>
         <Link
           href={`/plan?month=${next}`}
-          className="rounded-full border border-rim p-2 text-fg-muted hover:bg-overlay"
+          className="rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
           aria-label="Next month"
         >
           <ChevronRight className="size-5" />

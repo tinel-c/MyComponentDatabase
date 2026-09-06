@@ -10,13 +10,14 @@ import { ImportBillClient } from "@/components/receipts/ImportBillClient";
 export default async function ImportBillPage() {
   const { budget } = await requireBudgetAccess();
   await ensureYngsbCategories(prisma, budget.id);
-  await seedDefaultReceiptRules(prisma, budget.id);
-
-  const accounts = await prisma.financeAccount.findMany({
-    where: { budgetId: budget.id, closed: false, onBudget: true },
-    orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true },
-  });
+  const [, accounts] = await Promise.all([
+    seedDefaultReceiptRules(prisma, budget.id),
+    prisma.financeAccount.findMany({
+      where: { budgetId: budget.id, closed: false, onBudget: true },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
     <div className="space-y-4">

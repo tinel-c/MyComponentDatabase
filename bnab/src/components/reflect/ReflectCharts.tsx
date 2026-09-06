@@ -19,6 +19,7 @@ import {
 import { BarChart3 } from "lucide-react";
 import { cardClass } from "@/components/forms/field-classes";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { useTheme } from "@/components/providers/ThemeProvider";
 
 type ChartColors = {
   accent: string;
@@ -26,16 +27,18 @@ type ChartColors = {
   danger: string;
   muted: string;
   rim: string;
+  fg: string;
   slices: string[];
 };
 
 const FALLBACK: ChartColors = {
-  accent: "#10b981",
-  ok: "#10b981",
-  danger: "#f43f5e",
-  muted: "#64748b",
-  rim: "#334155",
-  slices: ["#10b981", "#06b6d4", "#3b82f6", "#f59e0b", "#ef4444", "#84cc16"],
+  accent: "oklch(0.72 0.17 160)",
+  ok: "oklch(0.72 0.17 160)",
+  danger: "oklch(0.65 0.2 25)",
+  muted: "oklch(0.65 0.02 260)",
+  rim: "oklch(0.35 0.02 260)",
+  fg: "oklch(0.95 0.01 260)",
+  slices: [],
 };
 
 function readThemeColors(): ChartColors {
@@ -45,13 +48,28 @@ function readThemeColors(): ChartColors {
   const danger = s.getPropertyValue("--danger").trim() || FALLBACK.danger;
   const muted = s.getPropertyValue("--fg-muted").trim() || FALLBACK.muted;
   const rim = s.getPropertyValue("--rim").trim() || FALLBACK.rim;
+  const fg = s.getPropertyValue("--fg").trim() || FALLBACK.fg;
+  const accentHover =
+    s.getPropertyValue("--accent-hover").trim() || accent;
+  const accentMuted =
+    s.getPropertyValue("--accent-muted").trim() || accent;
   return {
     accent,
     ok,
     danger,
     muted,
     rim,
-    slices: [accent, ok, "#06b6d4", "#3b82f6", "#f59e0b", danger, "#84cc16", muted],
+    fg,
+    slices: [
+      accent,
+      ok,
+      accentHover,
+      danger,
+      muted,
+      accentMuted,
+      fg,
+      rim,
+    ],
   };
 }
 
@@ -93,7 +111,12 @@ function OverlayTooltip({
   labelKey = "name",
 }: {
   active?: boolean;
-  payload?: { payload?: Record<string, unknown>; name?: string; value?: number; dataKey?: string }[];
+  payload?: {
+    payload?: Record<string, unknown>;
+    name?: string;
+    value?: number;
+    dataKey?: string;
+  }[];
   currency: string;
   labelKey?: string;
 }) {
@@ -169,10 +192,11 @@ export function ReflectCharts({
   netWorth: { month: string; assets: number; debts: number; net: number }[];
   receiptSpending?: SliceWithOverlay[];
 }) {
+  const { theme } = useTheme();
   const [colors, setColors] = useState<ChartColors>(FALLBACK);
   useEffect(() => {
     setColors(readThemeColors());
-  }, []);
+  }, [theme]);
 
   const tick = { fontSize: 11, fill: colors.muted };
   const gridStroke = colors.rim;
@@ -274,7 +298,7 @@ export function ReflectCharts({
                 }}
               />
               <Legend />
-              <Line type="monotone" dataKey="assets" stroke="#3b82f6" name="Assets" />
+              <Line type="monotone" dataKey="assets" stroke={colors.fg} name="Assets" />
               <Line type="monotone" dataKey="debts" stroke={colors.danger} name="Debts" />
               <Line
                 type="monotone"

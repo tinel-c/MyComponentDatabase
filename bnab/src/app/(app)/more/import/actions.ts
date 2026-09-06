@@ -203,54 +203,82 @@ export async function confirmIngImport(formData: FormData): Promise<
   let linked = 0;
   let ignored = 0;
 
+  const fps = applied.map((r) => r.fingerprint);
+  const existingRows = await prisma.transaction.findMany({
+    where: { accountId, importFingerprint: { in: fps } },
+    select: { id: true, importFingerprint: true },
+  });
+  const existingByFp = new Map(
+    existingRows
+      .filter((e) => e.importFingerprint)
+      .map((e) => [e.importFingerprint as string, e.id]),
+  );
+
+  const payeeNames = [
+    ...new Set(
+      applied
+        .map((r) => r.payeeGuess?.trim())
+        .filter((n): n is string => Boolean(n) && n !== "Unknown"),
+    ),
+  ];
+  const existingPayees =
+    payeeNames.length > 0
+      ? await prisma.payee.findMany({
+          where: { budgetId: budget.id, name: { in: payeeNames } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const payeeIdByName = new Map(existingPayees.map((p) => [p.name, p.id]));
+
+  const batchItems: {
+    batchId: string;
+    action: string;
+    transactionId?: string | null;
+    fingerprint: string;
+    memoPreview: string;
+  }[] = [];
+
   for (const row of applied) {
+    const memoPreview = row.memo.slice(0, 160);
     if (row.ignored) {
       ignored++;
-      await prisma.importBatchItem.create({
-        data: {
-          batchId: batch.id,
-          action: "ignored",
-          fingerprint: row.fingerprint,
-          memoPreview: row.memo.slice(0, 160),
-        },
+      batchItems.push({
+        batchId: batch.id,
+        action: "ignored",
+        fingerprint: row.fingerprint,
+        memoPreview,
       });
       continue;
     }
 
-    const existing = await prisma.transaction.findFirst({
-      where: { accountId, importFingerprint: row.fingerprint },
-    });
+    const existingId = existingByFp.get(row.fingerprint) ?? null;
     const decision = decisionByFp.get(row.fingerprint);
     const plan = planIngConfirmAction({
       ignored: false,
       fingerprint: row.fingerprint,
-      fingerprintAlreadyOnAccount: Boolean(existing),
+      fingerprintAlreadyOnAccount: Boolean(existingId),
       decision,
     });
 
     if (plan.kind === "skip_duplicate") {
       skipped++;
-      await prisma.importBatchItem.create({
-        data: {
-          batchId: batch.id,
-          action: "skipped_duplicate",
-          transactionId: existing?.id,
-          fingerprint: row.fingerprint,
-          memoPreview: row.memo.slice(0, 160),
-        },
+      batchItems.push({
+        batchId: batch.id,
+        action: "skipped_duplicate",
+        transactionId: existingId,
+        fingerprint: row.fingerprint,
+        memoPreview,
       });
       continue;
     }
 
     if (plan.kind === "skip_user") {
       skipped++;
-      await prisma.importBatchItem.create({
-        data: {
-          batchId: batch.id,
-          action: "skipped_duplicate",
-          fingerprint: row.fingerprint,
-          memoPreview: row.memo.slice(0, 160),
-        },
+      batchItems.push({
+        batchId: batch.id,
+        action: "skipped_duplicate",
+        fingerprint: row.fingerprint,
+        memoPreview,
       });
       continue;
     }
@@ -263,24 +291,21 @@ export async function confirmIngImport(formData: FormData): Promise<
           importContentHash: row.contentHash,
           importBatchId: batch.id,
           cleared: true,
-          // Prefer bank statement date when linking
           date: row.date,
         },
       });
-      // Keep split children on the same date as the parent
       await prisma.transaction.updateMany({
         where: { parentId: plan.manualMatchId },
         data: { date: row.date, cleared: true },
       });
+      existingByFp.set(row.fingerprint, plan.manualMatchId);
       linked++;
-      await prisma.importBatchItem.create({
-        data: {
-          batchId: batch.id,
-          action: "linked_manual",
-          transactionId: plan.manualMatchId,
-          fingerprint: row.fingerprint,
-          memoPreview: row.memo.slice(0, 160),
-        },
+      batchItems.push({
+        batchId: batch.id,
+        action: "linked_manual",
+        transactionId: plan.manualMatchId,
+        fingerprint: row.fingerprint,
+        memoPreview,
       });
       continue;
     }
@@ -289,22 +314,27 @@ export async function confirmIngImport(formData: FormData): Promise<
       await prisma.transaction.delete({ where: { id: plan.manualMatchId } });
     }
 
-    // create (import / import_anyway / replace)
     let payeeId: string | null = null;
     const payeeName = row.payeeGuess?.trim();
     if (payeeName && payeeName !== "Unknown") {
-      const payee = await prisma.payee.upsert({
-        where: {
-          budgetId_name: { budgetId: budget.id, name: payeeName },
-        },
-        create: {
-          budgetId: budget.id,
-          name: payeeName,
-          lastCategoryId: row.categoryId,
-        },
-        update: row.categoryId ? { lastCategoryId: row.categoryId } : {},
-      });
-      payeeId = payee.id;
+      let id = payeeIdByName.get(payeeName);
+      if (!id) {
+        const payee = await prisma.payee.create({
+          data: {
+            budgetId: budget.id,
+            name: payeeName,
+            lastCategoryId: row.categoryId,
+          },
+        });
+        id = payee.id;
+        payeeIdByName.set(payeeName, id);
+      } else if (row.categoryId) {
+        await prisma.payee.update({
+          where: { id },
+          data: { lastCategoryId: row.categoryId },
+        });
+      }
+      payeeId = id;
     }
 
     const txn = await prisma.transaction.create({
@@ -321,16 +351,19 @@ export async function confirmIngImport(formData: FormData): Promise<
         importBatchId: batch.id,
       },
     });
+    existingByFp.set(row.fingerprint, txn.id);
     created++;
-    await prisma.importBatchItem.create({
-      data: {
-        batchId: batch.id,
-        action: "created",
-        transactionId: txn.id,
-        fingerprint: row.fingerprint,
-        memoPreview: row.memo.slice(0, 160),
-      },
+    batchItems.push({
+      batchId: batch.id,
+      action: "created",
+      transactionId: txn.id,
+      fingerprint: row.fingerprint,
+      memoPreview,
     });
+  }
+
+  if (batchItems.length > 0) {
+    await prisma.importBatchItem.createMany({ data: batchItems });
   }
 
   await prisma.importBatch.update({

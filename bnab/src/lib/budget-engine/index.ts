@@ -67,14 +67,6 @@ function monthOf(date: string): string {
   return date.slice(0, 7);
 }
 
-function assignedFor(
-  assigned: EngineAssigned[],
-  categoryId: string,
-  month: string,
-): number {
-  return assigned.find((a) => a.categoryId === categoryId && a.month === month)?.assigned ?? 0;
-}
-
 /**
  * Compute plan state from firstMonth through endMonth inclusive.
  */
@@ -90,6 +82,7 @@ export function computeBudgetMonths(input: {
   const { firstMonth, endMonth, accounts, categories, transactions, assigned } =
     input;
   const accountById = new Map(accounts.map((a) => [a.id, a]));
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
   const ccPaymentCategoryIds = new Set(
     accounts
       .filter((a) => a.creditCategoryId)
@@ -100,6 +93,28 @@ export function computeBudgetMonths(input: {
       .filter((a) => a.creditCategoryId)
       .map((a) => [a.creditCategoryId as string, a.id]),
   );
+
+  const assignedByKey = new Map<string, number>();
+  for (const a of assigned) {
+    assignedByKey.set(`${a.categoryId}|${a.month}`, a.assigned);
+  }
+
+  const metaByMonth = new Map(
+    (input.monthMetas ?? []).map((m) => [m.month, m]),
+  );
+
+  /** Pre-bucket non-parent, non-excluded txns by YYYY-MM for O(txns + months×cats) work. */
+  const txnsByMonth = new Map<string, EngineTxn[]>();
+  for (const t of transactions) {
+    if (t.isParent) continue;
+    const m = monthOf(t.date);
+    let bucket = txnsByMonth.get(m);
+    if (!bucket) {
+      bucket = [];
+      txnsByMonth.set(m, bucket);
+    }
+    bucket.push(t);
+  }
 
   const months: string[] = [];
   {
@@ -134,62 +149,64 @@ export function computeBudgetMonths(input: {
     }
     incomeToRta -= cashOverspendDebt;
 
+    const activityByCat = new Map<string, number>();
+    const ccFundingByCat = new Map<string, number>();
+
+    const monthTxns = txnsByMonth.get(month) ?? [];
+    for (const t of monthTxns) {
+      if (t.excludeFromRta) continue;
+      const acct = accountById.get(t.accountId);
+      if (!acct?.onBudget) continue;
+
+      if (t.categoryId) {
+        activityByCat.set(
+          t.categoryId,
+          (activityByCat.get(t.categoryId) ?? 0) + t.amount,
+        );
+      }
+
+      // CC funding: outflow on credit card with a spending category moves money to CC payment
+      if (
+        acct.type === "CREDIT_CARD" &&
+        acct.creditCategoryId &&
+        t.amount < 0 &&
+        t.categoryId &&
+        !ccPaymentCategoryIds.has(t.categoryId) &&
+        !t.transferTwinId
+      ) {
+        const ccp = acct.creditCategoryId;
+        ccFundingByCat.set(
+          ccp,
+          (ccFundingByCat.get(ccp) ?? 0) + Math.abs(t.amount),
+        );
+      }
+
+      // CC payment transfer: paying the card reduces CC payment available
+      if (t.transferTwinId && t.amount > 0) {
+        for (const [ccpId, creditAcctId] of creditAccountByCategory) {
+          if (creditAcctId === t.accountId) {
+            ccFundingByCat.set(
+              ccpId,
+              (ccFundingByCat.get(ccpId) ?? 0) - t.amount,
+            );
+          }
+        }
+      }
+    }
+
     for (const c of categories) {
-      const a = assignedFor(assigned, c.id, month);
+      const a = assignedByKey.get(`${c.id}|${month}`) ?? 0;
       if (!c.isIncome) totalAssigned += a;
 
-      let activity = 0;
-      let ccFundingIn = 0;
-
-      for (const t of transactions) {
-        if (t.isParent) continue;
-        if (t.excludeFromRta) continue;
-        if (monthOf(t.date) !== month) continue;
-        const acct = accountById.get(t.accountId);
-        if (!acct?.onBudget) continue;
-
-        if (t.categoryId === c.id) {
-          activity += t.amount;
-        }
-
-        // CC funding: outflow on credit card with a spending category moves money to CC payment
-        if (
-          ccPaymentCategoryIds.has(c.id) &&
-          acct.type === "CREDIT_CARD" &&
-          acct.creditCategoryId === c.id &&
-          t.amount < 0 &&
-          t.categoryId &&
-          !ccPaymentCategoryIds.has(t.categoryId) &&
-          !t.transferTwinId
-        ) {
-          ccFundingIn += Math.abs(t.amount);
-        }
-
-        // CC payment transfer: paying the card reduces CC payment available
-        if (
-          ccPaymentCategoryIds.has(c.id) &&
-          t.transferTwinId &&
-          creditAccountByCategory.get(c.id) === t.accountId &&
-          t.amount > 0
-        ) {
-          // inflow on credit card from transfer = payment received → reduce available
-          ccFundingIn -= t.amount;
-        }
-      }
-
-      // Income to RTA: positive categorized to income or uncategorized inflow (non-transfer, non-starting)
-      if (c.isIncome) {
-        // income categories don't use available the same way; still track activity
-      }
+      const activity = activityByCat.get(c.id) ?? 0;
+      const ccFundingIn = ccFundingByCat.get(c.id) ?? 0;
 
       const carryIn =
         !c.isIncome && (prevAvailable.get(c.id) ?? 0) > 0
           ? (prevAvailable.get(c.id) ?? 0)
           : 0;
 
-      const available = c.isIncome
-        ? 0
-        : carryIn + a + activity + ccFundingIn;
+      const available = c.isIncome ? 0 : carryIn + a + activity + ccFundingIn;
 
       cats[c.id] = {
         categoryId: c.id,
@@ -202,12 +219,9 @@ export function computeBudgetMonths(input: {
     }
 
     // Income to RTA from transactions (starting balances, income cats, uncategorized).
-    // Uncategorized outflows (e.g. balance adjustments down) reduce Ready to Assign.
-    // Import ignore-rule matches never contribute (excludeFromRta).
-    for (const t of transactions) {
-      if (t.isParent || t.transferTwinId) continue;
+    for (const t of monthTxns) {
+      if (t.transferTwinId) continue;
       if (t.excludeFromRta) continue;
-      if (monthOf(t.date) !== month) continue;
       const acct = accountById.get(t.accountId);
       if (!acct?.onBudget) continue;
 
@@ -217,19 +231,17 @@ export function computeBudgetMonths(input: {
       }
 
       if (!t.categoryId) {
-        // Uncategorized inflow/outflow moves Ready to Assign directly
         incomeToRta += t.amount;
         continue;
       }
 
-      const cat = categories.find((c) => c.id === t.categoryId);
+      const cat = categoryById.get(t.categoryId);
       if (cat?.isIncome) {
         incomeToRta += t.amount;
       }
-      // Spending-category activity (incl. refunds) stays in envelopes, not RTA
     }
 
-    const meta = input.monthMetas?.find((x) => x.month === month);
+    const meta = metaByMonth.get(month);
     const rta = incomeToRta - totalAssigned;
     let nextHeld = 0;
     if (meta?.holdForNextMonth && rta > 0) {

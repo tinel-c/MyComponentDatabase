@@ -114,6 +114,24 @@ export async function ensureYngsbCategories(
   prisma: PrismaClient,
   budgetId: string,
 ) {
+  // Fast path: already seeded when Income + Credit Card Payments groups exist
+  // and we have at least as many categories as the starter tree expects.
+  const [incomeGroup, ccGroup, categoryCount] = await Promise.all([
+    prisma.categoryGroup.findFirst({
+      where: { budgetId, name: "Income" },
+      select: { id: true },
+    }),
+    prisma.categoryGroup.findFirst({
+      where: { budgetId, name: "Credit Card Payments" },
+      select: { id: true },
+    }),
+    prisma.category.count({ where: { group: { budgetId } } }),
+  ]);
+  const expectedCats = STARTER_GROUPS.reduce((n, g) => n + g.categories.length, 0);
+  if (incomeGroup && ccGroup && categoryCount >= expectedCats) {
+    return;
+  }
+
   let gOrder = 0;
   for (const g of STARTER_GROUPS) {
     let group = await prisma.categoryGroup.findFirst({
@@ -155,10 +173,7 @@ export async function ensureYngsbCategories(
     }
   }
 
-  const cc = await prisma.categoryGroup.findFirst({
-    where: { budgetId, name: "Credit Card Payments" },
-  });
-  if (!cc) {
+  if (!ccGroup) {
     await prisma.categoryGroup.create({
       data: {
         budgetId,

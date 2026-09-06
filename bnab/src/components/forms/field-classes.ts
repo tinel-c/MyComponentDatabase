@@ -32,3 +32,15 @@ export const sectionSubheadingClass =
 
 /** Tabular money figures — scannable columns (fintech UX best practice). */
 export const moneyClass = "font-mono tabular-nums tracking-tight";
+
+export const tableClass = "w-full text-left text-sm";
+
+export const thClass = "py-2 pr-3 font-medium text-fg-muted";
+
+export const tdClass = "py-2 pr-3 text-fg";
+
+export const chipClass =
+  "inline-flex items-center gap-1 rounded-full bg-accent-muted px-2.5 py-0.5 text-xs font-medium text-accent";
+
+export const chipMutedClass =
+  "inline-flex items-center gap-1 rounded-full bg-overlay px-2.5 py-0.5 text-xs font-medium text-fg-muted";

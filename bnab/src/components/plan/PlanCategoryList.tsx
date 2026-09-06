@@ -1,10 +1,8 @@
-"use client";
-
 import Link from "next/link";
-import { useState } from "react";
 import { AssignCell } from "@/components/plan/AssignCell";
 import { AssignQuickButtons } from "@/components/plan/AssignQuickButtons";
 import { CategoryIcon } from "@/components/plan/CategoryIcon";
+import { PlanEmptyToggle } from "@/components/plan/PlanEmptyToggle";
 import { moneyClass } from "@/components/forms/field-classes";
 import { formatMoney } from "@/lib/money";
 
@@ -54,8 +52,6 @@ export function PlanCategoryList({
   rta,
   rows,
 }: Props) {
-  const [showEmpty, setShowEmpty] = useState(false);
-
   const enriched = categories.map((cat) => {
     const row = rows[cat.id];
     const available = row?.available ?? 0;
@@ -68,9 +64,8 @@ export function PlanCategoryList({
   const emptyCount = enriched.filter((e) => e.isEmpty).length;
 
   return (
-    <div>
+    <PlanEmptyToggle emptyCount={emptyCount}>
       <ul className="divide-y divide-rim-subtle/60">
-        {/* Mobile column names — one header row per group */}
         <li
           className={`${MOBILE_GRID} h-7 px-2 text-[10px] font-semibold uppercase tracking-wide text-fg-subtle md:hidden`}
         >
@@ -79,7 +74,6 @@ export function PlanCategoryList({
           <span className="text-right">Available</span>
         </li>
 
-        {/* Desktop column names */}
         <li
           className={`hidden h-8 ${DESKTOP_GRID} items-center px-3 text-[10px] font-semibold uppercase tracking-wide text-fg-subtle md:grid`}
         >
@@ -93,9 +87,12 @@ export function PlanCategoryList({
         {enriched.map(({ cat, available, activity, assigned, isEmpty }) => (
           <li
             key={cat.id}
-            className={isEmpty && !showEmpty ? "max-md:hidden" : undefined}
+            className={
+              isEmpty
+                ? "max-md:group-data-[show-empty=0]/plan-empty:hidden"
+                : undefined
+            }
           >
-            {/* Mobile: exactly one row, no nested stacks */}
             <div
               className={`${MOBILE_GRID} h-9 px-2 md:hidden`}
               title={cat.name}
@@ -124,7 +121,6 @@ export function PlanCategoryList({
               </span>
             </div>
 
-            {/* Desktop */}
             <div
               className={`hidden h-10 items-center px-3 md:grid ${DESKTOP_GRID}`}
             >
@@ -174,17 +170,6 @@ export function PlanCategoryList({
           </li>
         ))}
       </ul>
-      {emptyCount > 0 && (
-        <button
-          type="button"
-          className="w-full border-t border-rim-subtle/60 px-3 py-2 text-center text-xs font-medium text-fg-muted hover:bg-overlay/40 hover:text-fg md:hidden"
-          onClick={() => setShowEmpty((v) => !v)}
-        >
-          {showEmpty
-            ? "Hide empty categories"
-            : `Show ${emptyCount} empty categor${emptyCount === 1 ? "y" : "ies"}`}
-        </button>
-      )}
-    </div>
+    </PlanEmptyToggle>
   );
 }

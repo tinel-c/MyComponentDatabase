@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { ComponentProps } from "react";
+import { cardClass } from "@/components/forms/field-classes";
 
 const Charts = dynamic(
   () =>
@@ -9,13 +10,18 @@ const Charts = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-64 animate-pulse rounded-2xl bg-overlay/70" aria-hidden />
+      <div className="grid gap-4 md:grid-cols-2" aria-hidden>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className={`${cardClass} h-72 animate-pulse bg-overlay/70`}
+          />
+        ))}
+      </div>
     ),
   },
 );
 
-export function ReflectChartsLazy(
-  props: ComponentProps<typeof Charts>,
-) {
+export function ReflectChartsLazy(props: ComponentProps<typeof Charts>) {
   return <Charts {...props} />;
 }

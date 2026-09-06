@@ -41,7 +41,7 @@ export default async function AccountDetailPage({
   if (!account) notFound();
 
   const pageNum = Math.max(1, Number(sp.page ?? "1") || 1);
-  const take = pageNum * PAGE_SIZE;
+  const skip = (pageNum - 1) * PAGE_SIZE;
 
   const [sumAgg, transactions, count] = await Promise.all([
     prisma.transaction.aggregate({
@@ -52,13 +52,15 @@ export default async function AccountDetailPage({
       where: { accountId: id, isChild: false },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       include: { payee: true, category: true },
-      take,
+      skip,
+      take: PAGE_SIZE,
     }),
     prisma.transaction.count({ where: { accountId: id, isChild: false } }),
   ]);
 
   const balance = sumAgg._sum.amount ?? 0;
-  const hasMore = transactions.length < count;
+  const hasMore = skip + transactions.length < count;
+  const remaining = Math.max(0, count - skip - transactions.length);
   const page = transactions;
   const meta = accountTypeMeta(account.type);
   const Icon = meta.icon;
@@ -214,7 +216,15 @@ export default async function AccountDetailPage({
           href={`/accounts/${id}?page=${pageNum + 1}`}
           className={`${buttonSecondaryClass} w-full`}
         >
-          Load more
+          Next page · {remaining} remaining
+        </Link>
+      ) : null}
+      {pageNum > 1 ? (
+        <Link
+          href={`/accounts/${id}?page=${pageNum - 1}`}
+          className={`${buttonSecondaryClass} w-full`}
+        >
+          Previous page
         </Link>
       ) : null}
     </div>

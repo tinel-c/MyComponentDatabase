@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -19,8 +20,11 @@ export async function requireAdmin() {
   return session;
 }
 
-/** Ensure user has membership; return budget + membership. Creates default budget for admin if none. */
-export async function requireBudgetAccess() {
+/**
+ * Ensure user has membership; return budget + membership.
+ * Cached per-request so layout + page share one DB round-trip.
+ */
+export const requireBudgetAccess = cache(async () => {
   const session = await requireSession();
   let membership = await prisma.budgetMember.findFirst({
     where: { userId: session.user.id },
@@ -38,4 +42,4 @@ export async function requireBudgetAccess() {
     redirect("/login?error=no-budget");
   }
   return { session, membership, budget: membership.budget };
-}
+});

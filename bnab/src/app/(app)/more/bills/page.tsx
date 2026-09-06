@@ -2,8 +2,9 @@ import Link from "next/link";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/money";
-import { cardClass, buttonSecondaryClass } from "@/components/forms/field-classes";
-import { Link2, Link2Off, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { cardClass, buttonSecondaryClass, buttonPrimaryClass } from "@/components/forms/field-classes";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Link2, Link2Off, AlertCircle, Clock, CheckCircle2, Receipt } from "lucide-react";
 
 function parseReceiptMeta(rawJson: string | null): {
   merchant: string | null;
@@ -113,12 +114,17 @@ export default async function BillsPage() {
       </div>
 
       {scans.length === 0 ? (
-        <div className={`${cardClass} px-4 py-10 text-center text-sm text-fg-muted`}>
-          No bills imported yet.{" "}
-          <Link href="/more/import-bill" className="text-accent hover:underline">
-            Scan a receipt
-          </Link>{" "}
-          to get started.
+        <div className={cardClass}>
+          <EmptyState
+            icon={Receipt}
+            title="No bills imported yet"
+            description="Scan a receipt to categorize spend before the ING statement arrives."
+            action={
+              <Link href="/more/import-bill" className={buttonPrimaryClass}>
+                Scan a receipt
+              </Link>
+            }
+          />
         </div>
       ) : (
         <ul className="space-y-3">

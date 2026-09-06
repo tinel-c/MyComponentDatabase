@@ -37,7 +37,7 @@ export default async function TransactionsPage({
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : undefined;
   const activityView = Boolean(categoryId && month);
   const pageNum = Math.max(1, Number(sp.page ?? "1") || 1);
-  const take = pageNum * PAGE_SIZE;
+  const skip = (pageNum - 1) * PAGE_SIZE;
 
   const [accounts, groups, payees, filterCategory] = await Promise.all([
     prisma.financeAccount.findMany({
@@ -95,11 +95,22 @@ export default async function TransactionsPage({
     prisma.transaction.findMany({
       where,
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-      take,
-      include: {
-        payee: true,
-        category: true,
-        account: true,
+      skip,
+      take: PAGE_SIZE,
+      select: {
+        id: true,
+        accountId: true,
+        date: true,
+        amount: true,
+        categoryId: true,
+        notes: true,
+        cleared: true,
+        isParent: true,
+        isChild: true,
+        transferTwinId: true,
+        payee: { select: { name: true } },
+        category: { select: { name: true } },
+        account: { select: { name: true } },
       },
     }),
     prisma.transaction.count({ where }),
@@ -118,12 +129,13 @@ export default async function TransactionsPage({
     twinIds.length > 0
       ? await prisma.transaction.findMany({
           where: { id: { in: twinIds } },
-          include: { account: true },
+          select: { id: true, account: { select: { name: true } } },
         })
       : [];
   const twinById = new Map(twins.map((t) => [t.id, t]));
 
-  const hasMore = transactions.length < count;
+  const hasMore = skip + transactions.length < count;
+  const remaining = Math.max(0, count - skip - transactions.length);
   const qs = new URLSearchParams();
   if (q) qs.set("q", q);
   if (accountId) qs.set("accountId", accountId);
@@ -272,7 +284,15 @@ export default async function TransactionsPage({
           href={`/transactions?${qs.toString()}${qs.toString() ? "&" : ""}page=${pageNum + 1}`}
           className={`${buttonSecondaryClass} w-full`}
         >
-          Load more
+          Next page · {remaining} remaining
+        </Link>
+      ) : null}
+      {pageNum > 1 ? (
+        <Link
+          href={`/transactions?${qs.toString()}${qs.toString() ? "&" : ""}page=${pageNum - 1}`}
+          className={`${buttonSecondaryClass} w-full`}
+        >
+          Previous page
         </Link>
       ) : null}
     </div>

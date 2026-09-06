@@ -247,4 +247,90 @@ describe("computeBudgetMonths", () => {
     assert.equal(results[0].incomeToRta, 100_000);
     assert.equal(results[0].rta, 100_000);
   });
+
+  it("scales over many months without changing fixture results", () => {
+    const checking = {
+      id: "chk",
+      onBudget: true,
+      type: "CHECKING",
+      creditCategoryId: null,
+    };
+    const groc = {
+      id: "groc",
+      isIncome: false,
+      isSystem: false,
+      systemKey: null,
+    };
+    const income = {
+      id: "inc",
+      isIncome: true,
+      isSystem: false,
+      systemKey: null,
+    };
+
+    const transactions = [];
+    const assigned = [];
+    let y = 2025;
+    let mo = 1;
+    for (let i = 0; i < 24; i++) {
+      const m = `${y}-${String(mo).padStart(2, "0")}`;
+      transactions.push({
+        id: `inc-${m}`,
+        accountId: "chk",
+        date: `${m}-01`,
+        amount: 100_000,
+        categoryId: "inc",
+        isParent: false,
+        isChild: false,
+        transferTwinId: null,
+        isStartingBalance: false,
+      });
+      transactions.push({
+        id: `groc-${m}`,
+        accountId: "chk",
+        date: `${m}-15`,
+        amount: -20_000,
+        categoryId: "groc",
+        isParent: false,
+        isChild: false,
+        transferTwinId: null,
+        isStartingBalance: false,
+      });
+      for (let n = 0; n < 50; n++) {
+        transactions.push({
+          id: `noise-${m}-${n}`,
+          accountId: "chk",
+          date: `${m}-10`,
+          amount: -100,
+          categoryId: "groc",
+          isParent: false,
+          isChild: false,
+          transferTwinId: null,
+          isStartingBalance: false,
+        });
+      }
+      assigned.push({ categoryId: "groc", month: m, assigned: 50_000 });
+      mo += 1;
+      if (mo > 12) {
+        mo = 1;
+        y += 1;
+      }
+    }
+
+    const results = computeBudgetMonths({
+      firstMonth: "2025-01",
+      endMonth: "2026-12",
+      accounts: [checking],
+      categories: [groc, income],
+      transactions,
+      assigned,
+    });
+
+    assert.equal(results.length, 24);
+    const last = results[23];
+    // activity = -20_000 + 50*-100 = -25_000
+    assert.equal(last.categories.groc.activity, -25_000);
+    assert.equal(last.incomeToRta, 100_000);
+    assert.equal(last.totalAssigned, 50_000);
+  });
 });

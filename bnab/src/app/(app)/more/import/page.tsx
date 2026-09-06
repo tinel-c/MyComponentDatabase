@@ -12,20 +12,24 @@ export default async function ImportPage() {
   await ensureYngsbCategories(prisma, budget.id);
   await seedDefaultImportRules(prisma, budget.id);
 
-  const accounts = await prisma.financeAccount.findMany({
-    where: { budgetId: budget.id, closed: false },
-    orderBy: { sortOrder: "asc" },
-  });
-  const groups = await prisma.categoryGroup.findMany({
-    where: { budgetId: budget.id, hidden: false },
-    include: {
-      categories: {
-        where: { hidden: false },
-        orderBy: { sortOrder: "asc" },
+  const [accounts, groups] = await Promise.all([
+    prisma.financeAccount.findMany({
+      where: { budgetId: budget.id, closed: false },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+    prisma.categoryGroup.findMany({
+      where: { budgetId: budget.id, hidden: false },
+      include: {
+        categories: {
+          where: { hidden: false },
+          orderBy: { sortOrder: "asc" },
+          select: { id: true, name: true },
+        },
       },
-    },
-    orderBy: { sortOrder: "asc" },
-  });
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
   const categories = groups.flatMap((g) =>
     g.categories.map((c) => ({
       id: c.id,
@@ -55,7 +59,7 @@ export default async function ImportPage() {
       </div>
 
       <IngImportClient
-        accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
+        accounts={accounts}
         categories={categories}
         currency={budget.currency}
       />

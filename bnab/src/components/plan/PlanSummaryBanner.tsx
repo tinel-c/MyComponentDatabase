@@ -46,7 +46,11 @@ export function PlanSummaryBanner({
 
   return (
     <div
-      className={`sticky top-14 z-20 rounded-xl border px-3 py-2 md:top-4 ${tint}`}
+      className={`sticky top-14 z-20 rounded-xl border px-3 py-2 shadow-sm backdrop-blur-sm md:top-4 ${tint}`}
+      style={{
+        boxShadow:
+          "0 8px 24px color-mix(in oklch, var(--glow-accent) 18%, transparent)",
+      }}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
