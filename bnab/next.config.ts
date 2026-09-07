@@ -8,11 +8,11 @@ const longCache = {
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   compress: true,
-  // Bill/receipt photos routinely exceed Next's default 1 MB Server Action limit.
-  serverActions: {
-    bodySizeLimit: "13mb",
-  },
   experimental: {
+    // Bill/receipt photos routinely exceed Next's default 1 MB Server Action limit.
+    serverActions: {
+      bodySizeLimit: "13mb",
+    },
     optimizePackageImports: ["lucide-react", "@nivo/pie", "@nivo/bar", "@nivo/line", "@nivo/core"],
   },
   async headers() {
