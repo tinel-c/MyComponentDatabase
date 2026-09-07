@@ -295,7 +295,7 @@ export function ImportBillClient({
                 {scanPending ? "Scanning bill…" : "Drop or choose a bill photo"}
               </span>
               <span className="block text-xs text-fg-muted">
-                JPEG, PNG, or WebP
+                JPEG, PNG, or WebP · max 12 MB
               </span>
             </span>
             <input
