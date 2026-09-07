@@ -1,9 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, CheckCircle2, Info, Receipt, ScanLine, Upload } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileImage,
+  Info,
+  Receipt,
+  ScanLine,
+  Upload,
+} from "lucide-react";
 import {
   importBillConfirmAction,
   importBillCreateAction,
@@ -159,6 +167,10 @@ export function ImportBillClient({
   accounts: { id: string; name: string }[];
 }) {
   const router = useRouter();
+  const [selectedFile, setSelectedFile] = useState<{
+    name: string;
+    sizeLabel: string;
+  } | null>(null);
   const [scan, scanAction, scanPending] = useActionState(
     importBillScanAction,
     initial,
@@ -283,20 +295,51 @@ export function ImportBillClient({
 
         <form action={scanAction} className="space-y-3">
           <label
-            className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-rim bg-accent-muted/20 px-4 py-10 text-center transition-colors hover:border-accent hover:bg-accent-muted/35 ${
-              scanPending ? "animate-pulse" : ""
-            }`}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-4 py-10 text-center transition-colors ${
+              selectedFile
+                ? "border-accent bg-accent-muted/40 hover:bg-accent-muted/50"
+                : "border-rim bg-accent-muted/20 hover:border-accent hover:bg-accent-muted/35"
+            } ${scanPending ? "animate-pulse" : ""}`}
           >
-            <span className="inline-flex size-14 items-center justify-center rounded-2xl bg-accent-muted text-accent">
-              <ScanLine className="size-7" aria-hidden />
+            <span
+              className={`inline-flex size-14 items-center justify-center rounded-2xl ${
+                selectedFile
+                  ? "bg-accent text-accent-fg"
+                  : "bg-accent-muted text-accent"
+              }`}
+            >
+              {selectedFile ? (
+                <FileImage className="size-7" aria-hidden />
+              ) : (
+                <ScanLine className="size-7" aria-hidden />
+              )}
             </span>
             <span className="space-y-1">
               <span className="block text-sm font-semibold text-fg">
-                {scanPending ? "Scanning bill…" : "Drop or choose a bill photo"}
+                {scanPending
+                  ? "Scanning bill…"
+                  : selectedFile
+                    ? "Photo selected — tap to change"
+                    : "Drop or choose a bill photo"}
               </span>
-              <span className="block text-xs text-fg-muted">
-                JPEG, PNG, or WebP · max 12 MB
-              </span>
+              {selectedFile ? (
+                <span className="mx-auto flex max-w-full items-center justify-center gap-1.5 text-xs text-fg">
+                  <CheckCircle2
+                    className="size-3.5 shrink-0 text-ok"
+                    aria-hidden
+                  />
+                  <span className="min-w-0 truncate font-medium">
+                    {selectedFile.name}
+                  </span>
+                  <span className="shrink-0 text-fg-muted">
+                    · {selectedFile.sizeLabel}
+                  </span>
+                </span>
+              ) : (
+                <span className="block text-xs text-fg-muted">
+                  JPEG, PNG, or WebP · max 12 MB
+                </span>
+              )}
             </span>
             <input
               type="file"
@@ -305,15 +348,34 @@ export function ImportBillClient({
               required
               disabled={pending}
               className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) {
+                  setSelectedFile(null);
+                  return;
+                }
+                const mb = file.size / (1024 * 1024);
+                setSelectedFile({
+                  name: file.name,
+                  sizeLabel:
+                    mb >= 0.1
+                      ? `${mb.toFixed(1)} MB`
+                      : `${Math.max(1, Math.round(file.size / 1024))} KB`,
+                });
+              }}
             />
           </label>
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || !selectedFile}
             className={`${buttonPrimaryClass} inline-flex w-full items-center justify-center gap-2`}
           >
             <Upload className="h-4 w-4" aria-hidden />
-            {scanPending ? "Scanning…" : "Import bill"}
+            {scanPending
+              ? "Scanning…"
+              : selectedFile
+                ? "Import bill"
+                : "Choose a photo first"}
           </button>
         </form>
       </div>
