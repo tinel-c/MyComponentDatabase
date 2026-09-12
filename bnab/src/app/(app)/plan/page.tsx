@@ -3,7 +3,6 @@ import { ChevronLeft, ChevronRight, Landmark, Wallet } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { loadPlanMonth } from "@/lib/plan-data";
 import { addMonths, currentMonth, formatMoney, monthLabel } from "@/lib/money";
-import { MoveMoneyForm } from "@/components/plan/MoveMoneyForm";
 import { PlanSummaryBanner } from "@/components/plan/PlanSummaryBanner";
 import { CategoryIcon } from "@/components/plan/CategoryIcon";
 import { PlanCategoryList } from "@/components/plan/PlanCategoryList";
@@ -30,7 +29,7 @@ export default async function PlanPage({
     currency,
     accountBalances,
     incomeByAccount,
-    spendingByAccount,
+    spendingByAccountByGroup,
   } = await loadPlanMonth(budget.id, month);
   const prev = addMonths(month, -1);
   const next = addMonths(month, 1);
@@ -45,25 +44,21 @@ export default async function PlanPage({
     );
   }, 0);
 
-  const spendingActivitySum = spendingGroups.reduce((sum, g) => {
-    return (
-      sum +
-      g.categories.reduce((s, c) => s + (plan.categories[c.id]?.activity ?? 0), 0)
-    );
-  }, 0);
-  /** Display magnitude of month spend (activity is negative for outflows). */
-  const spendingTotal = -spendingActivitySum;
-
   const onBudgetAccounts = accountBalances.filter((a) => a.onBudget);
   const totalOnBudget = onBudgetAccounts.reduce((s, a) => s + a.balance, 0);
   const totalAccountIncome = onBudgetAccounts.reduce(
     (s, a) => s + (incomeByAccount[a.id] ?? 0),
     0,
   );
-  const totalAccountSpending = onBudgetAccounts.reduce(
-    (s, a) => s + (spendingByAccount[a.id] ?? 0),
-    0,
-  );
+  const totalByGroup = Object.fromEntries(
+    spendingGroups.map((g) => [
+      g.id,
+      onBudgetAccounts.reduce(
+        (s, a) => s + (spendingByAccountByGroup[a.id]?.[g.id] ?? 0),
+        0,
+      ),
+    ]),
+  ) as Record<string, number>;
 
   return (
     <div className="space-y-4 md:space-y-5">
@@ -94,7 +89,7 @@ export default async function PlanPage({
         currency={currency}
       />
 
-      {/* Income → Spending → Accounts (desktop); Categories assign stays below */}
+      {/* Income → Accounts (desktop); Categories assign stays below */}
       <div className="space-y-3">
         <div className="hidden items-center justify-between gap-2 px-1 md:flex">
           <div>
@@ -176,69 +171,6 @@ export default async function PlanPage({
           )}
         </div>
 
-        <div className="hidden items-center justify-between gap-2 px-1 md:flex">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
-              Spending
-            </h2>
-            <p className="text-xs text-fg-subtle">
-              Spent this month{" "}
-              <Link
-                href={`/transactions?month=${encodeURIComponent(month)}&flow=spending`}
-                className="font-medium text-fg underline-offset-2 hover:underline"
-              >
-                {formatMoney(spendingTotal, currency)}
-              </Link>{" "}
-              — by category group (details in Categories below)
-            </p>
-          </div>
-        </div>
-
-        <div className="hidden md:block">
-          {spendingGroups.length === 0 ? (
-            <section
-              className={`${cardClass} px-4 py-6 text-center text-sm text-fg-muted`}
-            >
-              No spending categories yet. Add groups under More → Categories.
-            </section>
-          ) : (
-            <section className={`${cardClass} overflow-hidden`}>
-              <ul className="divide-y divide-rim-subtle/60">
-                {spendingGroups.map((group) => {
-                  const groupActivity = group.categories.reduce(
-                    (s, c) => s + (plan.categories[c.id]?.activity ?? 0),
-                    0,
-                  );
-                  const spent = -groupActivity;
-                  return (
-                    <li
-                      key={group.id}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
-                      style={{
-                        borderLeft: `4px solid ${groupAccent(group.name)}`,
-                      }}
-                    >
-                      <p className="min-w-0 truncate text-sm font-semibold text-fg">
-                        {group.name}
-                      </p>
-                      <Link
-                        href={`/transactions?groupId=${encodeURIComponent(group.id)}&month=${encodeURIComponent(month)}`}
-                        prefetch
-                        className={`shrink-0 text-sm font-semibold underline-offset-2 hover:underline ${moneyClass} ${
-                          groupActivity < 0 ? "text-danger" : "text-fg-muted"
-                        }`}
-                        title="View transactions in this group"
-                      >
-                        {formatMoney(spent, currency)}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
-        </div>
-
         {onBudgetAccounts.length > 0 && (
           <section className={`hidden ${cardClass} overflow-hidden md:block`}>
             <div
@@ -249,11 +181,11 @@ export default async function PlanPage({
               }}
             >
               <h3 className="text-sm font-semibold text-fg">
-                Accounts · income / spending / remaining
+                Accounts · income / groups / remaining
               </h3>
               <p className="mt-0.5 text-[11px] text-fg-subtle">
-                Month income & spending by account · remaining is balance through
-                month end
+                Month income and spending by category group · remaining is
+                balance through month end
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -262,9 +194,16 @@ export default async function PlanPage({
                   <tr className="border-b border-rim-subtle text-left text-[11px] uppercase tracking-wide text-fg-subtle">
                     <th className="px-3 py-2 font-medium">Account</th>
                     <th className="px-3 py-2 text-right font-medium">Income</th>
-                    <th className="px-3 py-2 text-right font-medium">
-                      Spending
-                    </th>
+                    {spendingGroups.map((g) => (
+                      <th
+                        key={g.id}
+                        className="max-w-[7rem] truncate px-3 py-2 text-right font-medium"
+                        title={g.name}
+                        style={{ color: groupAccent(g.name) }}
+                      >
+                        {g.name}
+                      </th>
+                    ))}
                     <th className="px-3 py-2 text-right font-medium">
                       Remaining
                     </th>
@@ -273,8 +212,6 @@ export default async function PlanPage({
                 <tbody className="divide-y divide-rim-subtle/60">
                   {onBudgetAccounts.map((a) => {
                     const income = incomeByAccount[a.id] ?? 0;
-                    const spending = spendingByAccount[a.id] ?? 0;
-                    const spendingMag = -spending;
                     return (
                       <tr key={a.id}>
                         <td className="px-3 py-2">
@@ -303,17 +240,24 @@ export default async function PlanPage({
                             {formatMoney(income, currency)}
                           </Link>
                         </td>
-                        <td className="px-3 py-2 text-right">
-                          <Link
-                            href={`/transactions?accountId=${encodeURIComponent(a.id)}&month=${encodeURIComponent(month)}&flow=spending`}
-                            className={`font-semibold underline-offset-2 hover:underline ${moneyClass} ${
-                              spending < 0 ? "text-danger" : "text-fg-muted"
-                            }`}
-                            title="Spending transactions this month"
-                          >
-                            {formatMoney(spendingMag, currency)}
-                          </Link>
-                        </td>
+                        {spendingGroups.map((g) => {
+                          const amount =
+                            spendingByAccountByGroup[a.id]?.[g.id] ?? 0;
+                          const mag = -amount;
+                          return (
+                            <td key={g.id} className="px-3 py-2 text-right">
+                              <Link
+                                href={`/transactions?accountId=${encodeURIComponent(a.id)}&groupId=${encodeURIComponent(g.id)}&month=${encodeURIComponent(month)}`}
+                                className={`font-semibold underline-offset-2 hover:underline ${moneyClass} ${
+                                  amount < 0 ? "text-danger" : "text-fg-muted"
+                                }`}
+                                title={`${g.name} spending this month`}
+                              >
+                                {formatMoney(mag, currency)}
+                              </Link>
+                            </td>
+                          );
+                        })}
                         <td className="px-3 py-2 text-right">
                           <Link
                             href={`/accounts/${a.id}`}
@@ -344,11 +288,19 @@ export default async function PlanPage({
                     >
                       {formatMoney(totalAccountIncome, currency)}
                     </td>
-                    <td
-                      className={`px-3 py-2 text-right font-semibold ${moneyClass} text-danger`}
-                    >
-                      {formatMoney(-totalAccountSpending, currency)}
-                    </td>
+                    {spendingGroups.map((g) => {
+                      const total = totalByGroup[g.id] ?? 0;
+                      return (
+                        <td
+                          key={g.id}
+                          className={`px-3 py-2 text-right font-semibold ${moneyClass} ${
+                            total < 0 ? "text-danger" : "text-fg-muted"
+                          }`}
+                        >
+                          {formatMoney(-total, currency)}
+                        </td>
+                      );
+                    })}
                     <td
                       className={`px-3 py-2 text-right font-semibold ${moneyClass} ${
                         totalOnBudget < 0 ? "text-danger" : "text-ok"
@@ -406,22 +358,6 @@ export default async function PlanPage({
               />
             </section>
           ))}
-        </div>
-      </div>
-
-      <div className={`hidden ${cardClass} p-4 md:block`}>
-        <h2 className="text-sm font-semibold text-fg">Move money</h2>
-        <p className="mt-1 text-xs text-fg-muted">
-          Shift assigned amounts between envelopes without changing Ready to
-          Assign.
-        </p>
-        <div className="mt-3">
-          <MoveMoneyForm
-            month={month}
-            categories={spendingGroups.flatMap((g) =>
-              g.categories.map((c) => ({ id: c.id, name: c.name })),
-            )}
-          />
         </div>
       </div>
 

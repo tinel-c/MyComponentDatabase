@@ -208,20 +208,25 @@ export async function loadPlanMonth(budgetId: string, month: string) {
   const categoryIsIncome = new Map(
     categories.map((c) => [c.id, c.isIncome]),
   );
-  const { incomeByAccount, spendingByAccount } = computeAccountMonthFlows({
-    month,
-    transactions: engineTxns.map((t) => ({
-      accountId: t.accountId,
-      date: t.date,
-      amount: t.amount,
-      categoryId: t.categoryId,
-      isParent: t.isParent,
-      transferTwinId: t.transferTwinId,
-      excludeFromRta: Boolean(t.excludeFromRta),
-    })),
-    accountOnBudget,
-    categoryIsIncome,
-  });
+  const categoryGroupId = new Map(
+    groups.flatMap((g) => g.categories.map((c) => [c.id, g.id] as const)),
+  );
+  const { incomeByAccount, spendingByAccount, spendingByAccountByGroup } =
+    computeAccountMonthFlows({
+      month,
+      transactions: engineTxns.map((t) => ({
+        accountId: t.accountId,
+        date: t.date,
+        amount: t.amount,
+        categoryId: t.categoryId,
+        isParent: t.isParent,
+        transferTwinId: t.transferTwinId,
+        excludeFromRta: Boolean(t.excludeFromRta),
+      })),
+      accountOnBudget,
+      categoryIsIncome,
+      categoryGroupId,
+    });
 
   return {
     budget,
@@ -229,6 +234,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     accountBalances,
     incomeByAccount,
     spendingByAccount,
+    spendingByAccountByGroup,
     groups,
     plan,
     currency: budget.currency,

@@ -18,6 +18,8 @@ export type AccountFlowMaps = {
   incomeByAccount: Record<string, number>;
   /** Σ non-income-category amounts per account in the month (usually ≤ 0) */
   spendingByAccount: Record<string, number>;
+  /** Σ spending per account per category group (usually ≤ 0) */
+  spendingByAccountByGroup: Record<string, Record<string, number>>;
 };
 
 /**
@@ -29,9 +31,12 @@ export function computeAccountMonthFlows(params: {
   transactions: AccountFlowTxn[];
   accountOnBudget: Map<string, boolean>;
   categoryIsIncome: Map<string, boolean>;
+  /** categoryId → groupId (spending categories only needed) */
+  categoryGroupId: Map<string, string>;
 }): AccountFlowMaps {
   const incomeByAccount: Record<string, number> = {};
   const spendingByAccount: Record<string, number> = {};
+  const spendingByAccountByGroup: Record<string, Record<string, number>> = {};
   const prefix = `${params.month}-`;
 
   for (const t of params.transactions) {
@@ -51,8 +56,13 @@ export function computeAccountMonthFlows(params: {
     } else {
       spendingByAccount[t.accountId] =
         (spendingByAccount[t.accountId] ?? 0) + t.amount;
+      const groupId = params.categoryGroupId.get(t.categoryId);
+      if (groupId) {
+        const byGroup = (spendingByAccountByGroup[t.accountId] ??= {});
+        byGroup[groupId] = (byGroup[groupId] ?? 0) + t.amount;
+      }
     }
   }
 
-  return { incomeByAccount, spendingByAccount };
+  return { incomeByAccount, spendingByAccount, spendingByAccountByGroup };
 }

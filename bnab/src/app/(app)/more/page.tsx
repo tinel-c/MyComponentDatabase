@@ -13,6 +13,7 @@ import {
   Receipt,
   BarChart3,
   ArrowLeftRight,
+  ArrowRightLeft,
   Users,
   Tags,
   Store,
@@ -54,6 +55,12 @@ const sections: { title: string; items: LinkItem[] }[] = [
         label: "All transactions",
         desc: "Spreadsheet register — edit cells inline",
         icon: ArrowLeftRight,
+      },
+      {
+        href: "/plan/move",
+        label: "Move money",
+        desc: "Shift assigned amounts between envelopes",
+        icon: ArrowRightLeft,
       },
       {
         href: "/more/categories",

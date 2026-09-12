@@ -9,6 +9,7 @@ import {
   BarChart3,
   MoreHorizontal,
   ArrowLeftRight,
+  ArrowRightLeft,
   Receipt,
 } from "lucide-react";
 import { BnabLogo } from "@/components/brand/BnabLogo";
@@ -90,7 +91,9 @@ export function AppChrome({
                 ? wideRegister
                 : href === "/more/import-bill"
                   ? pathname.startsWith("/more/import-bill")
-                  : pathname === href || pathname.startsWith(href + "/");
+                  : href === "/plan"
+                    ? pathname === "/plan"
+                    : pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}
@@ -129,6 +132,18 @@ export function AppChrome({
           >
             <Plus className="size-4" />
             Add transaction
+          </Link>
+          <Link
+            href="/plan/move"
+            prefetch
+            className={`mt-2 flex min-h-11 items-center justify-center gap-2 rounded-full border border-rim px-3 py-2.5 text-sm font-medium transition-all duration-150 active:scale-95 ${
+              pathname === "/plan/move" || pathname.startsWith("/plan/move/")
+                ? "bg-accent-muted text-accent"
+                : "text-fg-muted hover:bg-overlay/80 hover:text-fg"
+            }`}
+          >
+            <ArrowRightLeft className="size-4" />
+            Move money
           </Link>
         </nav>
       </aside>
