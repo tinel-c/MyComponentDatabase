@@ -109,6 +109,38 @@ describe("ING parser", () => {
     assert.equal(lidl!.ignored, false);
   });
 
+  it("skips inert rules so a later real mapping can match", () => {
+    const rows = parseIngCsv(SAMPLE);
+    const applied = applyRules(
+      rows,
+      [
+        {
+          id: "inert",
+          matchText: "transferata din linia de credit",
+          categoryId: null,
+          ignore: false,
+          sortOrder: 0,
+        },
+        {
+          id: "din",
+          matchText: "Din contul:999904927930",
+          categoryId: "cat-transfer",
+          ignore: false,
+          sortOrder: 1,
+        },
+      ],
+      "acct1",
+      new Map([["cat-transfer", "Credit cover"]]),
+    );
+    const credit = applied.find((r) =>
+      r.memo.includes("Din contul:999904927930"),
+    );
+    assert.ok(credit);
+    assert.equal(credit!.matchedRuleId, "din");
+    assert.equal(credit!.categoryId, "cat-transfer");
+    assert.equal(credit!.ignored, false);
+  });
+
   it("suggests substring from merchant", () => {
     const s = suggestMatchSubstring(
       "Cumparare POS Tranzactie la:LIDL RO 0207  RO  Eforie Nord",

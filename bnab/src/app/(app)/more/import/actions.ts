@@ -393,6 +393,13 @@ export async function createImportRuleFromForm(formData: FormData) {
     return { ok: false as const, error: "A rule with this match text already exists" };
   }
 
+  if (!ignore && !categoryId) {
+    return {
+      ok: false as const,
+      error: "Pick a category or enable Ignore — empty mappings block other rules",
+    };
+  }
+
   if (!ignore && categoryId) {
     const cat = await prisma.category.findFirst({
       where: { id: categoryId, group: { budgetId: budget.id } },
@@ -436,6 +443,7 @@ export async function updateImportRule(formData: FormData) {
     where: { id, budgetId: budget.id },
   });
   if (!rule || matchText.length < 3) return;
+  if (!ignore && !categoryId) return;
 
   await prisma.importCategoryRule.update({
     where: { id },

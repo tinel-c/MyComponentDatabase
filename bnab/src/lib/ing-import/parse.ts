@@ -297,6 +297,9 @@ export function applyRules(
     let ignored = false;
     for (const rule of ordered) {
       if (!rule.matchText) continue;
+      // Inert mapping (neither ignore nor category) must not consume the match —
+      // otherwise later real rules never run and the row stays "unmatched".
+      if (!rule.ignore && !rule.categoryId) continue;
       if (memoMatchesImportRule(row.memo, rule.matchText)) {
         matchedRuleId = rule.id;
         if (rule.ignore) {
@@ -305,6 +308,35 @@ export function applyRules(
         } else {
           categoryId = rule.categoryId;
         }
+        // #region agent log
+        if (
+          /999904927930|linia de credit/i.test(row.memo) ||
+          /999904927930|linia de credit/i.test(rule.matchText)
+        ) {
+          fetch("http://127.0.0.1:7298/ingest/7f3901ac-961b-4078-9b8c-c42ef281edcb", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Debug-Session-Id": "3e3435",
+            },
+            body: JSON.stringify({
+              sessionId: "3e3435",
+              runId: "post-fix",
+              hypothesisId: "C",
+              location: "parse.ts:applyRules",
+              message: "credit-line rule match",
+              data: {
+                matchedRuleId,
+                matchText: rule.matchText,
+                ignore: rule.ignore,
+                categoryId: rule.categoryId,
+                memoSnippet: row.memo.slice(0, 120),
+              },
+              timestamp: Date.now(),
+            }),
+          }).catch(() => {});
+        }
+        // #endregion
         break;
       }
     }

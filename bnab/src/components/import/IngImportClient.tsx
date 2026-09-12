@@ -85,6 +85,42 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
       }
     }
     setDecisions(next);
+    // #region agent log
+    const creditRows = res.rows.filter(
+      (r) =>
+        /999904927930|linia de credit/i.test(r.memo) ||
+        /999904927930|linia de credit/i.test(r.suggestedSubstring),
+    );
+    if (creditRows.length > 0) {
+      fetch("http://127.0.0.1:7298/ingest/7f3901ac-961b-4078-9b8c-c42ef281edcb", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug-Session-Id": "3e3435",
+        },
+        body: JSON.stringify({
+          sessionId: "3e3435",
+          runId: "post-fix",
+          hypothesisId: "C",
+          location: "IngImportClient.tsx:applyPreviewResult",
+          message: "credit-line preview rows",
+          data: {
+            count: creditRows.length,
+            rows: creditRows.slice(0, 8).map((r) => ({
+              status: r.status,
+              ignored: r.ignored,
+              categoryId: r.categoryId,
+              categoryName: r.categoryName,
+              matchedRuleId: r.matchedRuleId,
+              memoSnippet: r.memo.slice(0, 140),
+              amount: r.amount,
+            })),
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    }
+    // #endregion
   }
 
   function runPreview() {
