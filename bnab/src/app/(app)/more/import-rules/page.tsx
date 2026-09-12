@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import {
@@ -142,11 +143,13 @@ export default async function ImportRulesPage() {
         Transfer wins over category when both are set.
       </p>
 
-      <ImportRulesEditor
-        rules={ruleRows}
-        categoryOptions={categoryOptions}
-        accountOptions={accountOptions}
-      />
+      <Suspense fallback={<p className="text-sm text-fg-muted">Loading mappings…</p>}>
+        <ImportRulesEditor
+          rules={ruleRows}
+          categoryOptions={categoryOptions}
+          accountOptions={accountOptions}
+        />
+      </Suspense>
     </div>
   );
 }

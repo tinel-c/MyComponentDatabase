@@ -26,6 +26,8 @@ export type AppliedRow = ParsedIngRow & {
   /** Other account for a transfer pair when the matched rule is a transfer mapping. */
   transferAccountId: string | null;
   matchedRuleId: string | null;
+  /** Match text of the rule that applied (for linking to Import mappings filter). */
+  matchedRuleMatchText: string | null;
   ignored: boolean;
   status:
     | "new"
@@ -298,6 +300,7 @@ export function applyRules(
     let categoryId: string | null = null;
     let transferAccountId: string | null = null;
     let matchedRuleId: string | null = null;
+    let matchedRuleMatchText: string | null = null;
     let ignored = false;
     for (const rule of ordered) {
       if (!rule.matchText) continue;
@@ -309,6 +312,7 @@ export function applyRules(
       if (transferTo && transferTo === accountId) continue;
       if (memoMatchesImportRule(row.memo, rule.matchText)) {
         matchedRuleId = rule.id;
+        matchedRuleMatchText = rule.matchText;
         if (rule.ignore) {
           ignored = true;
           categoryId = null;
@@ -352,6 +356,7 @@ export function applyRules(
       categoryId,
       transferAccountId,
       matchedRuleId,
+      matchedRuleMatchText,
       ignored,
       suggestedSubstring: suggestMatchSubstring(row.memo),
     };

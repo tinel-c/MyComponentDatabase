@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { AppChrome } from "@/components/layout/AppChrome";
 import { prisma } from "@/lib/prisma";
@@ -11,8 +12,14 @@ export default async function AppLayout({
   const { budget } = await requireBudgetAccess();
   const accountActivity = await loadAccountActivitySummaries(prisma, budget.id);
   return (
-    <AppChrome budgetName={budget.name} accountActivity={accountActivity}>
-      {children}
-    </AppChrome>
+    <Suspense
+      fallback={
+        <div className="min-h-dvh bg-canvas text-sm text-fg-muted">Loading…</div>
+      }
+    >
+      <AppChrome budgetName={budget.name} accountActivity={accountActivity}>
+        {children}
+      </AppChrome>
+    </Suspense>
   );
 }

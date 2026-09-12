@@ -13,6 +13,67 @@ export type AccountActivitySummary = {
   ingTxnCount: number;
 };
 
+/** Uppercase letter pool from a name: existing capitals, else first letter of each word. */
+export function accountNameLetterSeed(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "?";
+  const caps = [...trimmed]
+    .filter((c) => c >= "A" && c <= "Z")
+    .join("");
+  if (caps.length > 0) return caps;
+  const words = trimmed.split(/[\s/_·.–-]+/).filter(Boolean);
+  const initials = words
+    .map((w) => {
+      const ch = [...w].find((c) => /[A-Za-zÀ-ÿ]/.test(c));
+      return ch ? ch.toUpperCase() : "";
+    })
+    .join("");
+  if (initials.length > 0) return initials;
+  const fallback = [...trimmed].find((c) => /[A-Za-zÀ-ÿ]/.test(c));
+  return fallback ? fallback.toUpperCase() : "?";
+}
+
+/**
+ * Short unique monograms for a set of accounts (collapsed rail labels).
+ * Prefers 1–3 capital letters derived from each name; lengthens on collisions.
+ */
+export function uniqueAccountMonograms(
+  accounts: { id: string; name: string }[],
+): Record<string, string> {
+  const seeds = accounts.map((a) => ({
+    id: a.id,
+    letters: accountNameLetterSeed(a.name),
+  }));
+  const used = new Set<string>();
+  const out: Record<string, string> = {};
+
+  for (const { id, letters } of seeds) {
+    let assigned = "";
+    const startLen = letters.length >= 2 ? 2 : 1;
+    const maxLen = Math.min(3, Math.max(letters.length, startLen));
+    for (let len = startLen; len <= maxLen; len++) {
+      const cand = letters.slice(0, len);
+      if (cand && !used.has(cand)) {
+        assigned = cand;
+        break;
+      }
+    }
+    if (!assigned && startLen > 1) {
+      const cand = letters.slice(0, 1);
+      if (cand && !used.has(cand)) assigned = cand;
+    }
+    if (!assigned) {
+      const base = letters.slice(0, 2) || "?";
+      let n = 2;
+      while (used.has(`${base}${n}`) && n < 99) n++;
+      assigned = `${base}${n}`.slice(0, 3);
+    }
+    used.add(assigned);
+    out[id] = assigned;
+  }
+  return out;
+}
+
 /**
  * Per finance-account activity for the current calendar month (desktop right rail).
  */

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import {
   buttonCompactClass,
@@ -26,6 +27,36 @@ type Props = {
   categories: CategoryOption[];
   currency: string;
 };
+
+function importRuleHref(row: PreviewRow): string | null {
+  if (!row.matchedRuleId || !row.matchedRuleMatchText) return null;
+  const params = new URLSearchParams({
+    rule: row.matchedRuleId,
+    q: row.matchedRuleMatchText,
+  });
+  return `/more/import-rules?${params.toString()}`;
+}
+
+function ImportMatchedRuleLabel({ row }: { row: PreviewRow }) {
+  const label = row.ignored
+    ? "Ignore"
+    : row.transferAccountName
+      ? `Transfer ↔ ${row.transferAccountName}`
+      : (row.categoryName ?? "(uncategorized)");
+  const href = importRuleHref(row);
+  if (!href) {
+    return <span className="text-fg-muted">{label}</span>;
+  }
+  return (
+    <Link
+      href={href}
+      className="text-accent hover:underline"
+      title={`Open mapping: ${row.matchedRuleMatchText}`}
+    >
+      {label}
+    </Link>
+  );
+}
 
 export function IngImportClient({ accounts, categories, currency }: Props) {
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
@@ -330,12 +361,8 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
                     {formatMoney(row.amount, currency)}
                   </p>
                 </div>
-                <p className="text-xs text-fg-muted">
-                  {row.ignored
-                    ? "—"
-                    : row.transferAccountName
-                      ? `Transfer ↔ ${row.transferAccountName}`
-                      : (row.categoryName ?? "(uncategorized)")}
+                <p className="text-xs">
+                  <ImportMatchedRuleLabel row={row} />
                 </p>
                 {row.status === "possible_manual_match" ? (
                   <select
@@ -398,12 +425,8 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
                   <td className="whitespace-nowrap px-3 py-2 font-mono text-fg">
                     {formatMoney(row.amount, currency)}
                   </td>
-                  <td className="px-3 py-2 text-fg-muted">
-                    {row.ignored
-                      ? "—"
-                      : row.transferAccountName
-                        ? `Transfer ↔ ${row.transferAccountName}`
-                        : (row.categoryName ?? "(uncategorized)")}
+                  <td className="px-3 py-2">
+                    <ImportMatchedRuleLabel row={row} />
                   </td>
                   <td className="px-3 py-2 text-fg-muted">{row.status.replaceAll("_", " ")}</td>
                   <td className="px-3 py-2">

@@ -137,6 +137,7 @@ describe("ING parser", () => {
     );
     assert.ok(credit);
     assert.equal(credit!.matchedRuleId, "din");
+    assert.equal(credit!.matchedRuleMatchText, "Din contul:999904927930");
     assert.equal(credit!.categoryId, "cat-transfer");
     assert.equal(credit!.ignored, false);
   });

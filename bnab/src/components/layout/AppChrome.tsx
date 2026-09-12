@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   LayoutGrid,
@@ -16,10 +16,12 @@ import {
   ChevronsLeft,
   ChevronsRight,
   PenLine,
+  Wallet,
 } from "lucide-react";
 import { BnabLogo } from "@/components/brand/BnabLogo";
 import { InstallAppPrompt } from "@/components/pwa/InstallAppPrompt";
 import type { AccountActivitySummary } from "@/lib/account-activity-summary";
+import { uniqueAccountMonograms } from "@/lib/account-activity-summary";
 import { accountTypeMeta } from "@/lib/ui-accents";
 
 const ACTIVITY_RAIL_KEY = "bnab-activity-rail-collapsed";
@@ -92,6 +94,9 @@ function AccountActivityRail({
 
   if (summaries.length === 0) return null;
   const month = summaries[0]?.month ?? "";
+  const monograms = uniqueAccountMonograms(
+    summaries.map((s) => ({ id: s.accountId, name: s.accountName })),
+  );
 
   return (
     <aside
@@ -135,7 +140,7 @@ function AccountActivityRail({
         <ul className="flex-1 space-y-2 overflow-y-auto px-1 py-2">
           {summaries.map((s) => {
             const meta = accountTypeMeta(s.accountType);
-            const Icon = meta.icon;
+            const mono = monograms[s.accountId] ?? "?";
             const tip = [
               s.accountName,
               `Bills ${s.billsImported}`,
@@ -151,14 +156,15 @@ function AccountActivityRail({
                   className="flex flex-col items-center gap-0.5 rounded-lg px-0.5 py-1.5 text-fg-muted transition-colors hover:bg-accent-muted/40 hover:text-fg"
                 >
                   <span
-                    className="flex size-8 items-center justify-center rounded-lg"
+                    className="flex size-8 items-center justify-center rounded-lg text-[10px] font-bold tracking-tight"
                     style={{
                       background:
                         "color-mix(in oklch, var(--accent-muted) 55%, transparent)",
                       color: meta.accent,
                     }}
+                    aria-label={s.accountName}
                   >
-                    <Icon className="size-4" aria-hidden />
+                    {mono}
                   </span>
                   <span className="flex flex-col items-center gap-0 font-mono text-[9px] leading-tight tabular-nums text-fg">
                     <span
@@ -265,10 +271,16 @@ export function AppChrome({
   accountActivity?: AccountActivitySummary[];
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const wideRegister =
     pathname === "/transactions" ||
     (pathname.startsWith("/transactions/") &&
       !pathname.startsWith("/transactions/new"));
+  const onAddIncome =
+    pathname.startsWith("/transactions/new") &&
+    searchParams.get("inflow") === "1";
+  const onMoveMoney =
+    pathname === "/plan/move" || pathname.startsWith("/plan/move/");
 
   return (
     <div
@@ -348,10 +360,22 @@ export function AppChrome({
             Add transaction
           </Link>
           <Link
+            href="/transactions/new?inflow=1"
+            prefetch
+            className={`mt-2 flex min-h-11 items-center justify-center gap-2 rounded-full border border-rim px-3 py-2.5 text-sm font-medium transition-all duration-150 active:scale-95 ${
+              onAddIncome
+                ? "bg-accent-muted text-accent"
+                : "text-fg-muted hover:bg-overlay/80 hover:text-fg"
+            }`}
+          >
+            <Wallet className="size-4" />
+            Add income
+          </Link>
+          <Link
             href="/plan/move"
             prefetch
             className={`mt-2 flex min-h-11 items-center justify-center gap-2 rounded-full border border-rim px-3 py-2.5 text-sm font-medium transition-all duration-150 active:scale-95 ${
-              pathname === "/plan/move" || pathname.startsWith("/plan/move/")
+              onMoveMoney
                 ? "bg-accent-muted text-accent"
                 : "text-fg-muted hover:bg-overlay/80 hover:text-fg"
             }`}

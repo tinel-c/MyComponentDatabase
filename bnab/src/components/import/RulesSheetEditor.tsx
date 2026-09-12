@@ -80,6 +80,8 @@ export function RulesSheetEditor({
   accountOptions,
   matchMinLength = 3,
   ignoreHint = "Ignore",
+  initialQuery = "",
+  initialRuleId = "",
   onUpdate,
   onMove,
   onDelete,
@@ -90,17 +92,23 @@ export function RulesSheetEditor({
   accountOptions?: RuleAccountOption[];
   matchMinLength?: number;
   ignoreHint?: string;
+  /** Prefill filter from URL (e.g. import preview deep-link). */
+  initialQuery?: string;
+  /** When set, only show this rule id (import preview deep-link). */
+  initialRuleId?: string;
   onUpdate: FormAction;
   onMove: FormAction;
   onDelete: FormAction;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery ?? "");
+  const [ruleIdFilter, setRuleIdFilter] = useState(initialRuleId ?? "");
   const [kind, setKind] = useState<KindFilter>("all");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const showTransfer = Boolean(accountOptions && accountOptions.length > 0);
 
   const filtered = useMemo(() => {
     return rules.filter((rule) => {
+      if (ruleIdFilter && rule.id !== ruleIdFilter) return false;
       const isTransfer = Boolean(rule.transferAccountId);
       if (kind === "ignore" && !rule.ignore) return false;
       if (kind === "transfer" && !isTransfer) return false;
@@ -127,7 +135,7 @@ export function RulesSheetEditor({
         .toLowerCase();
       return hay.includes(deferredQuery);
     });
-  }, [rules, deferredQuery, kind]);
+  }, [rules, deferredQuery, kind, ruleIdFilter]);
 
   const colSpan = showTransfer ? 5 : 4;
 
@@ -138,7 +146,10 @@ export function RulesSheetEditor({
           <input
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (ruleIdFilter) setRuleIdFilter("");
+            }}
             placeholder={
               showTransfer
                 ? "Filter match, category, or account…"
@@ -162,6 +173,7 @@ export function RulesSheetEditor({
           </select>
           <p className="w-full text-xs text-fg-subtle sm:ml-auto sm:w-auto">
             {filtered.length}/{rules.length}
+            {ruleIdFilter ? " · linked rule" : ""}
             {deferredQuery ? ` · “${query.trim()}”` : ""}
           </p>
         </div>

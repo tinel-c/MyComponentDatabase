@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import {
   deleteImportRule,
   moveImportRule,
@@ -25,6 +26,10 @@ export function ImportRulesEditor({
   categoryOptions: ImportRuleCategoryOption[];
   accountOptions: ImportRuleAccountOption[];
 }) {
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") ?? "";
+  const initialRuleId = searchParams.get("rule") ?? "";
+
   return (
     <RulesSheetEditor
       rules={rules}
@@ -32,6 +37,8 @@ export function ImportRulesEditor({
       accountOptions={accountOptions}
       matchMinLength={3}
       ignoreHint="Ignore (exclude from budget)"
+      initialQuery={initialQuery}
+      initialRuleId={initialRuleId}
       onUpdate={updateImportRule}
       onMove={moveImportRule}
       onDelete={deleteImportRule}

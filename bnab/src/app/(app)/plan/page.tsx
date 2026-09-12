@@ -7,7 +7,6 @@ import { PlanSummaryBanner } from "@/components/plan/PlanSummaryBanner";
 import { CategoryIcon } from "@/components/plan/CategoryIcon";
 import { PlanCategoryList } from "@/components/plan/PlanCategoryList";
 import {
-  buttonSecondaryClass,
   cardClass,
   moneyClass,
 } from "@/components/forms/field-classes";
@@ -36,13 +35,6 @@ export default async function PlanPage({
 
   const incomeGroups = groups.filter((g) => g.isIncome);
   const spendingGroups = groups.filter((g) => !g.isIncome);
-
-  const incomeReceived = incomeGroups.reduce((sum, g) => {
-    return (
-      sum +
-      g.categories.reduce((s, c) => s + (plan.categories[c.id]?.activity ?? 0), 0)
-    );
-  }, 0);
 
   const onBudgetAccounts = accountBalances.filter((a) => a.onBudget);
   const totalOnBudget = onBudgetAccounts.reduce((s, a) => s + a.balance, 0);
@@ -89,34 +81,8 @@ export default async function PlanPage({
         currency={currency}
       />
 
-      {/* Income → Accounts (desktop); Categories assign stays below */}
+      {/* Income categories + Accounts (desktop); Categories assign stays below */}
       <div className="space-y-3">
-        <div className="hidden items-center justify-between gap-2 px-1 md:flex">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
-              Income
-            </h2>
-            <p className="text-xs text-fg-subtle">
-              Received this month{" "}
-              <Link
-                href={`/transactions?month=${encodeURIComponent(month)}&flow=income`}
-                className="font-medium text-fg underline-offset-2 hover:underline"
-              >
-                {formatMoney(incomeReceived, currency)}
-              </Link>{" "}
-              — income categories only (banner Income may also include starting
-              balances / adjustments)
-            </p>
-          </div>
-          <Link
-            href="/transactions/new?inflow=1"
-            prefetch
-            className={`${buttonSecondaryClass} shrink-0 px-3 text-xs`}
-          >
-            Add income
-          </Link>
-        </div>
-
         <div className="hidden space-y-3 md:block">
           {incomeGroups.length === 0 ? (
             <section
