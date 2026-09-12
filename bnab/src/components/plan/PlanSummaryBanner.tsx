@@ -6,6 +6,8 @@ type Props = {
   incomeToRta: number;
   toSavings?: number;
   totalAssigned: number;
+  /** Positive outflow total this month (−Σ non-income activity). */
+  spent?: number;
   currency: string;
 };
 
@@ -22,6 +24,7 @@ export function PlanSummaryBanner({
   incomeToRta,
   toSavings = 0,
   totalAssigned,
+  spent = 0,
   currency,
 }: Props) {
   const state =
@@ -87,6 +90,12 @@ export function PlanSummaryBanner({
             Assigned{" "}
             <span className={`font-medium ${moneyClass}`}>
               {formatMoney(totalAssigned, currency)}
+            </span>
+          </p>
+          <p className="mt-0.5">
+            Spent{" "}
+            <span className={`font-medium ${moneyClass}`}>
+              {formatMoney(spent, currency)}
             </span>
           </p>
         </div>

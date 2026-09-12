@@ -60,6 +60,18 @@ export default async function PlanPage({
     ]),
   ) as Record<string, number>;
 
+  const spentThisMonth = spendingGroups.reduce(
+    (sum, g) =>
+      sum +
+      g.categories.reduce(
+        (s, c) => s + (plan.categories[c.id]?.activity ?? 0),
+        0,
+      ),
+    0,
+  );
+  // Activity is signed (outflow negative); banner Spent is positive.
+  const spentMagnitude = -spentThisMonth;
+
   return (
     <div className="space-y-4 md:space-y-5">
       <div className="flex items-center justify-between gap-2">
@@ -87,6 +99,7 @@ export default async function PlanPage({
         incomeToRta={plan.incomeToRta}
         toSavings={plan.toSavings}
         totalAssigned={plan.totalAssigned}
+        spent={spentMagnitude}
         currency={currency}
       />
 
