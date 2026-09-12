@@ -108,7 +108,8 @@ Zero-based goal: drive RTA to **0**.
 
 - **Spent this month** = `−Σ Activity(c)` for all non-income categories (display as positive).
 - Total links to `/transactions?month=YYYY-MM&flow=spending`.
-- Each category amount links to `/transactions?categoryId=…&month=YYYY-MM`.
+- Rows are **category groups only** (not individual categories — those stay under Categories).
+- Each group total links to `/transactions?groupId=…&month=YYYY-MM`.
 
 The **Categories** block below remains the assign / Available UI (unchanged).
 
@@ -137,6 +138,7 @@ UI shows spending as magnitude `−Spending`. Links:
 | Params | Filter |
 |--------|--------|
 | `categoryId` + `month` | That category in month (Plan Activity) |
+| `groupId` + `month` | All categories in that group for the month |
 | `flow=income` + `month` | Income categories in month |
 | `flow=spending` + `month` | Non-income categories in month |
 | `+ accountId` | Restrict to one account |

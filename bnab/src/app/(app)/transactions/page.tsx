@@ -27,6 +27,7 @@ export default async function TransactionsPage({
     q?: string;
     accountId?: string;
     categoryId?: string;
+    groupId?: string;
     month?: string;
     flow?: string;
     page?: string;
@@ -37,17 +38,20 @@ export default async function TransactionsPage({
   const q = (sp.q ?? "").trim();
   const accountId = sp.accountId || undefined;
   const categoryId = sp.categoryId || undefined;
+  const groupId = sp.groupId || undefined;
   const month =
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : undefined;
   const flow: Flow | undefined =
     sp.flow === "income" || sp.flow === "spending" ? sp.flow : undefined;
   const categoryActivityView = Boolean(categoryId && month);
+  const groupActivityView = Boolean(groupId && month);
   const flowActivityView = Boolean(month && flow);
-  const activityView = categoryActivityView || flowActivityView;
+  const activityView =
+    categoryActivityView || groupActivityView || flowActivityView;
   const pageNum = Math.max(1, Number(sp.page ?? "1") || 1);
   const skip = (pageNum - 1) * PAGE_SIZE;
 
-  const [accounts, groups, payees, filterCategory, filterAccount] =
+  const [accounts, groups, payees, filterCategory, filterGroup, filterAccount] =
     await Promise.all([
       prisma.financeAccount.findMany({
         where: { budgetId: budget.id },
@@ -76,6 +80,12 @@ export default async function TransactionsPage({
             select: { id: true, name: true },
           })
         : Promise.resolve(null),
+      groupId
+        ? prisma.categoryGroup.findFirst({
+            where: { id: groupId, budgetId: budget.id },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve(null),
       accountId
         ? prisma.financeAccount.findFirst({
             where: { id: accountId, budgetId: budget.id },
@@ -94,11 +104,19 @@ export default async function TransactionsPage({
           onBudget: true,
           ...(accountId ? { id: accountId } : {}),
         },
-        ...(categoryId ? { categoryId } : {}),
-        ...(flow === "income"
-          ? { category: { isIncome: true } }
-          : flow === "spending"
-            ? { category: { isIncome: false } }
+        ...(categoryId
+          ? { categoryId }
+          : groupId || flow
+            ? {
+                category: {
+                  ...(groupId ? { groupId } : {}),
+                  ...(flow === "income"
+                    ? { isIncome: true }
+                    : flow === "spending"
+                      ? { isIncome: false }
+                      : {}),
+                },
+              }
             : {}),
       }
     : {
@@ -168,6 +186,7 @@ export default async function TransactionsPage({
   if (q) qs.set("q", q);
   if (accountId) qs.set("accountId", accountId);
   if (categoryId) qs.set("categoryId", categoryId);
+  if (groupId) qs.set("groupId", groupId);
   if (month) qs.set("month", month);
   if (flow) qs.set("flow", flow);
 
@@ -198,6 +217,7 @@ export default async function TransactionsPage({
     if (!activityView || !month) return null;
     const parts: string[] = [];
     if (filterCategory) parts.push(filterCategory.name);
+    else if (filterGroup) parts.push(filterGroup.name);
     else if (flow === "income") parts.push("Income");
     else if (flow === "spending") parts.push("Spending");
     if (filterAccount) parts.push(filterAccount.name);
