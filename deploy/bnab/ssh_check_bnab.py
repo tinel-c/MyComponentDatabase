@@ -2,11 +2,17 @@
 """BNAB status: active slot, both PM2 apps, local health, public site."""
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
 import paramiko
+
+# PM2 tables use box-drawing chars; Windows consoles are often cp1252.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 
 def load(path: Path) -> dict[str, str]:
@@ -21,6 +27,15 @@ def load(path: Path) -> dict[str, str]:
             v = v[1:-1]
         env[k] = v
     return env
+
+
+def emit(stream, data: bytes) -> None:
+    text = data.decode("utf-8", errors="replace")
+    try:
+        stream.write(text)
+    except UnicodeEncodeError:
+        enc = getattr(stream, "encoding", None) or "utf-8"
+        stream.buffer.write(text.encode(enc, errors="replace"))
 
 
 env = load(Path(__file__).resolve().parent.parent / "deploy.secrets")
@@ -67,6 +82,6 @@ ss -ltnp 2>/dev/null | grep -E "3010|3011" || true
 """,
     timeout=90,
 )
-sys.stdout.write(o.read().decode("utf-8", errors="replace"))
-sys.stderr.write(e.read().decode("utf-8", errors="replace"))
+emit(sys.stdout, o.read())
+emit(sys.stderr, e.read())
 c.close()

@@ -118,6 +118,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
       id: a.id,
       name: a.name,
       onBudget: a.onBudget,
+      type: a.type,
       balance: balanceMap.get(a.id) ?? 0,
     }));
 
@@ -182,6 +183,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     month: m,
     rta: 0,
     incomeToRta: 0,
+    toSavings: 0,
     totalAssigned: 0,
     cashOverspendDebt: 0,
     categories: Object.fromEntries(
@@ -206,16 +208,22 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     emptyPlan(endMonth);
 
   const accountOnBudget = new Map(accounts.map((a) => [a.id, a.onBudget]));
+  const accountType = new Map(accounts.map((a) => [a.id, a.type]));
   const categoryIsIncome = new Map(
     categories.map((c) => [c.id, c.isIncome]),
   );
   const categoryGroupId = new Map(
     groups.flatMap((g) => g.categories.map((c) => [c.id, g.id] as const)),
   );
-  const { incomeByAccount, spendingByAccount, spendingByAccountByGroup } =
-    computeAccountMonthFlows({
-      month,
+  const {
+    incomeByAccount,
+    spendingByAccount,
+    spendingByAccountByGroup,
+    toSavingsByAccount,
+  } = computeAccountMonthFlows({
+    month,
     transactions: engineTxns.map((t) => ({
+      id: t.id,
       accountId: t.accountId,
       date: t.date,
       amount: t.amount,
@@ -225,10 +233,11 @@ export async function loadPlanMonth(budgetId: string, month: string) {
       excludeFromRta: Boolean(t.excludeFromRta),
       isStartingBalance: Boolean(t.isStartingBalance),
     })),
-      accountOnBudget,
-      categoryIsIncome,
-      categoryGroupId,
-    });
+    accountOnBudget,
+    accountType,
+    categoryIsIncome,
+    categoryGroupId,
+  });
 
   return {
     budget,
@@ -237,6 +246,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     incomeByAccount,
     spendingByAccount,
     spendingByAccountByGroup,
+    toSavingsByAccount,
     groups,
     plan,
     currency: budget.currency,

@@ -41,7 +41,7 @@ For a normal spending category, Activity is usually ≤ 0.
 Computed in `src/lib/budget-engine/index.ts` as:
 
 ```
-RTA(M) = incomeToRta(M) − totalAssigned(M) − nextHeld(M)
+RTA(M) = incomeToRta(M) − toSavings(M) − totalAssigned(M) − nextHeld(M)
 ```
 
 where `incomeToRta` is built in order:
@@ -49,14 +49,24 @@ where `incomeToRta` is built in order:
 ```
 incomeToRta = heldFromPrev(M−1)
             − CashOverspendDebt(M−1)
-            + Σ qualifying on-budget txns in M
+            + Σ qualifying operating (non-SAVINGS) on-budget txns in M
 ```
 
-Qualifying RTA inflows (skip transfers, `excludeFromRta`, off-budget):
+Qualifying RTA inflows (skip transfers, `excludeFromRta`, off-budget, **SAVINGS**):
 
-- starting balances
-- uncategorized amounts (balance adjustments)
-- categorized **Income** categories (Paycheck, Other income, …)
+- starting balances on checking / cash / credit (etc.)
+- uncategorized amounts (balance adjustments) on those accounts
+- categorized **Income** categories on those accounts
+
+**Savings accounts are separate from Income.** Inflows on `AccountType.SAVINGS` do not add to `incomeToRta` or Income category Received.
+
+```
+toSavings(M) = Σ transfer amount into on-budget SAVINGS from other on-budget
+               non-SAVINGS accounts
+             − Σ transfer amount out of SAVINGS back to those accounts
+```
+
+Moving money into savings **reduces Ready to Assign** (it leaves the assignable pool). Withdrawals from savings restore RTA.
 
 ```
 CashOverspendDebt(M−1) = Σ |Available(c, M−1)|
@@ -73,12 +83,13 @@ nextHeld = (holdForNextMonth && rawRta > 0)
 
 | UI label | Source | Includes |
 |----------|--------|----------|
-| Banner **Income** | `plan.incomeToRta` | Income cats + starting balances + uncategorized ± −cash overspend + held-from-prev |
-| Income section **Received** | Σ income-category `Activity` | Income categories only |
+| Banner **Income** | `plan.incomeToRta` | Operating-account income cats + starting + uncategorized ± −cash overspend + held-from-prev (**not** savings) |
+| Banner **To savings** | `plan.toSavings` | Net transfers into SAVINGS (shown when ≠ 0) |
+| Income section **Received** | Σ income-category `Activity` | Income categories on operating accounts only |
 | Banner **Assigned** | `plan.totalAssigned` | Σ non-income Assigned |
-| Banner **Ready to Assign** | `plan.rta` | `incomeToRta − totalAssigned − nextHeld` |
+| Banner **Ready to Assign** | `plan.rta` | `incomeToRta − toSavings − totalAssigned − nextHeld` |
 
-Audit (2026-09): engine identity matches docs and tests (`income − assigned = rta` when hold/debt are zero). No formula change required.
+Audit: engine identity is `income − toSavings − assigned = rta` when hold/debt are zero.
 
 **Import ignore rules:** matching ING rows are **still imported into the ledger** (account balances include them). Transactions whose notes match an `ImportCategoryRule` with `ignore: true` set `excludeFromRta` and do **not** change RTA or category Activity (used for ING credit-line covers, etc.). Toggle ignore rules and reapply — no CSV re-import required for budget exclusion.
 
@@ -115,7 +126,7 @@ The **Categories** block below remains the assign / Available UI (unchanged).
 
 ### Accounts · income / groups / remaining
 
-Per on-budget account for month `M` (`src/lib/plan-account-flows.ts`):
+Per **operating** (non-SAVINGS) on-budget account for month `M` (`src/lib/plan-account-flows.ts`):
 
 ```
 Income(A, M)    = Σ amount where account=A and (income category
@@ -126,7 +137,9 @@ Spending(A, M)  = Σ amount where account=A, non-income category (usually ≤ 0)
 Remaining(A, M) = Σ all txn amounts on A with date ≤ end of M   // cumulative balance
 ```
 
-Negative statement balance adjustments are uncategorized and therefore count in **Income(A, M)**
+**SAVINGS** accounts appear in a separate Plan table (`Moved in` / Remaining). They do not have an Income column. `Moved in` = net operating → savings transfers (`toSavingsByAccount`).
+
+Negative statement balance adjustments on operating accounts are uncategorized and therefore count in **Income(A, M)**
 (and RTA), not in Spending.
 
 UI shows spending group columns as magnitude `−amount`. Links:

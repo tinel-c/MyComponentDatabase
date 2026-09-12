@@ -25,6 +25,7 @@ export function computeYngsbBanner(
   previousAvailable = 0,
 ): YngsbBannerMetrics {
   const overallIncome = plan.incomeToRta;
+  const toSavings = plan.toSavings ?? 0;
   const budgeted = plan.totalAssigned;
   const activitySum = spendingCategoryIds.reduce(
     (sum, id) => sum + (plan.categories[id]?.activity ?? 0),
@@ -33,8 +34,8 @@ export function computeYngsbBanner(
   // Activity is signed (outflow negative); Spent is positive outflow total.
   const spent = -activitySum;
   const notBudgeted = previousAvailable;
-  const remaining = notBudgeted - spent + overallIncome;
-  const available = overallIncome - budgeted + notBudgeted;
+  const remaining = notBudgeted - spent + overallIncome - toSavings;
+  const available = overallIncome - toSavings - budgeted + notBudgeted;
   return {
     notBudgeted,
     spent,

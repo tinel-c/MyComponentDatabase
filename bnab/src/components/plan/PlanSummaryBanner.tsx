@@ -4,6 +4,7 @@ import { moneyClass } from "@/components/forms/field-classes";
 type Props = {
   rta: number;
   incomeToRta: number;
+  toSavings?: number;
   totalAssigned: number;
   currency: string;
 };
@@ -13,10 +14,13 @@ type Props = {
  * - Positive → money left to give jobs (accent)
  * - Zero → all set (green)
  * - Negative → assigned too much (danger)
+ *
+ * RTA = Income − To savings − Assigned (− hold).
  */
 export function PlanSummaryBanner({
   rta,
   incomeToRta,
+  toSavings = 0,
   totalAssigned,
   currency,
 }: Props) {
@@ -71,6 +75,14 @@ export function PlanSummaryBanner({
               {formatMoney(incomeToRta, currency)}
             </span>
           </p>
+          {toSavings !== 0 ? (
+            <p className="mt-0.5">
+              To savings{" "}
+              <span className={`font-medium ${moneyClass}`}>
+                {formatMoney(toSavings, currency)}
+              </span>
+            </p>
+          ) : null}
           <p className="mt-0.5">
             Assigned{" "}
             <span className={`font-medium ${moneyClass}`}>

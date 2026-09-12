@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import {
@@ -98,7 +99,9 @@ export default async function ReceiptRulesPage() {
         </button>
       </form>
 
-      <ReceiptRulesEditor rules={ruleRows} categoryOptions={categoryOptions} />
+      <Suspense fallback={<p className="text-sm text-fg-muted">Loading mappings…</p>}>
+        <ReceiptRulesEditor rules={ruleRows} categoryOptions={categoryOptions} />
+      </Suspense>
     </div>
   );
 }

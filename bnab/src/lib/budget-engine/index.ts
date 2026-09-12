@@ -57,11 +57,25 @@ export type CategoryMonthResult = {
 export type MonthResult = {
   month: string;
   rta: number;
+  /** Non-savings income inflows (+ held − cash overspend). Does not include savings. */
   incomeToRta: number;
+  /**
+   * Net moved into on-budget SAVINGS from other on-budget (non-savings) accounts.
+   * Positive reduces Ready to Assign. Withdrawals from savings reverse it.
+   */
+  toSavings: number;
   totalAssigned: number;
   cashOverspendDebt: number;
   categories: Record<string, CategoryMonthResult>;
 };
+
+function isSavingsAccount(acct: EngineAccount | undefined): boolean {
+  return Boolean(acct?.onBudget && acct.type === "SAVINGS");
+}
+
+function isOperatingOnBudget(acct: EngineAccount | undefined): boolean {
+  return Boolean(acct?.onBudget && acct.type !== "SAVINGS");
+}
 
 function monthOf(date: string): string {
   return date.slice(0, 7);
@@ -153,12 +167,17 @@ export function computeBudgetMonths(input: {
     const ccFundingByCat = new Map<string, number>();
 
     const monthTxns = txnsByMonth.get(month) ?? [];
+    const txnById = new Map(monthTxns.map((t) => [t.id, t]));
+
     for (const t of monthTxns) {
       if (t.excludeFromRta) continue;
       const acct = accountById.get(t.accountId);
       if (!acct?.onBudget) continue;
 
       if (t.categoryId) {
+        const cat = categoryById.get(t.categoryId);
+        // Income on savings is not Plan Income / RTA — skip activity there.
+        if (cat?.isIncome && isSavingsAccount(acct)) continue;
         activityByCat.set(
           t.categoryId,
           (activityByCat.get(t.categoryId) ?? 0) + t.amount,
@@ -218,12 +237,12 @@ export function computeBudgetMonths(input: {
       };
     }
 
-    // Income to RTA from transactions (starting balances, income cats, uncategorized).
+    // Income to RTA: operating (non-savings) on-budget only.
     for (const t of monthTxns) {
       if (t.transferTwinId) continue;
       if (t.excludeFromRta) continue;
       const acct = accountById.get(t.accountId);
-      if (!acct?.onBudget) continue;
+      if (!isOperatingOnBudget(acct)) continue;
 
       if (t.isStartingBalance) {
         incomeToRta += t.amount;
@@ -241,8 +260,24 @@ export function computeBudgetMonths(input: {
       }
     }
 
+    // Net transfers into SAVINGS leave the Ready-to-Assign pool.
+    let toSavings = 0;
+    for (const t of monthTxns) {
+      if (!t.transferTwinId || t.amount <= 0) continue;
+      if (t.excludeFromRta) continue;
+      const twin = txnById.get(t.transferTwinId);
+      if (!twin || twin.excludeFromRta) continue;
+      const dest = accountById.get(t.accountId);
+      const src = accountById.get(twin.accountId);
+      if (isSavingsAccount(dest) && isOperatingOnBudget(src)) {
+        toSavings += t.amount;
+      } else if (isOperatingOnBudget(dest) && isSavingsAccount(src)) {
+        toSavings -= t.amount;
+      }
+    }
+
     const meta = metaByMonth.get(month);
-    const rta = incomeToRta - totalAssigned;
+    const rta = incomeToRta - toSavings - totalAssigned;
     let nextHeld = 0;
     if (meta?.holdForNextMonth && rta > 0) {
       nextHeld = meta.heldAmount > 0 ? Math.min(meta.heldAmount, rta) : rta;
@@ -252,6 +287,7 @@ export function computeBudgetMonths(input: {
       month,
       rta: rta - nextHeld,
       incomeToRta,
+      toSavings,
       totalAssigned,
       cashOverspendDebt,
       categories: cats,

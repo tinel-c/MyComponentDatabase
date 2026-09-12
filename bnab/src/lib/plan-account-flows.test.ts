@@ -5,7 +5,13 @@ import { computeAccountMonthFlows } from "./plan-account-flows";
 describe("computeAccountMonthFlows", () => {
   const accountOnBudget = new Map([
     ["checking", true],
+    ["savings", true],
     ["off", false],
+  ]);
+  const accountType = new Map([
+    ["checking", "CHECKING"],
+    ["savings", "SAVINGS"],
+    ["off", "TRACKING_ASSET"],
   ]);
   const categoryIsIncome = new Map([
     ["paycheck", true],
@@ -22,6 +28,7 @@ describe("computeAccountMonthFlows", () => {
       computeAccountMonthFlows({
         month: "2026-09",
         accountOnBudget,
+        accountType,
         categoryIsIncome,
         categoryGroupId,
         transactions: [
@@ -93,6 +100,7 @@ describe("computeAccountMonthFlows", () => {
     const { incomeByAccount, spendingByAccount } = computeAccountMonthFlows({
       month: "2026-09",
       accountOnBudget,
+      accountType,
       categoryIsIncome,
       categoryGroupId,
       transactions: [
@@ -130,5 +138,63 @@ describe("computeAccountMonthFlows", () => {
 
     assert.equal(incomeByAccount.checking, -600_200 + 50_000 + 10_000);
     assert.equal(spendingByAccount.checking, undefined);
+  });
+
+  it("excludes savings income and tracks transfers into savings", () => {
+    const {
+      incomeByAccount,
+      toSavingsByAccount,
+      spendingByAccount,
+    } = computeAccountMonthFlows({
+      month: "2026-09",
+      accountOnBudget,
+      accountType,
+      categoryIsIncome,
+      categoryGroupId,
+      transactions: [
+        {
+          accountId: "savings",
+          date: "2026-09-01",
+          amount: 25_000,
+          categoryId: "paycheck",
+          isParent: false,
+          transferTwinId: null,
+          excludeFromRta: false,
+        },
+        {
+          id: "out",
+          accountId: "checking",
+          date: "2026-09-05",
+          amount: -40_000,
+          categoryId: null,
+          isParent: false,
+          transferTwinId: "in",
+          excludeFromRta: false,
+        },
+        {
+          id: "in",
+          accountId: "savings",
+          date: "2026-09-05",
+          amount: 40_000,
+          categoryId: null,
+          isParent: false,
+          transferTwinId: "out",
+          excludeFromRta: false,
+        },
+        {
+          accountId: "savings",
+          date: "2026-09-08",
+          amount: -5_000,
+          categoryId: "groceries",
+          isParent: false,
+          transferTwinId: null,
+          excludeFromRta: false,
+        },
+      ],
+    });
+
+    assert.equal(incomeByAccount.savings, undefined);
+    assert.equal(toSavingsByAccount.savings, 40_000);
+    assert.equal(spendingByAccount.savings, -5_000);
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { updateTransaction } from "@/app/(app)/transactions/actions";
@@ -13,6 +14,12 @@ import {
   sheetTableClass,
 } from "@/components/transactions/sheet-styles";
 import { cardClass } from "@/components/forms/field-classes";
+
+export type MatchedRuleLink = {
+  id: string;
+  matchText: string;
+  href: string;
+};
 
 export type RegisterRow = {
   id: string;
@@ -28,7 +35,45 @@ export type RegisterRow = {
   isSplit: boolean;
   isTransfer: boolean;
   transferLabel: string | null;
+  matchedImportRule?: MatchedRuleLink | null;
+  matchedReceiptRules?: MatchedRuleLink[];
 };
+
+function MappingLinks({
+  importRule,
+  receiptRules,
+}: {
+  importRule?: MatchedRuleLink | null;
+  receiptRules?: MatchedRuleLink[];
+}) {
+  const receipts = receiptRules ?? [];
+  if (!importRule && receipts.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] leading-tight">
+      {importRule ? (
+        <Link
+          href={importRule.href}
+          className="text-accent hover:underline"
+          title={`Import mapping: ${importRule.matchText}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          Import · {importRule.matchText}
+        </Link>
+      ) : null}
+      {receipts.map((r) => (
+        <Link
+          key={r.id}
+          href={r.href}
+          className="text-accent hover:underline"
+          title={`Receipt mapping: ${r.matchText}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          Receipt · {r.matchText}
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 function RegisterRowCells({
   row,
@@ -210,6 +255,10 @@ function RegisterRowCells({
           className={sheetCellInput}
           onBlur={() => save()}
         />
+        <MappingLinks
+          importRule={row.matchedImportRule}
+          receiptRules={row.matchedReceiptRules}
+        />
       </td>
       <td className={sheetCell}>
         {canEditMoney ? (
@@ -345,6 +394,10 @@ export function TransactionsRegister({
                   </p>
                 </div>
               </a>
+              <MappingLinks
+                importRule={row.matchedImportRule}
+                receiptRules={row.matchedReceiptRules}
+              />
               <div className="mt-2 flex items-center justify-end">
                 <DeleteTransactionButton id={row.id} returnTo="stay" compact />
               </div>
@@ -361,7 +414,7 @@ export function TransactionsRegister({
             <col className="w-[5.5rem]" />
             <col className="min-w-[7rem]" />
             <col className="min-w-[6.5rem]" />
-            <col className="min-w-[5rem]" />
+            <col className="min-w-[7rem]" />
             <col className="w-[5.5rem]" />
             <col className="w-[5.5rem]" />
             <col className="w-11" />
@@ -396,8 +449,8 @@ export function TransactionsRegister({
         </table>
       </div>
       <p className="border-t border-rim-subtle px-3 py-2 text-[11px] text-fg-subtle">
-        Tap a row on phone to edit or upload a bill · desktop sheet saves on leave ·{" "}
-        {currency}
+        Tap a row on phone to edit or upload a bill · desktop sheet saves on leave ·
+        mapping links open import / receipt rules · {currency}
       </p>
     </div>
   );

@@ -8,6 +8,7 @@ function emptyPlan(month: string, patch: Partial<MonthResult> = {}): MonthResult
     month,
     rta: 0,
     incomeToRta: 0,
+    toSavings: 0,
     totalAssigned: 0,
     cashOverspendDebt: 0,
     categories: {},

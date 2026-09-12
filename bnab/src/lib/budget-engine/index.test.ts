@@ -333,4 +333,160 @@ describe("computeBudgetMonths", () => {
     assert.equal(last.incomeToRta, 100_000);
     assert.equal(last.totalAssigned, 50_000);
   });
+
+  it("excludes savings income and subtracts transfers to savings from RTA", () => {
+    const checking = {
+      id: "chk",
+      onBudget: true,
+      type: "CHECKING",
+      creditCategoryId: null,
+    };
+    const savings = {
+      id: "sav",
+      onBudget: true,
+      type: "SAVINGS",
+      creditCategoryId: null,
+    };
+    const groceries = {
+      id: "groc",
+      isIncome: false,
+      isSystem: false,
+      systemKey: null,
+    };
+    const income = {
+      id: "inc",
+      isIncome: true,
+      isSystem: false,
+      systemKey: null,
+    };
+
+    const results = computeBudgetMonths({
+      firstMonth: "2026-09",
+      endMonth: "2026-09",
+      accounts: [checking, savings],
+      categories: [groceries, income],
+      transactions: [
+        {
+          id: "pay",
+          accountId: "chk",
+          date: "2026-09-01",
+          amount: 800_000,
+          categoryId: "inc",
+          isParent: false,
+          isChild: false,
+          transferTwinId: null,
+          isStartingBalance: false,
+        },
+        {
+          id: "sav-int",
+          accountId: "sav",
+          date: "2026-09-02",
+          amount: 5_000,
+          categoryId: "inc",
+          isParent: false,
+          isChild: false,
+          transferTwinId: null,
+          isStartingBalance: false,
+        },
+        {
+          id: "t-out",
+          accountId: "chk",
+          date: "2026-09-10",
+          amount: -100_000,
+          categoryId: null,
+          isParent: false,
+          isChild: false,
+          transferTwinId: "t-in",
+          isStartingBalance: false,
+        },
+        {
+          id: "t-in",
+          accountId: "sav",
+          date: "2026-09-10",
+          amount: 100_000,
+          categoryId: null,
+          isParent: false,
+          isChild: false,
+          transferTwinId: "t-out",
+          isStartingBalance: false,
+        },
+      ],
+      assigned: [{ categoryId: "groc", month: "2026-09", assigned: 200_000 }],
+    });
+
+    const m = results[0];
+    assert.equal(m.incomeToRta, 800_000);
+    assert.equal(m.toSavings, 100_000);
+    assert.equal(m.categories.inc.activity, 800_000);
+    assert.equal(m.rta, 800_000 - 100_000 - 200_000);
+  });
+
+  it("restores RTA when transferring back from savings", () => {
+    const checking = {
+      id: "chk",
+      onBudget: true,
+      type: "CHECKING",
+      creditCategoryId: null,
+    };
+    const savings = {
+      id: "sav",
+      onBudget: true,
+      type: "SAVINGS",
+      creditCategoryId: null,
+    };
+    const income = {
+      id: "inc",
+      isIncome: true,
+      isSystem: false,
+      systemKey: null,
+    };
+
+    const results = computeBudgetMonths({
+      firstMonth: "2026-09",
+      endMonth: "2026-09",
+      accounts: [checking, savings],
+      categories: [income],
+      transactions: [
+        {
+          id: "pay",
+          accountId: "chk",
+          date: "2026-09-01",
+          amount: 500_000,
+          categoryId: "inc",
+          isParent: false,
+          isChild: false,
+          transferTwinId: null,
+          isStartingBalance: false,
+        },
+        {
+          id: "back-out",
+          accountId: "sav",
+          date: "2026-09-15",
+          amount: -50_000,
+          categoryId: null,
+          isParent: false,
+          isChild: false,
+          transferTwinId: "back-in",
+          isStartingBalance: false,
+        },
+        {
+          id: "back-in",
+          accountId: "chk",
+          date: "2026-09-15",
+          amount: 50_000,
+          categoryId: null,
+          isParent: false,
+          isChild: false,
+          transferTwinId: "back-out",
+          isStartingBalance: false,
+        },
+      ],
+      assigned: [],
+    });
+
+    const m = results[0];
+    assert.equal(m.incomeToRta, 500_000);
+    assert.equal(m.toSavings, -50_000);
+    assert.equal(m.rta, 550_000);
+  });
 });

@@ -289,44 +289,58 @@ export function memoMatchesImportRule(memo: string, matchText: string): boolean 
   return memo.toLowerCase().includes(needle.toLowerCase());
 }
 
+/**
+ * First actionable import rule that matches memo (sortOrder order).
+ * Skips inert rules and same-account transfer mappings when accountId is set.
+ */
+export function findFirstMatchingImportRule<T extends ImportRuleLike>(
+  memo: string,
+  rules: T[],
+  accountId?: string,
+): T | null {
+  const ordered = [...rules].sort((a, b) => a.sortOrder - b.sortOrder);
+  for (const rule of ordered) {
+    if (!rule.matchText) continue;
+    const transferTo = rule.transferAccountId ?? null;
+    // Inert mapping (neither ignore, category, nor transfer) must not consume
+    // the match — otherwise later real rules never run.
+    if (!rule.ignore && !rule.categoryId && !transferTo) continue;
+    // Transfer to the same account as the statement is invalid — skip.
+    if (accountId && transferTo && transferTo === accountId) continue;
+    if (memoMatchesImportRule(memo, rule.matchText)) return rule;
+  }
+  return null;
+}
+
 export function applyRules(
   rows: ParsedIngRow[],
   rules: ImportRuleLike[],
   accountId: string,
   categoryNameById: Map<string, string>,
 ): Omit<AppliedRow, "status" | "manualMatchId">[] {
-  const ordered = [...rules].sort((a, b) => a.sortOrder - b.sortOrder);
   return rows.map((row) => {
     let categoryId: string | null = null;
     let transferAccountId: string | null = null;
     let matchedRuleId: string | null = null;
     let matchedRuleMatchText: string | null = null;
     let ignored = false;
-    for (const rule of ordered) {
-      if (!rule.matchText) continue;
+    const rule = findFirstMatchingImportRule(row.memo, rules, accountId);
+    if (rule) {
+      matchedRuleId = rule.id;
+      matchedRuleMatchText = rule.matchText;
       const transferTo = rule.transferAccountId ?? null;
-      // Inert mapping (neither ignore, category, nor transfer) must not consume
-      // the match — otherwise later real rules never run.
-      if (!rule.ignore && !rule.categoryId && !transferTo) continue;
-      // Transfer to the same account as the statement is invalid — skip.
-      if (transferTo && transferTo === accountId) continue;
-      if (memoMatchesImportRule(row.memo, rule.matchText)) {
-        matchedRuleId = rule.id;
-        matchedRuleMatchText = rule.matchText;
-        if (rule.ignore) {
-          ignored = true;
-          categoryId = null;
-          transferAccountId = null;
-        } else if (transferTo) {
-          ignored = false;
-          categoryId = null;
-          transferAccountId = transferTo;
-        } else {
-          ignored = false;
-          categoryId = rule.categoryId;
-          transferAccountId = null;
-        }
-        break;
+      if (rule.ignore) {
+        ignored = true;
+        categoryId = null;
+        transferAccountId = null;
+      } else if (transferTo) {
+        ignored = false;
+        categoryId = null;
+        transferAccountId = transferTo;
+      } else {
+        ignored = false;
+        categoryId = rule.categoryId;
+        transferAccountId = null;
       }
     }
     const categoryName =

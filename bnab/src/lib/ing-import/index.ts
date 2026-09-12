@@ -1,4 +1,11 @@
-export { parseIngCsv, applyRules, suggestMatchSubstring, findManualMatch, memoMatchesImportRule } from "./parse";
+export {
+  parseIngCsv,
+  applyRules,
+  suggestMatchSubstring,
+  findManualMatch,
+  memoMatchesImportRule,
+  findFirstMatchingImportRule,
+} from "./parse";
 export type { ParsedIngRow, AppliedRow, ImportRuleLike } from "./parse";
 export {
   BILL_IMPORT_PENDING_NOTE,

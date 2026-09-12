@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Landmark, Wallet } from "lucide-react";
+import { ChevronLeft, ChevronRight, PiggyBank, Wallet } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { loadPlanMonth } from "@/lib/plan-data";
 import { addMonths, currentMonth, formatMoney, monthLabel } from "@/lib/money";
@@ -10,7 +10,7 @@ import {
   cardClass,
   moneyClass,
 } from "@/components/forms/field-classes";
-import { groupAccent } from "@/lib/ui-accents";
+import { accountTypeMeta, groupAccent } from "@/lib/ui-accents";
 
 export default async function PlanPage({
   searchParams,
@@ -29,6 +29,7 @@ export default async function PlanPage({
     accountBalances,
     incomeByAccount,
     spendingByAccountByGroup,
+    toSavingsByAccount,
   } = await loadPlanMonth(budget.id, month);
   const prev = addMonths(month, -1);
   const next = addMonths(month, 1);
@@ -37,15 +38,22 @@ export default async function PlanPage({
   const spendingGroups = groups.filter((g) => !g.isIncome);
 
   const onBudgetAccounts = accountBalances.filter((a) => a.onBudget);
-  const totalOnBudget = onBudgetAccounts.reduce((s, a) => s + a.balance, 0);
-  const totalAccountIncome = onBudgetAccounts.reduce(
+  const operatingAccounts = onBudgetAccounts.filter((a) => a.type !== "SAVINGS");
+  const savingsAccounts = onBudgetAccounts.filter((a) => a.type === "SAVINGS");
+  const totalOperating = operatingAccounts.reduce((s, a) => s + a.balance, 0);
+  const totalSavings = savingsAccounts.reduce((s, a) => s + a.balance, 0);
+  const totalAccountIncome = operatingAccounts.reduce(
     (s, a) => s + (incomeByAccount[a.id] ?? 0),
+    0,
+  );
+  const totalToSavings = savingsAccounts.reduce(
+    (s, a) => s + (toSavingsByAccount[a.id] ?? 0),
     0,
   );
   const totalByGroup = Object.fromEntries(
     spendingGroups.map((g) => [
       g.id,
-      onBudgetAccounts.reduce(
+      operatingAccounts.reduce(
         (s, a) => s + (spendingByAccountByGroup[a.id]?.[g.id] ?? 0),
         0,
       ),
@@ -77,6 +85,7 @@ export default async function PlanPage({
       <PlanSummaryBanner
         rta={plan.rta}
         incomeToRta={plan.incomeToRta}
+        toSavings={plan.toSavings}
         totalAssigned={plan.totalAssigned}
         currency={currency}
       />
@@ -137,7 +146,7 @@ export default async function PlanPage({
           )}
         </div>
 
-        {onBudgetAccounts.length > 0 && (
+        {operatingAccounts.length > 0 && (
           <section className={`hidden ${cardClass} overflow-hidden md:block`}>
             <div
               className="border-b border-rim-subtle px-4 py-2.5"
@@ -150,8 +159,8 @@ export default async function PlanPage({
                 Accounts · income / groups / remaining
               </h3>
               <p className="mt-0.5 text-[11px] text-fg-subtle">
-                Month income and spending by category group · remaining is
-                balance through month end
+                Operating accounts only · savings are separate and do not count
+                as income
               </p>
             </div>
             <div className="overflow-x-auto">
@@ -176,15 +185,17 @@ export default async function PlanPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-rim-subtle/60">
-                  {onBudgetAccounts.map((a) => {
+                  {operatingAccounts.map((a) => {
                     const income = incomeByAccount[a.id] ?? 0;
+                    const meta = accountTypeMeta(a.type);
+                    const Icon = meta.icon;
                     return (
                       <tr key={a.id}>
                         <td className="px-3 py-2">
                           <span className="flex min-w-0 items-center gap-2 text-fg-muted">
-                            <Landmark
+                            <Icon
                               className="size-3.5 shrink-0"
-                              style={{ color: "var(--accent)" }}
+                              style={{ color: meta.accent }}
                               aria-hidden
                             />
                             <Link
@@ -246,7 +257,7 @@ export default async function PlanPage({
                           style={{ color: "var(--ok)" }}
                           aria-hidden
                         />
-                        Total on-budget
+                        Total operating
                       </span>
                     </td>
                     <td
@@ -269,10 +280,119 @@ export default async function PlanPage({
                     })}
                     <td
                       className={`px-3 py-2 text-right font-semibold ${moneyClass} ${
-                        totalOnBudget < 0 ? "text-danger" : "text-ok"
+                        totalOperating < 0 ? "text-danger" : "text-ok"
                       }`}
                     >
-                      {formatMoney(totalOnBudget, currency)}
+                      {formatMoney(totalOperating, currency)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
+        {savingsAccounts.length > 0 && (
+          <section className={`hidden ${cardClass} overflow-hidden md:block`}>
+            <div
+              className="border-b border-rim-subtle px-4 py-2.5"
+              style={{
+                borderLeft: "4px solid var(--accent)",
+                background:
+                  "color-mix(in oklch, var(--accent-muted) 35%, transparent)",
+              }}
+            >
+              <h3 className="text-sm font-semibold text-fg">Savings</h3>
+              <p className="mt-0.5 text-[11px] text-fg-subtle">
+                Transfers in reduce Ready to Assign · not counted as income
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[20rem] text-sm">
+                <thead>
+                  <tr className="border-b border-rim-subtle text-left text-[11px] uppercase tracking-wide text-fg-subtle">
+                    <th className="px-3 py-2 font-medium">Account</th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      Moved in
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      Remaining
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rim-subtle/60">
+                  {savingsAccounts.map((a) => {
+                    const moved = toSavingsByAccount[a.id] ?? 0;
+                    return (
+                      <tr key={a.id}>
+                        <td className="px-3 py-2">
+                          <span className="flex min-w-0 items-center gap-2 text-fg-muted">
+                            <PiggyBank
+                              className="size-3.5 shrink-0"
+                              style={{ color: "var(--ok)" }}
+                              aria-hidden
+                            />
+                            <Link
+                              href={`/accounts/${a.id}`}
+                              className="truncate hover:text-fg"
+                            >
+                              {a.name}
+                            </Link>
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <span
+                            className={`font-semibold ${moneyClass} ${
+                              moved > 0
+                                ? "text-accent"
+                                : moved < 0
+                                  ? "text-ok"
+                                  : "text-fg-muted"
+                            }`}
+                            title="Net transferred from operating accounts this month"
+                          >
+                            {formatMoney(moved, currency)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <Link
+                            href={`/accounts/${a.id}`}
+                            className={`font-semibold underline-offset-2 hover:underline ${moneyClass} ${
+                              a.balance < 0 ? "text-danger" : "text-fg"
+                            }`}
+                          >
+                            {formatMoney(a.balance, currency)}
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t border-rim-subtle bg-overlay/30">
+                    <td className="px-3 py-2">
+                      <span className="flex items-center gap-2 font-medium text-fg">
+                        <PiggyBank
+                          className="size-3.5 shrink-0"
+                          style={{ color: "var(--ok)" }}
+                          aria-hidden
+                        />
+                        Total savings
+                      </span>
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right font-semibold ${moneyClass} ${
+                        totalToSavings > 0
+                          ? "text-accent"
+                          : totalToSavings < 0
+                            ? "text-ok"
+                            : "text-fg-muted"
+                      }`}
+                    >
+                      {formatMoney(totalToSavings, currency)}
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right font-semibold ${moneyClass} text-ok`}
+                    >
+                      {formatMoney(totalSavings, currency)}
                     </td>
                   </tr>
                 </tbody>
@@ -328,7 +448,7 @@ export default async function PlanPage({
       </div>
 
       <p className="hidden px-1 text-center text-xs text-fg-subtle md:block">
-        Ready to Assign = Income (to RTA) − Assigned − hold. Drive RTA to 0.
+        Ready to Assign = Income − To savings − Assigned − hold. Drive RTA to 0.
       </p>
     </div>
   );

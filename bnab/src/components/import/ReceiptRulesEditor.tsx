@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import {
   deleteReceiptRule,
   moveReceiptRule,
@@ -18,12 +19,18 @@ export function ReceiptRulesEditor({
   rules: RuleRow[];
   categoryOptions: RuleCategoryOption[];
 }) {
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get("q") ?? "";
+  const initialRuleId = searchParams.get("rule") ?? "";
+
   return (
     <RulesSheetEditor
       rules={rules}
       categoryOptions={categoryOptions}
       matchMinLength={2}
       ignoreHint="Ignore line"
+      initialQuery={initialQuery}
+      initialRuleId={initialRuleId}
       onUpdate={updateReceiptRule}
       onMove={moveReceiptRule}
       onDelete={deleteReceiptRule}
