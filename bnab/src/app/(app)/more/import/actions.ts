@@ -594,6 +594,19 @@ export async function moveImportRule(formData: FormData) {
   });
   const idx = rules.findIndex((r) => r.id === id);
   if (idx < 0) return;
+
+  if (dir === "top") {
+    if (idx === 0) return;
+    const minOrder = rules[0]?.sortOrder ?? 0;
+    await prisma.importCategoryRule.update({
+      where: { id },
+      data: { sortOrder: minOrder - 1 },
+    });
+    revalidatePath("/more/import-rules");
+    revalidatePath("/more/import");
+    return;
+  }
+
   const swapWith = dir === "up" ? idx - 1 : idx + 1;
   if (swapWith < 0 || swapWith >= rules.length) return;
   const a = rules[idx];
@@ -609,6 +622,32 @@ export async function moveImportRule(formData: FormData) {
     }),
   ]);
   revalidatePath("/more/import-rules");
+  revalidatePath("/more/import");
+}
+
+/** Persist a full import-rule order (ids from first to last). */
+export async function reorderImportRules(orderedIds: string[]) {
+  const { budget } = await requireBudgetAccess();
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
+
+  const rules = await prisma.importCategoryRule.findMany({
+    where: { budgetId: budget.id },
+    select: { id: true },
+  });
+  const owned = new Set(rules.map((r) => r.id));
+  if (orderedIds.length !== owned.size) return;
+  if (!orderedIds.every((id) => owned.has(id))) return;
+
+  await prisma.$transaction(
+    orderedIds.map((id, i) =>
+      prisma.importCategoryRule.update({
+        where: { id },
+        data: { sortOrder: i },
+      }),
+    ),
+  );
+  revalidatePath("/more/import-rules");
+  revalidatePath("/more/import");
 }
 
 export async function revertImportBatch(formData: FormData) {

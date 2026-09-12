@@ -1,6 +1,13 @@
 "use client";
 
-import { useDeferredValue, useMemo, useState } from "react";
+import {
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type DragEvent,
+} from "react";
 import {
   buttonCompactClass,
   buttonCompactDangerClass,
@@ -49,6 +56,18 @@ function RuleActionCluster({
     <div className="flex flex-wrap items-center justify-end gap-1">
       <form action={onMove}>
         <input type="hidden" name="id" value={ruleId} />
+        <input type="hidden" name="dir" value="top" />
+        <button
+          type="submit"
+          className={buttonCompactClass}
+          title="Move to top"
+          aria-label="Move to top"
+        >
+          ⤒
+        </button>
+      </form>
+      <form action={onMove}>
+        <input type="hidden" name="id" value={ruleId} />
         <input type="hidden" name="dir" value="up" />
         <button type="submit" className={buttonCompactClass} title="Move up" aria-label="Move up">
           ↑
@@ -74,6 +93,17 @@ function RuleActionCluster({
   );
 }
 
+function reorderIds(ids: string[], fromId: string, toId: string): string[] {
+  if (fromId === toId) return ids;
+  const from = ids.indexOf(fromId);
+  const to = ids.indexOf(toId);
+  if (from < 0 || to < 0) return ids;
+  const next = [...ids];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
 export function RulesSheetEditor({
   rules,
   categoryOptions,
@@ -82,9 +112,11 @@ export function RulesSheetEditor({
   ignoreHint = "Ignore",
   initialQuery = "",
   initialRuleId = "",
+  enableDragReorder = false,
   onUpdate,
   onMove,
   onDelete,
+  onReorder,
 }: {
   rules: RuleRow[];
   categoryOptions: RuleCategoryOption[];
@@ -96,18 +128,36 @@ export function RulesSheetEditor({
   initialQuery?: string;
   /** When set, only show this rule id (import preview deep-link). */
   initialRuleId?: string;
+  /** Desktop HTML5 drag-and-drop (import mappings). */
+  enableDragReorder?: boolean;
   onUpdate: FormAction;
   onMove: FormAction;
   onDelete: FormAction;
+  onReorder?: (orderedIds: string[]) => void | Promise<void>;
 }) {
   const [query, setQuery] = useState(initialQuery ?? "");
   const [ruleIdFilter, setRuleIdFilter] = useState(initialRuleId ?? "");
   const [kind, setKind] = useState<KindFilter>("all");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const showTransfer = Boolean(accountOptions && accountOptions.length > 0);
+  const [orderedRules, setOrderedRules] = useState(rules);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropId, setDropId] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setOrderedRules(rules);
+  }, [rules]);
+
+  const filterActive = Boolean(
+    ruleIdFilter || deferredQuery || kind !== "all",
+  );
+  const canDrag = Boolean(
+    enableDragReorder && onReorder && !filterActive && !pending,
+  );
 
   const filtered = useMemo(() => {
-    return rules.filter((rule) => {
+    return orderedRules.filter((rule) => {
       if (ruleIdFilter && rule.id !== ruleIdFilter) return false;
       const isTransfer = Boolean(rule.transferAccountId);
       if (kind === "ignore" && !rule.ignore) return false;
@@ -135,9 +185,49 @@ export function RulesSheetEditor({
         .toLowerCase();
       return hay.includes(deferredQuery);
     });
-  }, [rules, deferredQuery, kind, ruleIdFilter]);
+  }, [orderedRules, deferredQuery, kind, ruleIdFilter]);
 
-  const colSpan = showTransfer ? 5 : 4;
+  const colSpan = (showTransfer ? 5 : 4) + (canDrag || enableDragReorder ? 1 : 0);
+
+  function commitReorder(fromId: string, toId: string) {
+    if (!onReorder) return;
+    const ids = orderedRules.map((r) => r.id);
+    const nextIds = reorderIds(ids, fromId, toId);
+    if (nextIds.join(",") === ids.join(",")) return;
+    const byId = new Map(orderedRules.map((r) => [r.id, r]));
+    setOrderedRules(nextIds.map((id) => byId.get(id)!).filter(Boolean));
+    startTransition(async () => {
+      await onReorder(nextIds);
+    });
+  }
+
+  function onDragStart(e: DragEvent, id: string) {
+    if (!canDrag) return;
+    setDragId(id);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", id);
+  }
+
+  function onDragOver(e: DragEvent, id: string) {
+    if (!canDrag || !dragId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dropId !== id) setDropId(id);
+  }
+
+  function onDrop(e: DragEvent, id: string) {
+    if (!canDrag) return;
+    e.preventDefault();
+    const from = e.dataTransfer.getData("text/plain") || dragId;
+    setDragId(null);
+    setDropId(null);
+    if (from) commitReorder(from, id);
+  }
+
+  function onDragEnd() {
+    setDragId(null);
+    setDropId(null);
+  }
 
   return (
     <div className="space-y-3">
@@ -172,9 +262,14 @@ export function RulesSheetEditor({
             <option value="uncategorized">No category</option>
           </select>
           <p className="w-full text-xs text-fg-subtle sm:ml-auto sm:w-auto">
-            {filtered.length}/{rules.length}
+            {filtered.length}/{orderedRules.length}
             {ruleIdFilter ? " · linked rule" : ""}
             {deferredQuery ? ` · “${query.trim()}”` : ""}
+            {enableDragReorder && filterActive
+              ? " · clear filter to drag-reorder"
+              : enableDragReorder
+                ? " · drag rows to reorder"
+                : ""}
           </p>
         </div>
       </div>
@@ -183,23 +278,56 @@ export function RulesSheetEditor({
         <table className="w-full min-w-[40rem] border-collapse text-sm">
           <thead>
             <tr>
+              {enableDragReorder ? (
+                <th className={`${denseThClass} w-8`} aria-label="Reorder" />
+              ) : null}
               <th className={denseThClass}>Match</th>
               <th className={denseThClass}>Category</th>
               {showTransfer ? (
                 <th className={denseThClass}>Transfer to</th>
               ) : null}
               <th className={`${denseThClass} w-20`}>Ignore</th>
-              <th className={`${denseThClass} w-[11.5rem] text-right`}>Actions</th>
+              <th className={`${denseThClass} w-[13.5rem] text-right`}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((rule) => {
               const formId = `rule-update-${rule.id}`;
+              const isDragging = dragId === rule.id;
+              const isDropTarget = dropId === rule.id && dragId !== rule.id;
               return (
                 <tr
                   key={rule.id}
-                  className="hover:bg-accent-muted/25 focus-within:bg-accent-muted/30"
+                  draggable={canDrag}
+                  onDragStart={(e) => onDragStart(e, rule.id)}
+                  onDragOver={(e) => onDragOver(e, rule.id)}
+                  onDrop={(e) => onDrop(e, rule.id)}
+                  onDragEnd={onDragEnd}
+                  className={`hover:bg-accent-muted/25 focus-within:bg-accent-muted/30 ${
+                    isDragging ? "opacity-50" : ""
+                  } ${
+                    isDropTarget
+                      ? "outline outline-2 outline-offset-[-2px] outline-[var(--accent)]"
+                      : ""
+                  }`}
                 >
+                  {enableDragReorder ? (
+                    <td className={`${denseTdClass} w-8 text-center`}>
+                      <span
+                        className={`select-none text-fg-subtle ${
+                          canDrag ? "cursor-grab active:cursor-grabbing" : "opacity-40"
+                        }`}
+                        title={
+                          canDrag
+                            ? "Drag to reorder"
+                            : "Clear filters to drag-reorder"
+                        }
+                        aria-hidden
+                      >
+                        ⋮⋮
+                      </span>
+                    </td>
+                  ) : null}
                   <td className={denseTdClass}>
                     <form id={formId} action={onUpdate} className="contents">
                       <input type="hidden" name="id" value={rule.id} />
@@ -273,7 +401,7 @@ export function RulesSheetEditor({
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={colSpan} className="px-3 py-4 text-sm text-fg-muted">
-                  {rules.length === 0
+                  {orderedRules.length === 0
                     ? "No rules yet."
                     : "No rules match this filter."}
                 </td>
@@ -349,7 +477,7 @@ export function RulesSheetEditor({
         })}
         {filtered.length === 0 && (
           <li className="p-3 text-sm text-fg-muted">
-            {rules.length === 0
+            {orderedRules.length === 0
               ? "No rules yet."
               : "No rules match this filter."}
           </li>

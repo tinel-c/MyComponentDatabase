@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import {
   deleteImportRule,
   moveImportRule,
+  reorderImportRules,
   updateImportRule,
 } from "@/app/(app)/more/import/actions";
 import {
@@ -39,9 +40,11 @@ export function ImportRulesEditor({
       ignoreHint="Ignore (exclude from budget)"
       initialQuery={initialQuery}
       initialRuleId={initialRuleId}
+      enableDragReorder
       onUpdate={updateImportRule}
       onMove={moveImportRule}
       onDelete={deleteImportRule}
+      onReorder={reorderImportRules}
     />
   );
 }

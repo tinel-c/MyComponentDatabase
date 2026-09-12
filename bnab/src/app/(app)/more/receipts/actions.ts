@@ -579,6 +579,18 @@ export async function moveReceiptRule(formData: FormData) {
   });
   const idx = rules.findIndex((r) => r.id === id);
   if (idx < 0) return;
+
+  if (dir === "top") {
+    if (idx === 0) return;
+    const minOrder = rules[0]?.sortOrder ?? 0;
+    await prisma.receiptCategoryRule.update({
+      where: { id },
+      data: { sortOrder: minOrder - 1 },
+    });
+    revalidatePath("/more/receipt-rules");
+    return;
+  }
+
   const swapWith = dir === "up" ? idx - 1 : idx + 1;
   if (swapWith < 0 || swapWith >= rules.length) return;
   const a = rules[idx];
