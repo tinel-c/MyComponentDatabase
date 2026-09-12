@@ -19,7 +19,9 @@ Assigned(c, M)  = MonthlyCategoryBudget.assigned   // user-set
 Activity(c, M)  = sum(transaction.amount for tx in M
                       where categoryId = c
                       and not parent split header
-                      and account.onBudget)
+                      and account.onBudget
+                      and not transfer
+                      and not excludeFromRta)
 ```
 
 Available carries forward unless the category is configured otherwise:
@@ -36,25 +38,47 @@ For a normal spending category, Activity is usually ≤ 0.
 
 ## Ready to Assign (RTA)
 
-For month `M`:
+Computed in `src/lib/budget-engine/index.ts` as:
 
 ```
-IncomeToRta(M) = sum of on-budget inflows in M that feed RTA:
-                 - categorized to an Income category
-                 - starting balances
-                 - uncategorized inflows/outflows (e.g. balance adjustments)
-                 — excluding txs flagged excludeFromRta
-
-TotalAssigned(M) = sum of Assigned(c, M) for all non-income categories
-
-CashOverspendDebt(M-1) = sum of abs(min(0, Available(c, M-1)))
-                         for categories overspent on cash (not credit)
-
-RTA(M) = IncomeToRta(M)
-       + leftover RTA held from M-1 (if "hold for next month")
-       - TotalAssigned(M)
-       - CashOverspendDebt(M-1)
+RTA(M) = incomeToRta(M) − totalAssigned(M) − nextHeld(M)
 ```
+
+where `incomeToRta` is built in order:
+
+```
+incomeToRta = heldFromPrev(M−1)
+            − CashOverspendDebt(M−1)
+            + Σ qualifying on-budget txns in M
+```
+
+Qualifying RTA inflows (skip transfers, `excludeFromRta`, off-budget):
+
+- starting balances
+- uncategorized amounts (balance adjustments)
+- categorized **Income** categories (Paycheck, Other income, …)
+
+```
+CashOverspendDebt(M−1) = Σ |Available(c, M−1)|
+  for non-income c where Available < 0 and c is not a CC payment category
+
+TotalAssigned(M) = Σ Assigned(c, M) for all non-income categories
+
+nextHeld = (holdForNextMonth && rawRta > 0)
+           ? (heldAmount > 0 ? min(heldAmount, rawRta) : rawRta)
+           : 0
+```
+
+**Banner vs Income section (important):**
+
+| UI label | Source | Includes |
+|----------|--------|----------|
+| Banner **Income** | `plan.incomeToRta` | Income cats + starting balances + uncategorized ± −cash overspend + held-from-prev |
+| Income section **Received** | Σ income-category `Activity` | Income categories only |
+| Banner **Assigned** | `plan.totalAssigned` | Σ non-income Assigned |
+| Banner **Ready to Assign** | `plan.rta` | `incomeToRta − totalAssigned − nextHeld` |
+
+Audit (2026-09): engine identity matches docs and tests (`income − assigned = rta` when hold/debt are zero). No formula change required.
 
 **Import ignore rules:** transactions whose notes match an `ImportCategoryRule` with `ignore: true` set `excludeFromRta` and do **not** change RTA or category Activity (used for ING credit-line covers, etc.).
 
@@ -75,6 +99,49 @@ Zero-based goal: drive RTA to **0**.
 | **+** | Cover overspend (raise Assigned until Available ≥ 0) |
 | **−** | Release Available back toward RTA (lower Assigned) |
 | **=** | Assign all current RTA into this category |
+
+---
+
+## Plan UI: Spending & Accounts
+
+### Spending section (desktop, after Income)
+
+- **Spent this month** = `−Σ Activity(c)` for all non-income categories (display as positive).
+- Total links to `/transactions?month=YYYY-MM&flow=spending`.
+- Each category amount links to `/transactions?categoryId=…&month=YYYY-MM`.
+
+The **Categories** block below remains the assign / Available UI (unchanged).
+
+### Accounts · income / spending / remaining
+
+Per on-budget account for month `M` (`src/lib/plan-account-flows.ts`):
+
+```
+Income(A, M)    = Σ amount where account=A, income category, same Activity rules
+Spending(A, M)  = Σ amount where account=A, non-income category (usually ≤ 0)
+Remaining(A, M) = Σ all txn amounts on A with date ≤ end of M   // cumulative balance
+```
+
+UI shows spending as magnitude `−Spending`. Links:
+
+| Column | Href |
+|--------|------|
+| Income | `/transactions?accountId=&month=&flow=income` |
+| Spending | `/transactions?accountId=&month=&flow=spending` |
+| Remaining | `/accounts/{id}` |
+
+### Transaction activity filters
+
+`/transactions` activity view when `month` is set with `categoryId` and/or `flow`:
+
+| Params | Filter |
+|--------|--------|
+| `categoryId` + `month` | That category in month (Plan Activity) |
+| `flow=income` + `month` | Income categories in month |
+| `flow=spending` + `month` | Non-income categories in month |
+| `+ accountId` | Restrict to one account |
+
+Common rules: `isParent=false`, `transferTwinId=null`, `account.onBudget=true`, date in month.
 
 ---
 

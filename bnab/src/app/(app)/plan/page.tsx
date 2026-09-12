@@ -24,10 +24,14 @@ export default async function PlanPage({
   const month =
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentMonth();
 
-  const { groups, plan, currency, accountBalances } = await loadPlanMonth(
-    budget.id,
-    month,
-  );
+  const {
+    groups,
+    plan,
+    currency,
+    accountBalances,
+    incomeByAccount,
+    spendingByAccount,
+  } = await loadPlanMonth(budget.id, month);
   const prev = addMonths(month, -1);
   const next = addMonths(month, 1);
 
@@ -41,8 +45,25 @@ export default async function PlanPage({
     );
   }, 0);
 
+  const spendingActivitySum = spendingGroups.reduce((sum, g) => {
+    return (
+      sum +
+      g.categories.reduce((s, c) => s + (plan.categories[c.id]?.activity ?? 0), 0)
+    );
+  }, 0);
+  /** Display magnitude of month spend (activity is negative for outflows). */
+  const spendingTotal = -spendingActivitySum;
+
   const onBudgetAccounts = accountBalances.filter((a) => a.onBudget);
   const totalOnBudget = onBudgetAccounts.reduce((s, a) => s + a.balance, 0);
+  const totalAccountIncome = onBudgetAccounts.reduce(
+    (s, a) => s + (incomeByAccount[a.id] ?? 0),
+    0,
+  );
+  const totalAccountSpending = onBudgetAccounts.reduce(
+    (s, a) => s + (spendingByAccount[a.id] ?? 0),
+    0,
+  );
 
   return (
     <div className="space-y-4 md:space-y-5">
@@ -73,7 +94,7 @@ export default async function PlanPage({
         currency={currency}
       />
 
-      {/* Income + accounts — desktop only for Income; accounts stay visible */}
+      {/* Income → Spending → Accounts (desktop); Categories assign stays below */}
       <div className="space-y-3">
         <div className="hidden items-center justify-between gap-2 px-1 md:flex">
           <div>
@@ -81,8 +102,15 @@ export default async function PlanPage({
               Income
             </h2>
             <p className="text-xs text-fg-subtle">
-              Received this month {formatMoney(incomeReceived, currency)} — goes
-              to Ready to Assign
+              Received this month{" "}
+              <Link
+                href={`/transactions?month=${encodeURIComponent(month)}&flow=income`}
+                className="font-medium text-fg underline-offset-2 hover:underline"
+              >
+                {formatMoney(incomeReceived, currency)}
+              </Link>{" "}
+              — income categories only (banner Income may also include starting
+              balances / adjustments)
             </p>
           </div>
           <Link
@@ -148,63 +176,199 @@ export default async function PlanPage({
           )}
         </div>
 
+        <div className="hidden items-center justify-between gap-2 px-1 md:flex">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-fg-muted">
+              Spending
+            </h2>
+            <p className="text-xs text-fg-subtle">
+              Spent this month{" "}
+              <Link
+                href={`/transactions?month=${encodeURIComponent(month)}&flow=spending`}
+                className="font-medium text-fg underline-offset-2 hover:underline"
+              >
+                {formatMoney(spendingTotal, currency)}
+              </Link>{" "}
+              — category activity (outflows)
+            </p>
+          </div>
+        </div>
+
+        <div className="hidden space-y-3 md:block">
+          {spendingGroups.length === 0 ? (
+            <section
+              className={`${cardClass} px-4 py-6 text-center text-sm text-fg-muted`}
+            >
+              No spending categories yet. Add groups under More → Categories.
+            </section>
+          ) : (
+            spendingGroups.map((group) => (
+              <section key={group.id} className={`${cardClass} overflow-hidden`}>
+                <h3
+                  className="border-b border-rim-subtle px-4 py-3 text-sm font-semibold text-fg"
+                  style={{
+                    borderLeft: `4px solid ${groupAccent(group.name)}`,
+                    background:
+                      "color-mix(in oklch, var(--danger-muted) 55%, transparent)",
+                  }}
+                >
+                  {group.name}
+                </h3>
+                <ul className="divide-y divide-rim-subtle/60">
+                  {group.categories.map((cat) => {
+                    const activity = plan.categories[cat.id]?.activity ?? 0;
+                    const spent = -activity;
+                    return (
+                      <li
+                        key={cat.id}
+                        className="flex items-center justify-between gap-3 px-3 py-2.5"
+                      >
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <CategoryIcon name={cat.name} groupName={group.name} />
+                          <p className="min-w-0 truncate text-sm font-medium text-fg">
+                            {cat.name}
+                          </p>
+                        </div>
+                        <Link
+                          href={`/transactions?categoryId=${encodeURIComponent(cat.id)}&month=${encodeURIComponent(month)}`}
+                          prefetch
+                          className={`shrink-0 text-sm font-semibold underline-offset-2 hover:underline ${moneyClass} ${
+                            activity < 0 ? "text-danger" : "text-fg-muted"
+                          }`}
+                          title="View transactions that make up this activity"
+                        >
+                          {formatMoney(spent, currency)}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))
+          )}
+        </div>
+
         {onBudgetAccounts.length > 0 && (
           <section className={`hidden ${cardClass} overflow-hidden md:block`}>
-            <h3
-              className="border-b border-rim-subtle px-4 py-2.5 text-sm font-semibold text-fg"
+            <div
+              className="border-b border-rim-subtle px-4 py-2.5"
               style={{
                 borderLeft: `4px solid var(--ok)`,
                 background: "color-mix(in oklch, var(--ok) 10%, transparent)",
               }}
             >
-              Accounts · remaining
-            </h3>
-            <ul className="divide-y divide-rim-subtle/60 px-3 py-1">
-              {onBudgetAccounts.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex items-center justify-between gap-2 py-2 text-sm"
-                >
-                  <span className="flex min-w-0 items-center gap-2 text-fg-muted">
-                    <Landmark
-                      className="size-3.5 shrink-0"
-                      style={{ color: "var(--accent)" }}
-                      aria-hidden
-                    />
-                    <Link
-                      href={`/accounts/${a.id}`}
-                      className="truncate hover:text-fg"
+              <h3 className="text-sm font-semibold text-fg">
+                Accounts · income / spending / remaining
+              </h3>
+              <p className="mt-0.5 text-[11px] text-fg-subtle">
+                Month income & spending by account · remaining is balance through
+                month end
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[28rem] text-sm">
+                <thead>
+                  <tr className="border-b border-rim-subtle text-left text-[11px] uppercase tracking-wide text-fg-subtle">
+                    <th className="px-3 py-2 font-medium">Account</th>
+                    <th className="px-3 py-2 text-right font-medium">Income</th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      Spending
+                    </th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      Remaining
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-rim-subtle/60">
+                  {onBudgetAccounts.map((a) => {
+                    const income = incomeByAccount[a.id] ?? 0;
+                    const spending = spendingByAccount[a.id] ?? 0;
+                    const spendingMag = -spending;
+                    return (
+                      <tr key={a.id}>
+                        <td className="px-3 py-2">
+                          <span className="flex min-w-0 items-center gap-2 text-fg-muted">
+                            <Landmark
+                              className="size-3.5 shrink-0"
+                              style={{ color: "var(--accent)" }}
+                              aria-hidden
+                            />
+                            <Link
+                              href={`/accounts/${a.id}`}
+                              className="truncate hover:text-fg"
+                            >
+                              {a.name}
+                            </Link>
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <Link
+                            href={`/transactions?accountId=${encodeURIComponent(a.id)}&month=${encodeURIComponent(month)}&flow=income`}
+                            className={`font-semibold underline-offset-2 hover:underline ${moneyClass} ${
+                              income > 0 ? "text-ok" : "text-fg-muted"
+                            }`}
+                            title="Income transactions this month"
+                          >
+                            {formatMoney(income, currency)}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <Link
+                            href={`/transactions?accountId=${encodeURIComponent(a.id)}&month=${encodeURIComponent(month)}&flow=spending`}
+                            className={`font-semibold underline-offset-2 hover:underline ${moneyClass} ${
+                              spending < 0 ? "text-danger" : "text-fg-muted"
+                            }`}
+                            title="Spending transactions this month"
+                          >
+                            {formatMoney(spendingMag, currency)}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <Link
+                            href={`/accounts/${a.id}`}
+                            className={`font-semibold underline-offset-2 hover:underline ${moneyClass} ${
+                              a.balance < 0 ? "text-danger" : "text-fg"
+                            }`}
+                            title="Account register (balance through month end)"
+                          >
+                            {formatMoney(a.balance, currency)}
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t border-rim-subtle bg-overlay/30">
+                    <td className="px-3 py-2">
+                      <span className="flex items-center gap-2 font-medium text-fg">
+                        <Wallet
+                          className="size-3.5 shrink-0"
+                          style={{ color: "var(--ok)" }}
+                          aria-hidden
+                        />
+                        Total on-budget
+                      </span>
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right font-semibold ${moneyClass} text-ok`}
                     >
-                      {a.name}
-                    </Link>
-                  </span>
-                  <span
-                    className={`shrink-0 font-semibold ${moneyClass} ${
-                      a.balance < 0 ? "text-danger" : "text-fg"
-                    }`}
-                  >
-                    {formatMoney(a.balance, currency)}
-                  </span>
-                </li>
-              ))}
-              <li className="flex items-center justify-between gap-2 py-2 text-sm">
-                <span className="flex items-center gap-2 font-medium text-fg">
-                  <Wallet
-                    className="size-3.5 shrink-0"
-                    style={{ color: "var(--ok)" }}
-                    aria-hidden
-                  />
-                  Total on-budget
-                </span>
-                <span
-                  className={`font-semibold ${moneyClass} ${
-                    totalOnBudget < 0 ? "text-danger" : "text-ok"
-                  }`}
-                >
-                  {formatMoney(totalOnBudget, currency)}
-                </span>
-              </li>
-            </ul>
+                      {formatMoney(totalAccountIncome, currency)}
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right font-semibold ${moneyClass} text-danger`}
+                    >
+                      {formatMoney(-totalAccountSpending, currency)}
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right font-semibold ${moneyClass} ${
+                        totalOnBudget < 0 ? "text-danger" : "text-ok"
+                      }`}
+                    >
+                      {formatMoney(totalOnBudget, currency)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
       </div>
@@ -271,8 +435,7 @@ export default async function PlanPage({
       </div>
 
       <p className="hidden px-1 text-center text-xs text-fg-subtle md:block">
-        Income increases Ready to Assign. Assign dollars into categories until
-        RTA is 0.
+        Ready to Assign = Income (to RTA) − Assigned − hold. Drive RTA to 0.
       </p>
     </div>
   );

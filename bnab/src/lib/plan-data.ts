@@ -6,6 +6,7 @@ import {
   type EngineTxn,
   type MonthResult,
 } from "@/lib/budget-engine";
+import { computeAccountMonthFlows } from "@/lib/plan-account-flows";
 
 export async function loadPlanMonth(budgetId: string, month: string) {
   const budget = await prisma.budget.findUniqueOrThrow({
@@ -203,10 +204,31 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     months[months.length - 1] ??
     emptyPlan(endMonth);
 
+  const accountOnBudget = new Map(accounts.map((a) => [a.id, a.onBudget]));
+  const categoryIsIncome = new Map(
+    categories.map((c) => [c.id, c.isIncome]),
+  );
+  const { incomeByAccount, spendingByAccount } = computeAccountMonthFlows({
+    month,
+    transactions: engineTxns.map((t) => ({
+      accountId: t.accountId,
+      date: t.date,
+      amount: t.amount,
+      categoryId: t.categoryId,
+      isParent: t.isParent,
+      transferTwinId: t.transferTwinId,
+      excludeFromRta: Boolean(t.excludeFromRta),
+    })),
+    accountOnBudget,
+    categoryIsIncome,
+  });
+
   return {
     budget,
     accounts,
     accountBalances,
+    incomeByAccount,
+    spendingByAccount,
     groups,
     plan,
     currency: budget.currency,

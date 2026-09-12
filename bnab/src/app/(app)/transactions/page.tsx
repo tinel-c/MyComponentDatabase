@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { ArrowLeftRight, Search, X } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
@@ -17,6 +18,8 @@ import { TransactionsRegister } from "@/components/transactions/TransactionsRegi
 
 const PAGE_SIZE = 50;
 
+type Flow = "income" | "spending";
+
 export default async function TransactionsPage({
   searchParams,
 }: {
@@ -25,6 +28,7 @@ export default async function TransactionsPage({
     accountId?: string;
     categoryId?: string;
     month?: string;
+    flow?: string;
     page?: string;
   }>;
 }) {
@@ -35,43 +39,67 @@ export default async function TransactionsPage({
   const categoryId = sp.categoryId || undefined;
   const month =
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : undefined;
-  const activityView = Boolean(categoryId && month);
+  const flow: Flow | undefined =
+    sp.flow === "income" || sp.flow === "spending" ? sp.flow : undefined;
+  const categoryActivityView = Boolean(categoryId && month);
+  const flowActivityView = Boolean(month && flow);
+  const activityView = categoryActivityView || flowActivityView;
   const pageNum = Math.max(1, Number(sp.page ?? "1") || 1);
   const skip = (pageNum - 1) * PAGE_SIZE;
 
-  const [accounts, groups, payees, filterCategory] = await Promise.all([
-    prisma.financeAccount.findMany({
-      where: { budgetId: budget.id },
-      orderBy: [{ closed: "asc" }, { sortOrder: "asc" }],
-    }),
-    prisma.categoryGroup.findMany({
-      where: { budgetId: budget.id, hidden: false },
-      orderBy: { sortOrder: "asc" },
-      include: {
-        categories: { where: { hidden: false }, orderBy: { sortOrder: "asc" } },
-      },
-    }),
-    prisma.payee.findMany({
-      where: { budgetId: budget.id },
-      orderBy: { name: "asc" },
-      take: 100,
-      select: { name: true },
-    }),
-    categoryId
-      ? prisma.category.findFirst({
-          where: { id: categoryId, group: { budgetId: budget.id } },
-          select: { id: true, name: true },
-        })
-      : Promise.resolve(null),
-  ]);
+  const [accounts, groups, payees, filterCategory, filterAccount] =
+    await Promise.all([
+      prisma.financeAccount.findMany({
+        where: { budgetId: budget.id },
+        orderBy: [{ closed: "asc" }, { sortOrder: "asc" }],
+        select: { id: true, name: true, closed: true },
+      }),
+      prisma.categoryGroup.findMany({
+        where: { budgetId: budget.id, hidden: false },
+        orderBy: { sortOrder: "asc" },
+        include: {
+          categories: {
+            where: { hidden: false },
+            orderBy: { sortOrder: "asc" },
+          },
+        },
+      }),
+      prisma.payee.findMany({
+        where: { budgetId: budget.id },
+        orderBy: { name: "asc" },
+        take: 100,
+        select: { name: true },
+      }),
+      categoryId
+        ? prisma.category.findFirst({
+            where: { id: categoryId, group: { budgetId: budget.id } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve(null),
+      accountId
+        ? prisma.financeAccount.findFirst({
+            where: { id: accountId, budgetId: budget.id },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve(null),
+    ]);
 
-  const where = activityView
+  const where: Prisma.TransactionWhereInput = activityView
     ? {
         isParent: false,
-        categoryId: categoryId!,
-        date: { gte: `${month}-01`, lte: `${month}-31` },
-        account: { budgetId: budget.id, onBudget: true },
         transferTwinId: null,
+        date: { gte: `${month}-01`, lte: `${month}-31` },
+        account: {
+          budgetId: budget.id,
+          onBudget: true,
+          ...(accountId ? { id: accountId } : {}),
+        },
+        ...(categoryId ? { categoryId } : {}),
+        ...(flow === "income"
+          ? { category: { isIncome: true } }
+          : flow === "spending"
+            ? { category: { isIncome: false } }
+            : {}),
       }
     : {
         isChild: false,
@@ -141,6 +169,7 @@ export default async function TransactionsPage({
   if (accountId) qs.set("accountId", accountId);
   if (categoryId) qs.set("categoryId", categoryId);
   if (month) qs.set("month", month);
+  if (flow) qs.set("flow", flow);
 
   const rows = transactions.map((t) => {
     const twin = t.transferTwinId ? twinById.get(t.transferTwinId) : null;
@@ -165,14 +194,25 @@ export default async function TransactionsPage({
   const sumCents = activitySum?._sum.amount ?? 0;
   const filtered = Boolean(q || accountId || activityView);
 
+  const activityTitle = (() => {
+    if (!activityView || !month) return null;
+    const parts: string[] = [];
+    if (filterCategory) parts.push(filterCategory.name);
+    else if (flow === "income") parts.push("Income");
+    else if (flow === "spending") parts.push("Spending");
+    if (filterAccount) parts.push(filterAccount.name);
+    parts.push(monthLabel(month));
+    return parts.join(" · ");
+  })();
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className={sectionHeadingClass}>Transactions</h1>
           <p className={sectionSubheadingClass}>
-            {activityView
-              ? `Activity for ${filterCategory?.name ?? "category"} · ${monthLabel(month!)}`
+            {activityView && activityTitle
+              ? `Activity for ${activityTitle}`
               : "Spreadsheet register — edit a cell, leave it to save."}{" "}
             {count} total
             {filtered && !activityView ? " (filtered)" : ""}.
@@ -192,15 +232,13 @@ export default async function TransactionsPage({
           className={`${cardClass} flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between`}
         >
           <div>
-            <p className="text-sm font-medium text-fg">
-              {filterCategory?.name ?? "Category"} · {monthLabel(month!)}
-            </p>
+            <p className="text-sm font-medium text-fg">{activityTitle}</p>
             <p className="mt-1 text-sm text-fg-muted">
               {count} transaction{count === 1 ? "" : "s"} · sum{" "}
               <span className="font-semibold tabular-nums text-fg">
                 {formatMoney(sumCents, budget.currency)}
               </span>
-              {activityView ? " (matches Plan Activity)" : ""}
+              {" (matches Plan activity)"}
             </p>
           </div>
           <Link
