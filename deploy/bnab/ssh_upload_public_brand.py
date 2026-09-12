@@ -100,14 +100,16 @@ def main() -> None:
         code = run(
             client,
             r"""set -euo pipefail
-sudo -u deploy bash -lc '
+ACTIVE=$(tr -d '[:space:]' < /opt/bnab/active_slot | tr '[:upper:]' '[:lower:]')
+APP=/opt/bnab/${ACTIVE}/bnab/public
+sudo -u deploy bash -lc "
   set -euo pipefail
-  cd /opt/bnab/green/bnab/public
+  cd '$APP'
   mkdir -p brand
   tar -xzf /opt/bnab/shared/bnab-public.tgz
   ls -la favicon.ico icon.svg icon-192.png icon-512-maskable.png apple-touch-icon.png manifest.webmanifest sw.js brand/mark.svg
-  echo PUBLIC_OK
-'
+  echo PUBLIC_OK active=$ACTIVE
+"
 rm -f /opt/bnab/shared/bnab-public.tgz
 """,
         )

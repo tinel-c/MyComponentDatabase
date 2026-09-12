@@ -1,7 +1,7 @@
 name: Deploy BNAB
 
-# Build .next on GitHub Actions (plenty of RAM), then promote to the VPS.
-# Avoids OOM from remote `npm install` + `next build` on the 1GB box.
+# Build .next on GitHub Actions, then zero-downtime promote to the INACTIVE
+# blue/green slot (live stays up until nginx cutover).
 
 on:
   workflow_run:
@@ -72,7 +72,7 @@ jobs:
         if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
         run: sudo apt-get update -y && sudo apt-get install -y sshpass
 
-      - name: Promote build to VPS
+      - name: Promote build to VPS (inactive slot)
         if: steps.gate.outputs.run == 'true' || github.event_name == 'workflow_dispatch'
         working-directory: .
         env:
@@ -95,23 +95,33 @@ jobs:
             -o PreferredAuthentications=password
             -o PubkeyAuthentication=no)
 
+          # Stage targets — do NOT kill the live slot
           "${SSH[@]}" 'bash -s' <<'REMOTE'
           set -euo pipefail
-          fuser -k 3011/tcp 2>/dev/null || true
-          sudo -u deploy -H bash -lc 'pm2 delete bnab-green >/dev/null 2>&1 || true' || true
-          chown -R deploy:deploy /opt/bnab/green /opt/bnab/shared || true
-          rm -rf /opt/bnab/green/bnab/.next
+          echo -n "active_slot="; cat /opt/bnab/active_slot
+          mkdir -p /opt/bnab/shared/overlay
+          chown -R deploy:deploy /opt/bnab/shared
           install -o deploy -g deploy -m 664 /dev/null /opt/bnab/shared/bnab-next-upload.tgz
+          install -o deploy -g deploy -m 664 /dev/null /opt/bnab/shared/bnab-overlay.tgz
+          install -o deploy -g deploy -m 755 /dev/null /opt/bnab/shared/remote-promote-inactive.sh
           REMOTE
 
           "${SCP[@]}" bnab/.next-upload.tgz \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/bnab/shared/bnab-next-upload.tgz"
+          "${SCP[@]}" deploy/bnab/remote-promote-inactive.sh \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/bnab/shared/remote-promote-inactive.sh"
 
-          # Overlay prisma + receipt-ai from this checkout (ahead of/reset-safe)
+          # Overlay: schema/seed files for promote script + migrations/libs tarball
+          mkdir -p /tmp/bnab-ov
+          cp bnab/prisma/schema.prisma /tmp/bnab-ov/schema.prisma
+          cp bnab/prisma/seed.ts /tmp/bnab-ov/seed.ts
+          "${SCP[@]}" /tmp/bnab-ov/schema.prisma \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/bnab/shared/overlay/schema.prisma"
+          "${SCP[@]}" /tmp/bnab-ov/seed.ts \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/bnab/shared/overlay/seed.ts"
+
           tar -czf /tmp/bnab-overlay.tgz \
             -C bnab \
-            prisma/schema.prisma \
-            prisma/seed.ts \
             prisma/migrations \
             src/lib/receipt-ai \
             src/lib/plan-data.ts \
@@ -119,59 +129,21 @@ jobs:
             src/lib/starter-categories.ts \
             src/lib/ing-import/default-rules.ts \
             src/lib/budget-engine/index.ts \
-            2>/dev/null || tar -czf /tmp/bnab-overlay.tgz -C bnab prisma src/lib/receipt-ai
+            2>/dev/null || tar -czf /tmp/bnab-overlay.tgz -C bnab prisma/migrations src/lib/receipt-ai
 
           "${SCP[@]}" /tmp/bnab-overlay.tgz \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/bnab/shared/bnab-overlay.tgz"
 
-          "${SSH[@]}" 'bash -s' <<'REMOTE'
-          set -euo pipefail
-          APP=/opt/bnab/green/bnab
-          sudo -u deploy bash -lc '
-            set -euo pipefail
-            cd /opt/bnab/green/bnab
-            git fetch origin && git reset --hard origin/main || true
-            rm -rf .next
-            tar -xzf /opt/bnab/shared/bnab-next-upload.tgz
-            test -f .next/BUILD_ID
-            echo BUILD_ID=$(cat .next/BUILD_ID)
-            tar -xzf /opt/bnab/shared/bnab-overlay.tgz
-            set -a; . /opt/bnab/shared/.env; set +a
-            export DATABASE_URL=file:/opt/bnab/shared/bnab.db
-            npx prisma generate
-            npx prisma migrate deploy
-            shopt -s nullglob
-            for d in .next/node_modules/@prisma/client-*; do
-              echo "sync $d"
-              rm -rf "$d"; mkdir -p "$d"
-              cp -a node_modules/@prisma/client/. "$d/"
-            done
-            if [ -d node_modules/.prisma ]; then
-              rm -rf .next/node_modules/.prisma
-              mkdir -p .next/node_modules
-              cp -a node_modules/.prisma .next/node_modules/
+          if [ -d bnab/public ]; then
+            tar -czf /tmp/bnab-public.tgz -C bnab/public \
+              favicon.ico favicon-16.png favicon-32.png icon.svg \
+              icon-192.png icon-512.png icon-192-maskable.png icon-512-maskable.png \
+              apple-touch-icon.png manifest.webmanifest sw.js brand 2>/dev/null || true
+            if [ -f /tmp/bnab-public.tgz ]; then
+              "${SSH[@]}" 'install -o deploy -g deploy -m 664 /dev/null /opt/bnab/shared/bnab-public.tgz'
+              "${SCP[@]}" /tmp/bnab-public.tgz \
+                "${DEPLOY_USER}@${DEPLOY_HOST}:/opt/bnab/shared/bnab-public.tgz"
             fi
-            echo PRISMA_OK
-          '
-          chown -R deploy:deploy /opt/bnab/green/bnab/.next
-          # Public brand (if present on shared from last local upload — optional)
-          if [ -f /opt/bnab/shared/bnab-public.tgz ]; then
-            sudo -u deploy bash -lc "cd /opt/bnab/green/bnab/public && tar -xzf /opt/bnab/shared/bnab-public.tgz" || true
           fi
-          sudo -u deploy -H bash -lc "
-            cd /opt/bnab/green/bnab
-            set -a; . /opt/bnab/shared/.env; set +a
-            export DATABASE_URL=file:/opt/bnab/shared/bnab.db
-            pm2 delete bnab-green >/dev/null 2>&1 || true
-            PORT=3011 NODE_ENV=production pm2 start ./node_modules/next/dist/bin/next --name bnab-green -- start --port 3011
-            pm2 save
-          "
-          printf 'upstream bnab_app {\n    server 127.0.0.1:3011;\n}\n' > /opt/bnab/nginx-active-upstream.conf
-          echo green > /opt/bnab/active_slot
-          chown deploy:deploy /opt/bnab/nginx-active-upstream.conf /opt/bnab/active_slot
-          sudo nginx -t && sudo systemctl reload nginx || true
-          sleep 4
-          curl -sS -o /dev/null -w "local=%{http_code}\n" --max-time 20 http://127.0.0.1:3011/
-          rm -f /opt/bnab/shared/bnab-next-upload.tgz /opt/bnab/shared/bnab-overlay.tgz
-          echo UPLOAD_OK
-          REMOTE
+
+          "${SSH[@]}" 'chmod +x /opt/bnab/shared/remote-promote-inactive.sh && bash /opt/bnab/shared/remote-promote-inactive.sh'

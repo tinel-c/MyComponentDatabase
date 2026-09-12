@@ -1,16 +1,12 @@
 # BNAB VPS helpers
 
-Scripts for deploying **https://bnab.bogza.ro**. Prefer a **PC production build** on small (1 GB) VPS hosts.
+Zero-downtime blue/green for **https://bnab.bogza.ro**. Prefer a **PC production build** on small (1 GB) VPS hosts.
 
 ```powershell
-cd bnab
-npm run build
-tar -czf .next-upload.tgz .next
-python ../deploy/bnab/ssh_upload_live_next.py
-python ../deploy/bnab/ssh_upload_public_brand.py
-python ../deploy/bnab/ssh_quick_restart_bnab.py
+python deploy/bnab/bnab_deploy.py all
 ```
 
-Requires local gitignored `deploy/deploy.secrets`.
+Agent playbook: [`AGENT_DEPLOY.md`](./AGENT_DEPLOY.md)  
+Full docs: [`bnab/docs/deploy.md`](../../bnab/docs/deploy.md)
 
-Full documentation: [`bnab/docs/deploy.md`](../../bnab/docs/deploy.md).
+Requires local gitignored `deploy/deploy.secrets`.

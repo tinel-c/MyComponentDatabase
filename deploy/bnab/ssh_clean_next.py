@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Stop BNAB and remove green .next so a fresh tarball can extract cleanly."""
+"""
+Prep the INACTIVE BNAB slot for a fresh .next extract.
+
+Does NOT kill the active (live) slot — safe to run while the site is up.
+"""
 from __future__ import annotations
 
 import re
@@ -27,7 +31,7 @@ def load(path: Path) -> dict[str, str]:
 
 
 def run(client: paramiko.SSHClient, cmd: str, timeout: int = 120) -> int:
-    print(f">>> {cmd[:140]}", flush=True)
+    print(f">>> {cmd[:160]}", flush=True)
     stdin, stdout, stderr = client.exec_command(cmd, get_pty=True, timeout=timeout)
     stdin.close()
     end = time.time() + timeout
@@ -57,13 +61,18 @@ def main() -> None:
     try:
         code = run(
             client,
-            "fuser -k 3011/tcp 2>/dev/null || true; "
-            "fuser -k 3010/tcp 2>/dev/null || true; "
-            "sudo -u deploy -H bash -lc 'pm2 delete bnab-green bnab-blue >/dev/null 2>&1 || true'; "
-            "sleep 1; "
-            "chown -R deploy:deploy /opt/bnab/green/bnab; "
-            "rm -rf /opt/bnab/green/bnab/.next; "
-            "echo CLEAN_OK",
+            r"""set -euo pipefail
+ACTIVE=$(tr -d '[:space:]' < /opt/bnab/active_slot | tr '[:upper:]' '[:lower:]')
+if [ "$ACTIVE" = blue ]; then INACTIVE=green; PORT=3011; PM2=bnab-green
+elif [ "$ACTIVE" = green ]; then INACTIVE=blue; PORT=3010; PM2=bnab-blue
+else echo "invalid active_slot=$ACTIVE"; exit 1; fi
+echo "prep inactive=$INACTIVE (active=$ACTIVE stays live)"
+chown -R deploy:deploy "/opt/bnab/$INACTIVE" /opt/bnab/shared || true
+sudo -u deploy -H bash -lc "pm2 delete $PM2 >/dev/null 2>&1 || true" || true
+fuser -k "${PORT}/tcp" 2>/dev/null || true
+rm -rf "/opt/bnab/$INACTIVE/bnab/.next"
+echo CLEAN_OK inactive=$INACTIVE
+""",
         )
         sys.exit(code)
     finally:

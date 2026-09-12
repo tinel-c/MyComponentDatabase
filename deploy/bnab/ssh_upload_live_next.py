@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Upload local .next to green (live) BNAB slot with ownership fixes."""
+"""
+Zero-downtime BNAB promote: upload local .next to the INACTIVE blue/green slot,
+health-check it, then cut nginx over. The active slot stays up during build/upload.
+"""
 from __future__ import annotations
 
 import re
@@ -10,6 +13,10 @@ import time
 from pathlib import Path
 
 import paramiko
+
+DEPLOY_DIR = Path(__file__).resolve().parent
+ROOT = DEPLOY_DIR.parent.parent
+PROMOTE_SCRIPT = DEPLOY_DIR / "remote-promote-inactive.sh"
 
 
 def load_secrets(path: Path) -> dict[str, str]:
@@ -29,7 +36,7 @@ def load_secrets(path: Path) -> dict[str, str]:
 
 
 def run(client: paramiko.SSHClient, cmd: str, timeout: int = 300) -> int:
-    print(f"\n>>> {cmd[:140]}", flush=True)
+    print(f"\n>>> {cmd[:160]}", flush=True)
     stdin, stdout, stderr = client.exec_command(cmd, get_pty=True, timeout=timeout)
     stdin.close()
     end = time.time() + timeout
@@ -48,31 +55,68 @@ def run(client: paramiko.SSHClient, cmd: str, timeout: int = 300) -> int:
     return stdout.channel.recv_exit_status()
 
 
+def pack_brand_tarball(root: Path) -> Path | None:
+    pub = root / "bnab" / "public"
+    files = [
+        "favicon.ico",
+        "favicon-16.png",
+        "favicon-32.png",
+        "icon.svg",
+        "icon-192.png",
+        "icon-512.png",
+        "icon-192-maskable.png",
+        "icon-512-maskable.png",
+        "apple-touch-icon.png",
+        "manifest.webmanifest",
+        "sw.js",
+        "brand/mark.svg",
+        "brand/icon-master.png",
+        "brand/logo-lockup.png",
+        "brand/favicon-16.png",
+        "brand/favicon-32.png",
+    ]
+    with tempfile.NamedTemporaryFile(suffix=".tgz", delete=False) as tmp:
+        tgz = Path(tmp.name)
+    count = 0
+    with tarfile.open(tgz, "w:gz") as tar:
+        for rel in files:
+            path = pub / rel
+            if path.is_file():
+                tar.add(path, arcname=rel)
+                count += 1
+    if count == 0:
+        tgz.unlink(missing_ok=True)
+        return None
+    return tgz
+
+
 def main() -> None:
-    root = Path(__file__).resolve().parent.parent.parent
-    tarball = root / "bnab" / ".next-upload.tgz"
+    t0 = time.time()
+    tarball = ROOT / "bnab" / ".next-upload.tgz"
     if not tarball.is_file():
         print(f"missing {tarball}", file=sys.stderr)
         sys.exit(1)
+    if not PROMOTE_SCRIPT.is_file():
+        print(f"missing {PROMOTE_SCRIPT}", file=sys.stderr)
+        sys.exit(1)
 
-    # Keep Prisma models that are not on origin/main yet (git reset would wipe them).
     schema_files = [
-        root / "bnab" / "prisma" / "schema.prisma",
-        root / "bnab" / "prisma" / "seed.ts",
+        ROOT / "bnab" / "prisma" / "schema.prisma",
+        ROOT / "bnab" / "prisma" / "seed.ts",
     ]
-    migrations_dir = root / "bnab" / "prisma" / "migrations"
+    migrations_dir = ROOT / "bnab" / "prisma" / "migrations"
     overlay_libs = [
-        root / "bnab" / "src" / "lib" / "plan-data.ts",
-        root / "bnab" / "src" / "lib" / "money.ts",
-        root / "bnab" / "src" / "lib" / "yngsb-banner.ts",
-        root / "bnab" / "src" / "lib" / "starter-categories.ts",
-        root / "bnab" / "src" / "lib" / "email.ts",
-        root / "bnab" / "src" / "lib" / "ing-import" / "default-rules.ts",
-        root / "bnab" / "src" / "lib" / "budget-engine" / "index.ts",
-        root / "bnab" / "src" / "lib" / "receipt-ai",
+        ROOT / "bnab" / "src" / "lib" / "plan-data.ts",
+        ROOT / "bnab" / "src" / "lib" / "money.ts",
+        ROOT / "bnab" / "src" / "lib" / "yngsb-banner.ts",
+        ROOT / "bnab" / "src" / "lib" / "starter-categories.ts",
+        ROOT / "bnab" / "src" / "lib" / "email.ts",
+        ROOT / "bnab" / "src" / "lib" / "ing-import" / "default-rules.ts",
+        ROOT / "bnab" / "src" / "lib" / "budget-engine" / "index.ts",
+        ROOT / "bnab" / "src" / "lib" / "receipt-ai",
     ]
 
-    env = load_secrets(Path(__file__).resolve().parent.parent / "deploy.secrets")
+    env = load_secrets(DEPLOY_DIR.parent / "deploy.secrets")
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
@@ -85,114 +129,75 @@ def main() -> None:
         look_for_keys=False,
     )
     try:
-        # Stop the app first so it cannot recreate a root-owned .next during extract.
+        # Show current active — do NOT kill it
         run(
             client,
-            "fuser -k 3011/tcp 2>/dev/null || true; "
-            "fuser -k 3010/tcp 2>/dev/null || true; "
-            "sudo -u deploy -H bash -lc 'pm2 delete bnab-blue bnab-green >/dev/null 2>&1 || true'; "
-            "chown -R deploy:deploy /opt/bnab/green /opt/bnab/shared; "
-            "rm -rf /opt/bnab/green/bnab/.next; "
-            "install -o deploy -g deploy -m 664 /dev/null /opt/bnab/shared/bnab-next-upload.tgz",
+            "echo -n 'active_slot='; cat /opt/bnab/active_slot; "
+            "echo; curl -sS -o /dev/null -w 'live_local=%{http_code}\\n' --max-time 10 "
+            "$(python3 -c \"s=open('/opt/bnab/active_slot').read().strip(); "
+            "print('http://127.0.0.1:3010/' if s=='blue' else 'http://127.0.0.1:3011/')\") "
+            "|| true",
         )
-        sftp = client.open_sftp()
-        print(f"upload {tarball.stat().st_size/1e6:.1f} MB", flush=True)
-        sftp.put(str(tarball), "/opt/bnab/shared/bnab-next-upload.tgz")
 
-        # Overlay schema + key libs after git reset (before prisma generate).
+        # Stage empty targets with deploy ownership
+        run(
+            client,
+            "mkdir -p /opt/bnab/shared/overlay && "
+            "chown -R deploy:deploy /opt/bnab/shared && "
+            "install -o deploy -g deploy -m 664 /dev/null /opt/bnab/shared/bnab-next-upload.tgz && "
+            "install -o deploy -g deploy -m 775 /dev/null /opt/bnab/shared/remote-promote-inactive.sh",
+        )
+
+        sftp = client.open_sftp()
+        print(f"upload .next {tarball.stat().st_size / 1e6:.1f} MB", flush=True)
+        sftp.put(str(tarball), "/opt/bnab/shared/bnab-next-upload.tgz")
+        sftp.put(str(PROMOTE_SCRIPT), "/opt/bnab/shared/remote-promote-inactive.sh")
+
         for local in schema_files:
             remote = f"/opt/bnab/shared/overlay/{local.name}"
             run(
                 client,
-                f"mkdir -p /opt/bnab/shared/overlay && "
                 f"install -o deploy -g deploy -m 664 /dev/null {remote}",
             )
             sftp.put(str(local), remote)
+
         with tempfile.NamedTemporaryFile(suffix=".tgz", delete=False) as tmp:
             overlay_tgz = Path(tmp.name)
         with tarfile.open(overlay_tgz, "w:gz") as tar:
             tar.add(migrations_dir, arcname="prisma/migrations")
             for lib in overlay_libs:
-                if lib.is_file():
-                    rel = lib.relative_to(root / "bnab").as_posix()
-                    tar.add(lib, arcname=rel)
-                elif lib.is_dir():
-                    rel = lib.relative_to(root / "bnab").as_posix()
+                if lib.is_file() or lib.is_dir():
+                    rel = lib.relative_to(ROOT / "bnab").as_posix()
                     tar.add(lib, arcname=rel)
         run(
             client,
             "install -o deploy -g deploy -m 664 /dev/null /opt/bnab/shared/bnab-overlay.tgz",
         )
         sftp.put(str(overlay_tgz), "/opt/bnab/shared/bnab-overlay.tgz")
-        sftp.close()
         overlay_tgz.unlink(missing_ok=True)
+
+        brand = pack_brand_tarball(ROOT)
+        if brand:
+            run(
+                client,
+                "install -o deploy -g deploy -m 664 /dev/null /opt/bnab/shared/bnab-public.tgz",
+            )
+            sftp.put(str(brand), "/opt/bnab/shared/bnab-public.tgz")
+            brand.unlink(missing_ok=True)
+            print("upload brand assets", flush=True)
+
+        sftp.close()
 
         code = run(
             client,
-            r"""set -euo pipefail
-APP=/opt/bnab/green/bnab
-sudo -u deploy bash -lc '
-  set -euo pipefail
-  cd /opt/bnab/green/bnab
-  git fetch origin && git reset --hard origin/main || true
-  rm -rf .next
-  tar -xzf /opt/bnab/shared/bnab-next-upload.tgz
-  test -f .next/BUILD_ID
-  echo BUILD_ID=$(cat .next/BUILD_ID)
-  # Restore Prisma schema / migrations / libs that are ahead of origin/main
-  cp -f /opt/bnab/shared/overlay/schema.prisma prisma/schema.prisma
-  cp -f /opt/bnab/shared/overlay/seed.ts prisma/seed.ts
-  tar -xzf /opt/bnab/shared/bnab-overlay.tgz
-  set -a; . /opt/bnab/shared/.env; set +a
-  export DATABASE_URL=file:/opt/bnab/shared/bnab.db
-  npx prisma generate
-  npx prisma migrate deploy
-  node -e "const {PrismaClient}=require(\"@prisma/client\"); const p=new PrismaClient(); if(!p.importCategoryRule){console.error(\"MISSING importCategoryRule\"); process.exit(1)}; console.log(\"PRISMA_OK\")"
-  # Next vendors a hashed client copy — keep it aligned with generate
-  shopt -s nullglob
-  for d in .next/node_modules/@prisma/client-*; do
-    echo "sync $d"
-    rm -rf "$d"
-    mkdir -p "$d"
-    cp -a node_modules/@prisma/client/. "$d/"
-  done
-  if [ -d node_modules/.prisma ]; then
-    echo "sync .next/node_modules/.prisma"
-    rm -rf .next/node_modules/.prisma
-    mkdir -p .next/node_modules
-    cp -a node_modules/.prisma .next/node_modules/
-  fi
-'
-rm -f /opt/bnab/shared/bnab-next-upload.tgz /opt/bnab/shared/bnab-overlay.tgz
-rm -rf /opt/bnab/shared/overlay
-chown -R deploy:deploy /opt/bnab/green/bnab/.next
-sudo -u deploy -H bash -lc '
-  cd /opt/bnab/green/bnab
-  pm2 delete bnab-blue >/dev/null 2>&1 || true
-  # Delete every bnab-green id (pm2 -f start can leave duplicates)
-  pm2 jlist | python3 -c "import json,sys; apps=json.load(sys.stdin); [print(a[\"pm_id\"]) for a in apps if a.get(\"name\")==\"bnab-green\"]" | while read -r id; do pm2 delete "$id" >/dev/null 2>&1 || true; done
-'
-sleep 1
-fuser -k 3011/tcp >/dev/null 2>&1 || true
-fuser -k 3010/tcp >/dev/null 2>&1 || true
-sleep 1
-sudo -u deploy -H bash -lc '
-  cd /opt/bnab/green/bnab
-  set -a; . /opt/bnab/shared/.env; set +a
-  export DATABASE_URL=file:/opt/bnab/shared/bnab.db
-  PORT=3011 NODE_ENV=production pm2 start ./node_modules/next/dist/bin/next --name bnab-green --cwd /opt/bnab/green/bnab -- start --port 3011
-  pm2 save
-'
-printf "upstream bnab_app {\n    server 127.0.0.1:3011;\n}\n" > /opt/bnab/nginx-active-upstream.conf
-echo green > /opt/bnab/active_slot
-chown deploy:deploy /opt/bnab/nginx-active-upstream.conf /opt/bnab/active_slot
-sudo nginx -t && sudo systemctl reload nginx || true
-sleep 3
-curl -sS -o /dev/null -w "local=%{http_code}\n" --max-time 20 http://127.0.0.1:3011/
-echo UPLOAD_OK
-""",
-            timeout=400,
+            "chmod +x /opt/bnab/shared/remote-promote-inactive.sh && "
+            "bash /opt/bnab/shared/remote-promote-inactive.sh",
+            timeout=500,
         )
+        elapsed = time.time() - t0
+        print(f"\nUPLOAD_PHASE_SEC={elapsed:.1f}", flush=True)
+        if code == 0:
+            print("UPLOAD_OK", flush=True)
         sys.exit(code)
     finally:
         client.close()

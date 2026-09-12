@@ -11,3 +11,4 @@ globs: bnab/**/*.{tsx,ts,css}
 - Financial accounts are `FinanceAccount` (Auth.js owns model `Account`).
 - Prefer mobile-first layouts: bottom tabs, large touch targets, sticky Ready to Assign.
 - Keep docs in `bnab/docs/` in sync when changing engine math or deploy paths.
+- BNAB deploy (zero-downtime): `python deploy/bnab/bnab_deploy.py all` — see `deploy/bnab/AGENT_DEPLOY.md`. Never kill both blue/green before build.

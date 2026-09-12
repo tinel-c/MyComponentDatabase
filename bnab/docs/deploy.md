@@ -75,38 +75,39 @@ npx prisma db seed
 
 ---
 
-## Recommended: PC build → live upload (fast path)
+## Recommended: PC build → zero-downtime promote
 
-On a **1 GB RAM** VPS, remote `next build` OOMs. Prefer building on your PC (or GitHub Actions) and uploading `.next`.
+On a **1 GB RAM** VPS, remote `next build` OOMs. Build on your PC (or GitHub Actions), then promote the **inactive** blue/green slot. The live slot stays up until nginx reload.
 
 Requires local `deploy/deploy.secrets` (gitignored) with `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_PASSWORD`.
 
+**Agent playbook:** [AGENT_DEPLOY.md](../../deploy/bnab/AGENT_DEPLOY.md)
+
 ```powershell
-# One command pipeline:
+# One command (build while live → promote inactive → status):
 python deploy/bnab/bnab_deploy.py all
 
 # Or step-by-step:
-python deploy/bnab/bnab_deploy.py clean    # stop PM2, wipe green .next
-python deploy/bnab/bnab_deploy.py build    # npm run build + .next-upload.tgz
-python deploy/bnab/bnab_deploy.py upload   # extract + migrate + PM2
-python deploy/bnab/bnab_deploy.py brand    # favicons / PWA / sw.js
+python deploy/bnab/bnab_deploy.py build    # npm run build + .next-upload.tgz (site stays up)
+python deploy/bnab/bnab_deploy.py upload   # inactive slot extract/migrate/start + nginx cutover
 python deploy/bnab/bnab_deploy.py status
 ```
 
+`clean` only preps the **inactive** slot (does not kill live). Brand assets are packed into the upload promote; `brand` is optional afterward.
+
 ### GitHub Actions
 
-`Deploy BNAB` runs **after CI succeeds** on `main`: builds `.next` on the runner, SCPs the tarball, then on the VPS only extracts / migrates / restarts (no remote `next build`). Manual `workflow_dispatch` also works.
+`Deploy BNAB` runs **after CI succeeds** on `main`: builds `.next` on the runner, SCPs the tarball, then runs the same inactive-slot promote ([`remote-promote-inactive.sh`](../../deploy/bnab/remote-promote-inactive.sh)). Manual `workflow_dispatch` also works.
 
-### What `ssh_upload_live_next.py` / upload step does
+### What the promote step does
 
-1. Stops BNAB PM2 processes on ports 3010/3011  
-2. Uploads `.next-upload.tgz`  
-3. On green: `git fetch` + `git reset --hard origin/main` (slot matches GitHub)  
-4. Extracts `.next`  
-5. **Overlays** local Prisma schema/migrations + key `src/lib` files (features ahead of `origin/main`)  
-6. `prisma generate` + `migrate deploy`  
-7. Syncs generated Prisma client into Next’s traced `.next/node_modules/@prisma/client-*` copy  
-8. Starts `bnab-green` on **3011**, reloads nginx  
+1. Reads `/opt/bnab/active_slot` → targets the **other** color  
+2. Leaves the active PM2 process serving traffic  
+3. Uploads `.next-upload.tgz` (+ prisma/lib overlays + public brand)  
+4. On inactive: `git fetch` + `reset --hard origin/main`, extract `.next`, prisma generate/migrate, sync client into traced `.next` copies  
+5. Starts inactive PM2 with `BNAB_SLOT` + port; health-checks `/api/health` (fallback `/`)  
+6. Rewrites nginx upstream + `active_slot`; `nginx -t` + **reload**  
+7. `pm2 stop` previous (not deleted — fast rollback)
 
 ### Why overlays + Prisma sync
 
@@ -115,17 +116,17 @@ python deploy/bnab/bnab_deploy.py status
 If Plan 500s with `importCategoryRule` / `findMany` undefined, run:
 
 ```powershell
-python ../deploy/bnab/ssh_resync_prisma.py
-python ../deploy/bnab/ssh_sync_prisma_next_copy.py
-python ../deploy/bnab/ssh_quick_restart_bnab.py
+python deploy/bnab/ssh_resync_prisma.py
+python deploy/bnab/ssh_sync_prisma_next_copy.py
+python deploy/bnab/ssh_quick_restart_bnab.py
 ```
 
 ### Public brand assets
 
-`.next` does **not** include `public/` favicons or `sw.js`. After upload (or after any `git reset` on the server), sync icons + service worker:
+`.next` does **not** include `public/` favicons or `sw.js`. The promote packs them automatically; to refresh live active only:
 
 ```powershell
-python ../deploy/bnab/ssh_upload_public_brand.py
+python deploy/bnab/ssh_upload_public_brand.py
 ```
 
 ### Android install / PWA
