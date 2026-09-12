@@ -203,7 +203,7 @@ describe("classifyIngRowAgainstLedger — no duplicate spend", () => {
     assert.equal(c.manualMatchId, "bill-lidl");
   });
 
-  it("keeps ignored credit-line rows ignored even if a bill exists", () => {
+  it("keeps ignored credit-line rows ignored when only an opposite-sign bill matches", () => {
     const { applied } = lidlApplied();
     const credit = applied.find((r) =>
       r.memo.includes("transferata din linia de credit"),
@@ -219,6 +219,28 @@ describe("classifyIngRowAgainstLedger — no duplicate spend", () => {
       },
     ]);
     assert.equal(c.status, "ignored");
+  });
+
+  it("links ignored ING debit to a pending bill when amount matches", () => {
+    const debit: Parameters<typeof classifyIngRowAgainstLedger>[0] = {
+      fingerprint: "fp-ign",
+      date: "2026-09-01",
+      amount: -5000,
+      memo: "Something transferata din linia de credit extra",
+      categoryId: null,
+      ignored: true,
+    };
+    const c = classifyIngRowAgainstLedger(debit, new Set(), [
+      {
+        id: "bill-x",
+        date: "2026-09-01",
+        amount: -5000,
+        notes: BILL_IMPORT_PENDING_NOTE,
+        payeeName: "Something",
+      },
+    ]);
+    assert.equal(c.status, "possible_manual_match");
+    assert.equal(c.manualMatchId, "bill-x");
   });
 });
 
@@ -257,14 +279,28 @@ describe("planIngConfirmAction — apply path safety", () => {
     assert.equal(plan.kind, "skip_user");
   });
 
-  it("creates only when import is chosen and fingerprint is new", () => {
+  it("creates ignored rows into the ledger (budget exclude is post-import)", () => {
     const plan = planIngConfirmAction({
-      ignored: false,
-      fingerprint: "fp1",
+      ignored: true,
+      fingerprint: "fp-ign",
       fingerprintAlreadyOnAccount: false,
-      decision: { fingerprint: "fp1", action: "import" },
+      decision: { fingerprint: "fp-ign", action: "import" },
     });
     assert.equal(plan.kind, "create");
+  });
+
+  it("links ignored rows when the user chose link", () => {
+    const plan = planIngConfirmAction({
+      ignored: true,
+      fingerprint: "fp-ign",
+      fingerprintAlreadyOnAccount: false,
+      decision: {
+        fingerprint: "fp-ign",
+        action: "link",
+        manualMatchId: "bill-x",
+      },
+    });
+    assert.deepEqual(plan, { kind: "link", manualMatchId: "bill-x" });
   });
 });
 
@@ -305,7 +341,7 @@ describe("bill then ING then re-import regression", () => {
     });
     assert.equal(linkPlan.kind, "link");
 
-    // 3) Same CSV again → already_imported / ignored; nothing would create
+    // 3) Same CSV again → already_imported LIDL; ignored credit + MOL would create
     const afterLink = classifyIngImportPreview({
       rows: applied,
       existingFingerprints: new Set([lidl.fingerprint]),
@@ -313,7 +349,7 @@ describe("bill then ING then re-import regression", () => {
     });
     assert.equal(afterLink.stats.already, 1);
     assert.equal(afterLink.stats.ignored, 1);
-    assert.equal(afterLink.wouldCreateFingerprints.length, 1); // MOL still new
+    assert.equal(afterLink.wouldCreateFingerprints.length, 2); // MOL + ignored credit
     assert.ok(!afterLink.wouldCreateFingerprints.includes(lidl.fingerprint));
 
     // 4) Re-confirm LIDL is skip_duplicate even if UI says import

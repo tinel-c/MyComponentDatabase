@@ -57,10 +57,11 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] **Delete transaction** (account list, register, edit sheet) with confirm
 - [x] **ING CSV import**
   - Preview unmatched / matched / ignored / duplicates
-  - Confirm creates batch + fingerprints
+  - Confirm creates batch + fingerprints (**ignored rows are inserted**, excluded from RTA/Activity via notes)
   - Mapping rules CRUD + create-from-unmatched
-  - Ignore patterns (e.g. credit-line covers) excluded from RTA & Activity
+  - Ignore patterns (e.g. credit-line covers) excluded from RTA & Activity without skipping ledger insert
   - Import history: revert batch, DB snapshots
+- [x] **Admin Data tools** (`/more/data`): export/import SQLite, selective erase (default keep mappings)
 
 ### Household
 

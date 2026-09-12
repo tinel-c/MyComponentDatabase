@@ -80,7 +80,7 @@ nextHeld = (holdForNextMonth && rawRta > 0)
 
 Audit (2026-09): engine identity matches docs and tests (`income − assigned = rta` when hold/debt are zero). No formula change required.
 
-**Import ignore rules:** transactions whose notes match an `ImportCategoryRule` with `ignore: true` set `excludeFromRta` and do **not** change RTA or category Activity (used for ING credit-line covers, etc.).
+**Import ignore rules:** matching ING rows are **still imported into the ledger** (account balances include them). Transactions whose notes match an `ImportCategoryRule` with `ignore: true` set `excludeFromRta` and do **not** change RTA or category Activity (used for ING credit-line covers, etc.). Toggle ignore rules and reapply — no CSV re-import required for budget exclusion.
 
 UI states:
 

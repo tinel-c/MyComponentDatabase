@@ -22,6 +22,7 @@ import {
   ListFilter,
   History,
   ScanLine,
+  Database,
 } from "lucide-react";
 
 type LinkItem = {
@@ -30,6 +31,7 @@ type LinkItem = {
   desc: string;
   icon: typeof Receipt;
   featured?: boolean;
+  adminOnly?: boolean;
 };
 
 const featured: LinkItem = {
@@ -126,6 +128,13 @@ const sections: { title: string; items: LinkItem[] }[] = [
         desc: "Invite your household partner",
         icon: Users,
       },
+      {
+        href: "/more/data",
+        label: "Data",
+        desc: "Export, import, or selectively erase the database",
+        icon: Database,
+        adminOnly: true,
+      },
     ],
   },
 ];
@@ -133,6 +142,7 @@ const sections: { title: string; items: LinkItem[] }[] = [
 export default async function MorePage() {
   const { budget } = await requireBudgetAccess();
   const session = await auth();
+  const isAdmin = session?.user?.role === "ADMIN";
   const FeaturedIcon = featured.icon;
 
   return (
@@ -159,34 +169,38 @@ export default async function MorePage() {
         </div>
       </Link>
 
-      {sections.map((section) => (
-        <section key={section.title} className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-            {section.title}
-          </h2>
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {section.items.map((l) => {
-              const Icon = l.icon;
-              return (
-                <li key={l.href}>
-                  <Link
-                    href={l.href}
-                    className={`${cardClass} flex h-full items-start gap-3 p-4 transition-all duration-150 hover:border-rim hover:bg-overlay/40 active:scale-[0.99]`}
-                  >
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-overlay text-accent">
-                      <Icon className="size-5" />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-medium text-fg">{l.label}</p>
-                      <p className="mt-0.5 text-sm text-fg-muted">{l.desc}</p>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))}
+      {sections.map((section) => {
+        const items = section.items.filter((l) => !l.adminOnly || isAdmin);
+        if (items.length === 0) return null;
+        return (
+          <section key={section.title} className="space-y-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+              {section.title}
+            </h2>
+            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {items.map((l) => {
+                const Icon = l.icon;
+                return (
+                  <li key={l.href}>
+                    <Link
+                      href={l.href}
+                      className={`${cardClass} flex h-full items-start gap-3 p-4 transition-all duration-150 hover:border-rim hover:bg-overlay/40 active:scale-[0.99]`}
+                    >
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-overlay text-accent">
+                        <Icon className="size-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-medium text-fg">{l.label}</p>
+                        <p className="mt-0.5 text-sm text-fg-muted">{l.desc}</p>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className={`${cardClass} p-4`}>

@@ -240,21 +240,11 @@ export async function confirmIngImport(formData: FormData): Promise<
 
   for (const row of applied) {
     const memoPreview = row.memo.slice(0, 160);
-    if (row.ignored) {
-      ignored++;
-      batchItems.push({
-        batchId: batch.id,
-        action: "ignored",
-        fingerprint: row.fingerprint,
-        memoPreview,
-      });
-      continue;
-    }
 
     const existingId = existingByFp.get(row.fingerprint) ?? null;
     const decision = decisionByFp.get(row.fingerprint);
     const plan = planIngConfirmAction({
-      ignored: false,
+      ignored: row.ignored,
       fingerprint: row.fingerprint,
       fingerprintAlreadyOnAccount: Boolean(existingId),
       decision,
@@ -292,6 +282,8 @@ export async function confirmIngImport(formData: FormData): Promise<
           importBatchId: batch.id,
           cleared: true,
           date: row.date,
+          // Keep bill splits; clear category when ignore rule matched the ING memo
+          ...(row.ignored ? { categoryId: null } : {}),
         },
       });
       await prisma.transaction.updateMany({
@@ -300,6 +292,7 @@ export async function confirmIngImport(formData: FormData): Promise<
       });
       existingByFp.set(row.fingerprint, plan.manualMatchId);
       linked++;
+      if (row.ignored) ignored++;
       batchItems.push({
         batchId: batch.id,
         action: "linked_manual",
@@ -323,12 +316,12 @@ export async function confirmIngImport(formData: FormData): Promise<
           data: {
             budgetId: budget.id,
             name: payeeName,
-            lastCategoryId: row.categoryId,
+            lastCategoryId: row.ignored ? null : row.categoryId,
           },
         });
         id = payee.id;
         payeeIdByName.set(payeeName, id);
-      } else if (row.categoryId) {
+      } else if (row.categoryId && !row.ignored) {
         await prisma.payee.update({
           where: { id },
           data: { lastCategoryId: row.categoryId },
@@ -343,7 +336,7 @@ export async function confirmIngImport(formData: FormData): Promise<
         date: row.date,
         amount: row.amount,
         payeeId,
-        categoryId: row.categoryId,
+        categoryId: row.ignored ? null : row.categoryId,
         notes: row.memo,
         cleared: true,
         importFingerprint: row.fingerprint,
@@ -353,6 +346,7 @@ export async function confirmIngImport(formData: FormData): Promise<
     });
     existingByFp.set(row.fingerprint, txn.id);
     created++;
+    if (row.ignored) ignored++;
     batchItems.push({
       batchId: batch.id,
       action: "created",
@@ -539,7 +533,6 @@ export async function reapplyRulesToBatch(formData: FormData) {
   const txns = await prisma.transaction.findMany({
     where: {
       importBatchId: batchId,
-      categoryId: null,
       notes: { not: null },
     },
   });
@@ -548,8 +541,16 @@ export async function reapplyRulesToBatch(formData: FormData) {
     const memo = txn.notes ?? "";
     for (const rule of rules) {
       if (!memo.includes(rule.matchText)) continue;
-      if (rule.ignore) break;
-      if (rule.categoryId) {
+      if (rule.ignore) {
+        if (txn.categoryId) {
+          await prisma.transaction.update({
+            where: { id: txn.id },
+            data: { categoryId: null },
+          });
+        }
+        break;
+      }
+      if (rule.categoryId && txn.categoryId !== rule.categoryId) {
         await prisma.transaction.update({
           where: { id: txn.id },
           data: { categoryId: rule.categoryId },

@@ -209,7 +209,7 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
           <p className="text-sm text-fg-muted">
             {stats.total} rows · {stats.new} new · {stats.unmatched} unmatched ·{" "}
             {stats.manual} manual matches · {stats.already} already imported ·{" "}
-            {stats.ignored} ignored
+            {stats.ignored} ignored → ledger (excluded from budget)
           </p>
         )}
       </div>
@@ -270,7 +270,9 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
                     <option value="import_anyway">Import anyway</option>
                     <option value="skip">Skip</option>
                   </select>
-                ) : row.status === "new" || row.status === "unmatched" ? (
+                ) : row.status === "new" ||
+                  row.status === "unmatched" ||
+                  row.status === "ignored" ? (
                   <select
                     className={inputClass}
                     value={decisions[row.fingerprint]?.action ?? "import"}
@@ -280,7 +282,11 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
                       })
                     }
                   >
-                    <option value="import">Import</option>
+                    <option value="import">
+                      {row.status === "ignored"
+                        ? "Import (exclude from budget)"
+                        : "Import"}
+                    </option>
                     <option value="skip">Skip</option>
                   </select>
                 ) : null}
@@ -330,7 +336,9 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
                         <option value="import_anyway">Import anyway</option>
                         <option value="skip">Skip</option>
                       </select>
-                    ) : row.status === "new" || row.status === "unmatched" ? (
+                    ) : row.status === "new" ||
+                      row.status === "unmatched" ||
+                      row.status === "ignored" ? (
                       <select
                         className={inputClass}
                         value={decisions[row.fingerprint]?.action ?? "import"}
@@ -340,7 +348,11 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
                           })
                         }
                       >
-                        <option value="import">Import</option>
+                        <option value="import">
+                          {row.status === "ignored"
+                            ? "Import (exclude from budget)"
+                            : "Import"}
+                        </option>
                         <option value="skip">Skip</option>
                       </select>
                     ) : (

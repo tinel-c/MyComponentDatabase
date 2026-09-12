@@ -45,21 +45,34 @@ export function isBillImportPendingNotes(notes: string | null | undefined): bool
 /**
  * Classify one applied ING row against fingerprints already on the account and
  * unfingerprinted manual rows (including bill imports awaiting statement link).
+ *
+ * Ignore-rule matches still import into the ledger; they are labeled "ignored"
+ * only to mean "excluded from budget math" (excludeFromRta via notes).
  */
 export function classifyIngRowAgainstLedger(
   row: IngRowForStatus,
   existingFingerprints: ReadonlySet<string>,
   manuals: ManualLedgerTxn[],
 ): IngPreviewClassification {
-  if (row.ignored) {
-    return { status: "ignored", manualMatchId: null };
-  }
   if (existingFingerprints.has(row.fingerprint)) {
     return { status: "already_imported", manualMatchId: null };
   }
   const manualMatchId = findManualMatch(row, manuals);
   if (manualMatchId) {
-    return { status: "possible_manual_match", manualMatchId };
+    // findManualMatch uses absolute amounts, which can pair credit-line covers
+    // with debit bills. Ignore-rule rows may still link when signs agree.
+    const manual = manuals.find((m) => m.id === manualMatchId);
+    const sameSign =
+      !manual ||
+      manual.amount === 0 ||
+      row.amount === 0 ||
+      Math.sign(manual.amount) === Math.sign(row.amount);
+    if (!row.ignored || sameSign) {
+      return { status: "possible_manual_match", manualMatchId };
+    }
+  }
+  if (row.ignored) {
+    return { status: "ignored", manualMatchId: null };
   }
   if (!row.categoryId) {
     return { status: "unmatched", manualMatchId: null };
@@ -76,6 +89,7 @@ export type ConfirmDecisionLike = {
 /**
  * Plan what confirmIngImport should do for one row — no DB side effects.
  * Ensures already-fingerprinted rows never create a second transaction.
+ * Ignore-rule rows still create/link (budget exclusion is via notes + excludeFromRta).
  */
 export function planIngConfirmAction(params: {
   ignored: boolean;
@@ -83,13 +97,12 @@ export function planIngConfirmAction(params: {
   fingerprintAlreadyOnAccount: boolean;
   decision?: ConfirmDecisionLike | null;
 }):
-  | { kind: "ignored" }
   | { kind: "skip_duplicate" }
   | { kind: "skip_user" }
   | { kind: "link"; manualMatchId: string }
   | { kind: "replace_then_create"; manualMatchId: string }
   | { kind: "create" } {
-  if (params.ignored) return { kind: "ignored" };
+  void params.ignored;
   if (params.fingerprintAlreadyOnAccount) return { kind: "skip_duplicate" };
 
   const decision = params.decision;
@@ -111,7 +124,7 @@ export function planIngConfirmAction(params: {
     return { kind: "create" };
   }
 
-  // import / import_anyway
+  // import / import_anyway (and ignored rows with no decision)
   return { kind: "create" };
 }
 
@@ -146,7 +159,12 @@ export function classifyIngImportPreview(params: {
   });
 
   const wouldCreateFingerprints = classified
-    .filter((r) => r.status === "new" || r.status === "unmatched")
+    .filter(
+      (r) =>
+        r.status === "new" ||
+        r.status === "unmatched" ||
+        r.status === "ignored",
+    )
     .map((r) => r.fingerprint);
 
   return {

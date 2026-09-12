@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **ING ignore = ledger + budget exclude:** confirm always inserts (or links) ignore-matched rows; RTA/Activity skip via `excludeFromRta` on notes — reapply rules without re-importing CSV
+- **More → Data (admin):** export/download SQLite (optional gzip), upload/replace DB, selective erase (defaults keep import + receipt mappings)
+- Desktop chrome: **ING import** under Import bill; right rail with per-account month bills / manual / ING stats
 - **Receipt detailing (Gemini):** upload a bill on a transaction → line items mapped via `ReceiptCategoryRule` → category split children; Reflect receipt-detailed section; More → Receipt mappings
 - Plan **Activity** amounts link to `/transactions?categoryId=&month=` (same rows that compose the envelope)
 - Reflect chart hover shows top transactions for that slice; receipt-detailed section includes pie + bar charts

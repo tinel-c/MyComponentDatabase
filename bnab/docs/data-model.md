@@ -31,9 +31,9 @@ Same shapes as part-db: `User`, `Account` (OAuth), `Session`, `VerificationToken
 
 | Model | Purpose |
 |-------|---------|
-| `ImportCategoryRule` | Budget-scoped memo `matchText` → category (or `ignore: true`) |
+| `ImportCategoryRule` | Budget-scoped memo `matchText` → category (or `ignore: true`). Ignore still **creates** ledger rows; budget math uses `excludeFromRta`. |
 | `ImportBatch` | One CSV confirm run (account, filename, counts, optional snapshot path) |
-| `ImportBatchItem` | Per-row outcome: created / skipped / unmatched preview metadata |
+| `ImportBatchItem` | Per-row outcome: created / linked / skipped (ignored rows use `created` + null category) |
 | `Transaction.importFingerprint` | Dedupe key per account (`@@unique([accountId, importFingerprint])`) |
 | `Transaction.importContentHash` | Content hash for change detection |
 | `Transaction.importBatchId` | Link to batch for revert |
@@ -53,8 +53,12 @@ Snapshots of `bnab.db` before import live under `bnab/data/snapshots/` (gitignor
 2. Split **children** reference `parentId`, have categories, no nested splits.
 3. Transfers: two rows linked by `transferTwinId`; categories null (CC payment availability handled in engine).
 4. Starting balance: `isStartingBalance=true`, usually cleared.
-5. Only non-parent, on-budget, categorized txs affect Activity — unless `excludeFromRta` (engine flag for import-ignored memos).
+5. Only non-parent, on-budget, categorized txs affect Activity — unless `excludeFromRta` (engine flag for import-ignored memos). Account **balances include** ignored rows.
 6. Deleting a parent deletes children; deleting a transfer clears twin links then deletes both.
+
+## Admin data tools
+
+`/more/data` (ADMIN): download live SQLite (optional gzip), replace from upload (snapshot first), selective erase with flags that default to **keeping** `ImportCategoryRule` and `ReceiptCategoryRule`.
 
 ## Indexes
 

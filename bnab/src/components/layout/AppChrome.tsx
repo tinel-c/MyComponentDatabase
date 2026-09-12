@@ -11,9 +11,11 @@ import {
   ArrowLeftRight,
   ArrowRightLeft,
   Receipt,
+  FileSpreadsheet,
 } from "lucide-react";
 import { BnabLogo } from "@/components/brand/BnabLogo";
 import { InstallAppPrompt } from "@/components/pwa/InstallAppPrompt";
+import type { AccountActivitySummary } from "@/lib/account-activity-summary";
 
 const tabs: {
   href: string;
@@ -46,15 +48,70 @@ const desktopLinks: {
   { href: "/accounts", label: "Accounts", icon: PiggyBank },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/more/import-bill", label: "Import bill", icon: Receipt },
+  { href: "/more/import", label: "ING import", icon: FileSpreadsheet },
   { href: "/reflect", label: "Reflect", icon: BarChart3 },
 ];
+
+function AccountActivityRail({
+  summaries,
+}: {
+  summaries: AccountActivitySummary[];
+}) {
+  if (summaries.length === 0) return null;
+  const month = summaries[0]?.month ?? "";
+  return (
+    <aside className="hidden w-64 shrink-0 flex-col border-l border-rim/60 bg-surface/40 backdrop-blur-sm md:flex">
+      <div className="border-b border-rim/60 px-4 py-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+          Account activity
+        </p>
+        <p className="mt-1 text-sm text-fg-muted">{month}</p>
+      </div>
+      <ul className="flex-1 space-y-3 overflow-y-auto p-3">
+        {summaries.map((s) => (
+          <li
+            key={s.accountId}
+            className="rounded-xl border border-rim-subtle bg-canvas/40 px-3 py-2.5"
+          >
+            <Link
+              href={`/accounts/${s.accountId}`}
+              className="block truncate text-sm font-medium text-fg hover:text-accent"
+            >
+              {s.accountName}
+            </Link>
+            <dl className="mt-2 space-y-1 text-xs text-fg-muted">
+              <div className="flex justify-between gap-2">
+                <dt>Bills</dt>
+                <dd className="font-mono tabular-nums text-fg">{s.billsImported}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt>Manual</dt>
+                <dd className="font-mono tabular-nums text-fg">{s.manualEntries}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt>ING batches</dt>
+                <dd className="font-mono tabular-nums text-fg">{s.ingBatches}</dd>
+              </div>
+              <div className="flex justify-between gap-2">
+                <dt>ING txns</dt>
+                <dd className="font-mono tabular-nums text-fg">{s.ingTxnCount}</dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  );
+}
 
 export function AppChrome({
   children,
   budgetName,
+  accountActivity,
 }: {
   children: React.ReactNode;
   budgetName: string;
+  accountActivity?: AccountActivitySummary[];
 }) {
   const pathname = usePathname();
   const wideRegister =
@@ -91,9 +148,12 @@ export function AppChrome({
                 ? wideRegister
                 : href === "/more/import-bill"
                   ? pathname.startsWith("/more/import-bill")
-                  : href === "/plan"
-                    ? pathname === "/plan"
-                    : pathname === href || pathname.startsWith(href + "/");
+                  : href === "/more/import"
+                    ? pathname === "/more/import" ||
+                      pathname.startsWith("/more/import/")
+                    : href === "/plan"
+                      ? pathname === "/plan"
+                      : pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}
@@ -115,8 +175,10 @@ export function AppChrome({
             prefetch
             className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 active:scale-[0.98] ${
               pathname.startsWith("/more") &&
-              !pathname.startsWith("/more/import-bill")
-                ? "bg-accent-muted text-accent shadow-sm"
+              !pathname.startsWith("/more/import-bill") &&
+              pathname !== "/more/import" &&
+              !pathname.startsWith("/more/import/")
+                ? "bg-accent-muted text-accent"
                 : "text-fg-muted hover:bg-overlay/80 hover:text-fg"
             }`}
           >
@@ -159,6 +221,8 @@ export function AppChrome({
         </main>
         <InstallAppPrompt />
       </div>
+
+      <AccountActivityRail summaries={accountActivity ?? []} />
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-rim/60 bg-surface/95 backdrop-blur md:hidden">
         <ul className="mx-auto flex max-w-lg items-end justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
