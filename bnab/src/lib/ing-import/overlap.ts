@@ -23,6 +23,7 @@ export type IngRowForStatus = {
   fingerprint: string;
   ignored: boolean;
   categoryId: string | null;
+  transferAccountId?: string | null;
 };
 
 export type IngPreviewStatus =
@@ -74,10 +75,10 @@ export function classifyIngRowAgainstLedger(
   if (row.ignored) {
     return { status: "ignored", manualMatchId: null };
   }
-  if (!row.categoryId) {
-    return { status: "unmatched", manualMatchId: null };
+  if (row.transferAccountId || row.categoryId) {
+    return { status: "new", manualMatchId: null };
   }
-  return { status: "new", manualMatchId: null };
+  return { status: "unmatched", manualMatchId: null };
 }
 
 export type ConfirmDecisionLike = {
@@ -212,6 +213,8 @@ type PreviewRuleApplyRow = {
   ignored: boolean;
   categoryId: string | null;
   categoryName: string | null;
+  transferAccountId?: string | null;
+  transferAccountName?: string | null;
 };
 
 /**
@@ -226,6 +229,8 @@ export function applyNewRuleToPreviewRows<T extends PreviewRuleApplyRow>(
     ignore: boolean;
     categoryId: string | null;
     categoryName: string | null;
+    transferAccountId?: string | null;
+    transferAccountName?: string | null;
   },
 ): { rows: T[]; stats: PreviewStats; matchedFingerprints: string[] } {
   const needle = params.matchText.trim();
@@ -239,6 +244,8 @@ export function applyNewRuleToPreviewRows<T extends PreviewRuleApplyRow>(
         ignored: true,
         categoryId: null,
         categoryName: null,
+        transferAccountId: null,
+        transferAccountName: null,
         status:
           r.status === "already_imported" ||
           r.status === "possible_manual_match"
@@ -246,11 +253,28 @@ export function applyNewRuleToPreviewRows<T extends PreviewRuleApplyRow>(
             : ("ignored" as const),
       };
     }
+    if (params.transferAccountId) {
+      return {
+        ...r,
+        ignored: false,
+        categoryId: null,
+        categoryName: null,
+        transferAccountId: params.transferAccountId,
+        transferAccountName: params.transferAccountName ?? null,
+        status:
+          r.status === "already_imported" ||
+          r.status === "possible_manual_match"
+            ? r.status
+            : ("new" as const),
+      };
+    }
     return {
       ...r,
       ignored: false,
       categoryId: params.categoryId,
       categoryName: params.categoryName,
+      transferAccountId: null,
+      transferAccountName: null,
       status:
         r.status === "already_imported" ||
         r.status === "possible_manual_match"

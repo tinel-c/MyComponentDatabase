@@ -85,42 +85,6 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
       }
     }
     setDecisions(next);
-    // #region agent log
-    const creditRows = res.rows.filter(
-      (r) =>
-        /999904927930|linia de credit/i.test(r.memo) ||
-        /999904927930|linia de credit/i.test(r.suggestedSubstring),
-    );
-    if (creditRows.length > 0) {
-      fetch("http://127.0.0.1:7298/ingest/7f3901ac-961b-4078-9b8c-c42ef281edcb", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug-Session-Id": "3e3435",
-        },
-        body: JSON.stringify({
-          sessionId: "3e3435",
-          runId: "post-fix",
-          hypothesisId: "C",
-          location: "IngImportClient.tsx:applyPreviewResult",
-          message: "credit-line preview rows",
-          data: {
-            count: creditRows.length,
-            rows: creditRows.slice(0, 8).map((r) => ({
-              status: r.status,
-              ignored: r.ignored,
-              categoryId: r.categoryId,
-              categoryName: r.categoryName,
-              matchedRuleId: r.matchedRuleId,
-              memoSnippet: r.memo.slice(0, 140),
-              amount: r.amount,
-            })),
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    }
-    // #endregion
   }
 
   function runPreview() {
@@ -178,6 +142,7 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
     matchText: string,
     categoryId: string,
     ignore: boolean,
+    transferAccountId: string,
   ) {
     setError(null);
     const needle = matchText.trim();
@@ -188,10 +153,13 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
     const fd = new FormData();
     fd.set("matchText", needle);
     if (ignore) fd.set("ignore", "1");
+    else if (transferAccountId) fd.set("transferAccountId", transferAccountId);
     else fd.set("categoryId", categoryId);
 
     const cat = categories.find((c) => c.id === categoryId);
     const categoryName = cat ? `${cat.groupName}: ${cat.name}` : null;
+    const transferAccountName =
+      accounts.find((a) => a.id === transferAccountId)?.name ?? null;
 
     startTransition(async () => {
       const res = await createImportRuleFromForm(fd);
@@ -207,8 +175,10 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
         const applied = applyNewRuleToPreviewRows(prev, {
           matchText: needle,
           ignore,
-          categoryId: ignore ? null : categoryId,
-          categoryName: ignore ? null : categoryName,
+          categoryId: ignore || transferAccountId ? null : categoryId,
+          categoryName: ignore || transferAccountId ? null : categoryName,
+          transferAccountId: ignore ? null : transferAccountId || null,
+          transferAccountName: ignore ? null : transferAccountName,
         });
         setStats(applied.stats);
         setDecisions((prevDec) => {
@@ -334,6 +304,7 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
                 key={row.fingerprint}
                 row={row}
                 categories={categories}
+                accounts={accounts.filter((a) => a.id !== accountId)}
                 currency={currency}
                 disabled={pending}
                 onSave={saveRuleForRow}
@@ -360,7 +331,11 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
                   </p>
                 </div>
                 <p className="text-xs text-fg-muted">
-                  {row.ignored ? "—" : row.categoryName ?? "(uncategorized)"}
+                  {row.ignored
+                    ? "—"
+                    : row.transferAccountName
+                      ? `Transfer ↔ ${row.transferAccountName}`
+                      : (row.categoryName ?? "(uncategorized)")}
                 </p>
                 {row.status === "possible_manual_match" ? (
                   <select
@@ -424,7 +399,11 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
                     {formatMoney(row.amount, currency)}
                   </td>
                   <td className="px-3 py-2 text-fg-muted">
-                    {row.ignored ? "—" : row.categoryName ?? "(uncategorized)"}
+                    {row.ignored
+                      ? "—"
+                      : row.transferAccountName
+                        ? `Transfer ↔ ${row.transferAccountName}`
+                        : (row.categoryName ?? "(uncategorized)")}
                   </td>
                   <td className="px-3 py-2 text-fg-muted">{row.status.replaceAll("_", " ")}</td>
                   <td className="px-3 py-2">
@@ -481,12 +460,14 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
 function UnmatchedRuleCard({
   row,
   categories,
+  accounts,
   currency,
   disabled,
   onSave,
 }: {
   row: PreviewRow;
   categories: CategoryOption[];
+  accounts: { id: string; name: string }[];
   currency: string;
   disabled: boolean;
   onSave: (
@@ -494,11 +475,17 @@ function UnmatchedRuleCard({
     matchText: string,
     categoryId: string,
     ignore: boolean,
+    transferAccountId: string,
   ) => void;
 }) {
   const [matchText, setMatchText] = useState(row.suggestedSubstring);
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
+  const [transferAccountId, setTransferAccountId] = useState("");
   const [ignore, setIgnore] = useState(false);
+
+  const canSave =
+    matchText.trim().length >= 3 &&
+    (ignore || Boolean(transferAccountId) || Boolean(categoryId));
 
   return (
     <li className="rounded-xl border border-rim bg-surface p-3 space-y-2">
@@ -508,7 +495,7 @@ function UnmatchedRuleCard({
       <p className="line-clamp-2 font-mono text-xs text-fg-muted" title={row.memo}>
         {row.memo}
       </p>
-      <div className="grid gap-2 sm:grid-cols-3">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <label className={labelClass}>
           Match substring
           <input
@@ -522,8 +509,11 @@ function UnmatchedRuleCard({
           <select
             className={inputClass}
             value={categoryId}
-            disabled={ignore}
-            onChange={(e) => setCategoryId(e.target.value)}
+            disabled={ignore || Boolean(transferAccountId)}
+            onChange={(e) => {
+              setCategoryId(e.target.value);
+              setTransferAccountId("");
+            }}
           >
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -532,11 +522,33 @@ function UnmatchedRuleCard({
             ))}
           </select>
         </label>
+        <label className={labelClass}>
+          Transfer to
+          <select
+            className={inputClass}
+            value={transferAccountId}
+            disabled={ignore}
+            onChange={(e) => {
+              setTransferAccountId(e.target.value);
+              if (e.target.value) setIgnore(false);
+            }}
+          >
+            <option value="">— category instead —</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="flex items-end gap-2 pb-2 text-sm text-fg">
           <input
             type="checkbox"
             checked={ignore}
-            onChange={(e) => setIgnore(e.target.checked)}
+            onChange={(e) => {
+              setIgnore(e.target.checked);
+              if (e.target.checked) setTransferAccountId("");
+            }}
           />
           Ignore pattern
         </label>
@@ -544,8 +556,16 @@ function UnmatchedRuleCard({
       <button
         type="button"
         className={buttonCompactClass}
-        disabled={disabled || matchText.trim().length < 3}
-        onClick={() => onSave(row, matchText.trim(), categoryId, ignore)}
+        disabled={disabled || !canSave}
+        onClick={() =>
+          onSave(
+            row,
+            matchText.trim(),
+            categoryId,
+            ignore,
+            transferAccountId,
+          )
+        }
       >
         Save rule
       </button>

@@ -18,6 +18,7 @@ import { createDbSnapshot } from "@/lib/ing-import/snapshot";
 
 export type PreviewRow = AppliedRow & {
   categoryName: string | null;
+  transferAccountName: string | null;
 };
 
 export type PreviewResult = {
@@ -65,6 +66,11 @@ export async function previewIngImport(formData: FormData): Promise<PreviewResul
     select: { id: true, name: true },
   });
   const nameById = new Map(cats.map((c) => [c.id, c.name]));
+  const accounts = await prisma.financeAccount.findMany({
+    where: { budgetId: budget.id },
+    select: { id: true, name: true },
+  });
+  const accountNameById = new Map(accounts.map((a) => [a.id, a.name]));
 
   const parsed = parseIngCsv(csv);
   if (parsed.length === 0) {
@@ -119,6 +125,9 @@ export async function previewIngImport(formData: FormData): Promise<PreviewResul
       status,
       manualMatchId,
       categoryName: r.categoryId ? nameById.get(r.categoryId) ?? null : null,
+      transferAccountName: r.transferAccountId
+        ? accountNameById.get(r.transferAccountId) ?? null
+        : null,
     };
   });
 
@@ -309,26 +318,95 @@ export async function confirmIngImport(formData: FormData): Promise<
     }
 
     let payeeId: string | null = null;
-    const payeeName = row.payeeGuess?.trim();
-    if (payeeName && payeeName !== "Unknown") {
-      let id = payeeIdByName.get(payeeName);
-      if (!id) {
-        const payee = await prisma.payee.create({
-          data: {
-            budgetId: budget.id,
-            name: payeeName,
-            lastCategoryId: row.ignored ? null : row.categoryId,
-          },
-        });
-        id = payee.id;
-        payeeIdByName.set(payeeName, id);
-      } else if (row.categoryId && !row.ignored) {
-        await prisma.payee.update({
-          where: { id },
-          data: { lastCategoryId: row.categoryId },
-        });
+    const isTransfer = Boolean(row.transferAccountId);
+    if (!isTransfer) {
+      const payeeName = row.payeeGuess?.trim();
+      if (payeeName && payeeName !== "Unknown") {
+        let id = payeeIdByName.get(payeeName);
+        if (!id) {
+          const payee = await prisma.payee.create({
+            data: {
+              budgetId: budget.id,
+              name: payeeName,
+              lastCategoryId: row.ignored ? null : row.categoryId,
+            },
+          });
+          id = payee.id;
+          payeeIdByName.set(payeeName, id);
+        } else if (row.categoryId && !row.ignored) {
+          await prisma.payee.update({
+            where: { id },
+            data: { lastCategoryId: row.categoryId },
+          });
+        }
+        payeeId = id;
       }
-      payeeId = id;
+    }
+
+    if (isTransfer && row.transferAccountId) {
+      const to = await prisma.financeAccount.findFirst({
+        where: { id: row.transferAccountId, budgetId: budget.id },
+      });
+      if (!to || to.id === accountId) {
+        skipped++;
+        batchItems.push({
+          batchId: batch.id,
+          action: "skipped_duplicate",
+          fingerprint: row.fingerprint,
+          memoPreview,
+        });
+        continue;
+      }
+
+      // Statement account keeps CSV sign; twin gets the opposite (out ↔ in pair).
+      const txn = await prisma.transaction.create({
+        data: {
+          accountId,
+          date: row.date,
+          amount: row.amount,
+          payeeId: null,
+          categoryId: null,
+          notes: row.memo,
+          cleared: true,
+          importFingerprint: row.fingerprint,
+          importContentHash: row.contentHash,
+          importBatchId: batch.id,
+        },
+      });
+      const twin = await prisma.transaction.create({
+        data: {
+          accountId: to.id,
+          date: row.date,
+          amount: -row.amount,
+          payeeId: null,
+          categoryId: null,
+          notes: row.memo,
+          cleared: true,
+          transferTwinId: txn.id,
+          importBatchId: batch.id,
+        },
+      });
+      await prisma.transaction.update({
+        where: { id: txn.id },
+        data: { transferTwinId: twin.id },
+      });
+      existingByFp.set(row.fingerprint, txn.id);
+      created++;
+      batchItems.push({
+        batchId: batch.id,
+        action: "created",
+        transactionId: txn.id,
+        fingerprint: row.fingerprint,
+        memoPreview,
+      });
+      batchItems.push({
+        batchId: batch.id,
+        action: "created_transfer_twin",
+        transactionId: twin.id,
+        fingerprint: row.fingerprint,
+        memoPreview,
+      });
+      continue;
     }
 
     const txn = await prisma.transaction.create({
@@ -380,6 +458,8 @@ export async function createImportRuleFromForm(formData: FormData) {
   const { budget } = await requireBudgetAccess();
   const matchText = String(formData.get("matchText") ?? "").trim();
   const categoryId = String(formData.get("categoryId") ?? "") || null;
+  const transferAccountId =
+    String(formData.get("transferAccountId") ?? "") || null;
   const ignore = formData.get("ignore") === "1" || formData.get("ignore") === "on";
 
   if (matchText.length < 3) {
@@ -393,18 +473,32 @@ export async function createImportRuleFromForm(formData: FormData) {
     return { ok: false as const, error: "A rule with this match text already exists" };
   }
 
-  if (!ignore && !categoryId) {
+  let mode: "ignore" | "transfer" | "category";
+  if (ignore) {
+    mode = "ignore";
+  } else if (transferAccountId) {
+    mode = "transfer";
+  } else if (categoryId) {
+    mode = "category";
+  } else {
     return {
       ok: false as const,
-      error: "Pick a category or enable Ignore — empty mappings block other rules",
+      error: "Pick a category, a transfer account, or enable Ignore",
     };
   }
 
-  if (!ignore && categoryId) {
+  if (mode === "category" && categoryId) {
     const cat = await prisma.category.findFirst({
       where: { id: categoryId, group: { budgetId: budget.id } },
     });
     if (!cat) return { ok: false as const, error: "Category not found" };
+  }
+
+  if (mode === "transfer" && transferAccountId) {
+    const acct = await prisma.financeAccount.findFirst({
+      where: { id: transferAccountId, budgetId: budget.id },
+    });
+    if (!acct) return { ok: false as const, error: "Transfer account not found" };
   }
 
   const max = await prisma.importCategoryRule.aggregate({
@@ -416,8 +510,9 @@ export async function createImportRuleFromForm(formData: FormData) {
     data: {
       budgetId: budget.id,
       matchText,
-      categoryId: ignore ? null : categoryId,
-      ignore,
+      ignore: mode === "ignore",
+      categoryId: mode === "category" ? categoryId : null,
+      transferAccountId: mode === "transfer" ? transferAccountId : null,
       sortOrder: (max._max.sortOrder ?? 0) + 1,
     },
   });
@@ -438,22 +533,44 @@ export async function updateImportRule(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const matchText = String(formData.get("matchText") ?? "").trim();
   const categoryId = String(formData.get("categoryId") ?? "") || null;
+  const transferAccountId =
+    String(formData.get("transferAccountId") ?? "") || null;
   const ignore = formData.get("ignore") === "1" || formData.get("ignore") === "on";
   const rule = await prisma.importCategoryRule.findFirst({
     where: { id, budgetId: budget.id },
   });
   if (!rule || matchText.length < 3) return;
-  if (!ignore && !categoryId) return;
+
+  let mode: "ignore" | "transfer" | "category" | null = null;
+  if (ignore) mode = "ignore";
+  else if (transferAccountId) mode = "transfer";
+  else if (categoryId) mode = "category";
+  if (!mode) return;
+
+  if (mode === "transfer") {
+    const acct = await prisma.financeAccount.findFirst({
+      where: { id: transferAccountId!, budgetId: budget.id },
+    });
+    if (!acct) return;
+  }
+  if (mode === "category") {
+    const cat = await prisma.category.findFirst({
+      where: { id: categoryId!, group: { budgetId: budget.id } },
+    });
+    if (!cat) return;
+  }
 
   await prisma.importCategoryRule.update({
     where: { id },
     data: {
       matchText,
-      categoryId: ignore ? null : categoryId,
-      ignore,
+      ignore: mode === "ignore",
+      categoryId: mode === "category" ? categoryId : null,
+      transferAccountId: mode === "transfer" ? transferAccountId : null,
     },
   });
   revalidatePath("/more/import-rules");
+  revalidatePath("/more/import");
 }
 
 export async function deleteImportRule(formData: FormData) {
@@ -504,12 +621,32 @@ export async function revertImportBatch(formData: FormData) {
   if (!batch) return;
 
   const createdIds = batch.items
-    .filter((i) => i.action === "created" && i.transactionId)
+    .filter(
+      (i) =>
+        (i.action === "created" || i.action === "created_transfer_twin") &&
+        i.transactionId,
+    )
     .map((i) => i.transactionId!);
 
   if (createdIds.length) {
+    const twins = await prisma.transaction.findMany({
+      where: { id: { in: createdIds } },
+      select: { id: true, transferTwinId: true },
+    });
+    const twinIds = twins
+      .map((t) => t.transferTwinId)
+      .filter(
+        (id): id is string =>
+          typeof id === "string" && !createdIds.includes(id),
+      );
+    const allIds = [...new Set([...createdIds, ...twinIds])];
+    // Clear twin links first so either side can delete cleanly.
+    await prisma.transaction.updateMany({
+      where: { id: { in: allIds } },
+      data: { transferTwinId: null },
+    });
     await prisma.transaction.deleteMany({
-      where: { id: { in: createdIds }, accountId: batch.accountId },
+      where: { id: { in: allIds } },
     });
   }
 
@@ -547,9 +684,14 @@ export async function reapplyRulesToBatch(formData: FormData) {
   });
 
   for (const txn of txns) {
+    if (txn.transferTwinId) continue;
     const memo = txn.notes ?? "";
     for (const rule of rules) {
       if (!memoMatchesImportRule(memo, rule.matchText)) continue;
+      if (rule.transferAccountId) {
+        // Transfer pairs are created at import time; don't rewrite existing rows.
+        break;
+      }
       if (rule.ignore) {
         if (txn.categoryId) {
           await prisma.transaction.update({

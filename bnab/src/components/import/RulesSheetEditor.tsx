@@ -15,15 +15,22 @@ export type RuleCategoryOption = {
   label: string;
 };
 
+export type RuleAccountOption = {
+  id: string;
+  label: string;
+};
+
 export type RuleRow = {
   id: string;
   matchText: string;
   categoryId: string | null;
   ignore: boolean;
   categoryLabel: string | null;
+  transferAccountId?: string | null;
+  transferAccountLabel?: string | null;
 };
 
-type KindFilter = "all" | "mapped" | "ignore" | "uncategorized";
+type KindFilter = "all" | "mapped" | "ignore" | "transfer" | "uncategorized";
 
 type FormAction = (formData: FormData) => void | Promise<void>;
 
@@ -70,6 +77,7 @@ function RuleActionCluster({
 export function RulesSheetEditor({
   rules,
   categoryOptions,
+  accountOptions,
   matchMinLength = 3,
   ignoreHint = "Ignore",
   onUpdate,
@@ -78,6 +86,8 @@ export function RulesSheetEditor({
 }: {
   rules: RuleRow[];
   categoryOptions: RuleCategoryOption[];
+  /** When set, shows a Transfer-to account column (import mappings). */
+  accountOptions?: RuleAccountOption[];
   matchMinLength?: number;
   ignoreHint?: string;
   onUpdate: FormAction;
@@ -87,25 +97,39 @@ export function RulesSheetEditor({
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<KindFilter>("all");
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
+  const showTransfer = Boolean(accountOptions && accountOptions.length > 0);
 
   const filtered = useMemo(() => {
     return rules.filter((rule) => {
+      const isTransfer = Boolean(rule.transferAccountId);
       if (kind === "ignore" && !rule.ignore) return false;
-      if (kind === "mapped" && (rule.ignore || !rule.categoryId)) return false;
-      if (kind === "uncategorized" && (rule.ignore || rule.categoryId))
+      if (kind === "transfer" && !isTransfer) return false;
+      if (
+        kind === "mapped" &&
+        (rule.ignore || isTransfer || !rule.categoryId)
+      )
+        return false;
+      if (
+        kind === "uncategorized" &&
+        (rule.ignore || isTransfer || rule.categoryId)
+      )
         return false;
 
       if (!deferredQuery) return true;
       const hay = [
         rule.matchText,
         rule.categoryLabel ?? "",
+        rule.transferAccountLabel ?? "",
         rule.ignore ? "ignore" : "",
+        isTransfer ? "transfer" : "",
       ]
         .join(" ")
         .toLowerCase();
       return hay.includes(deferredQuery);
     });
   }, [rules, deferredQuery, kind]);
+
+  const colSpan = showTransfer ? 5 : 4;
 
   return (
     <div className="space-y-3">
@@ -115,7 +139,11 @@ export function RulesSheetEditor({
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Filter match or category…"
+            placeholder={
+              showTransfer
+                ? "Filter match, category, or account…"
+                : "Filter match or category…"
+            }
             className={`${inputCompactClass} min-w-[12rem] flex-1`}
             autoComplete="off"
             aria-label="Filter rules"
@@ -128,6 +156,7 @@ export function RulesSheetEditor({
           >
             <option value="all">All</option>
             <option value="mapped">Mapped</option>
+            {showTransfer ? <option value="transfer">Transfer</option> : null}
             <option value="ignore">Ignore</option>
             <option value="uncategorized">No category</option>
           </select>
@@ -138,13 +167,15 @@ export function RulesSheetEditor({
         </div>
       </div>
 
-      {/* Desktop spreadsheet */}
       <div className={`${cardCompactClass} hidden overflow-x-auto md:block`}>
         <table className="w-full min-w-[40rem] border-collapse text-sm">
           <thead>
             <tr>
               <th className={denseThClass}>Match</th>
               <th className={denseThClass}>Category</th>
+              {showTransfer ? (
+                <th className={denseThClass}>Transfer to</th>
+              ) : null}
               <th className={`${denseThClass} w-20`}>Ignore</th>
               <th className={`${denseThClass} w-[11.5rem] text-right`}>Actions</th>
             </tr>
@@ -186,6 +217,24 @@ export function RulesSheetEditor({
                       ))}
                     </select>
                   </td>
+                  {showTransfer ? (
+                    <td className={denseTdClass}>
+                      <select
+                        name="transferAccountId"
+                        form={formId}
+                        className={inputCompactClass}
+                        defaultValue={rule.transferAccountId ?? ""}
+                        aria-label="Transfer to account"
+                      >
+                        <option value="">—</option>
+                        {accountOptions!.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  ) : null}
                   <td className={`${denseTdClass} text-center`}>
                     <input
                       type="checkbox"
@@ -211,10 +260,7 @@ export function RulesSheetEditor({
             })}
             {filtered.length === 0 && (
               <tr>
-                <td
-                  colSpan={4}
-                  className="px-3 py-4 text-sm text-fg-muted"
-                >
+                <td colSpan={colSpan} className="px-3 py-4 text-sm text-fg-muted">
                   {rules.length === 0
                     ? "No rules yet."
                     : "No rules match this filter."}
@@ -225,7 +271,6 @@ export function RulesSheetEditor({
         </table>
       </div>
 
-      {/* Mobile cards */}
       <ul className={`${cardCompactClass} divide-y divide-rim-subtle md:hidden`}>
         {filtered.map((rule) => {
           const formId = `rule-update-m-${rule.id}`;
@@ -255,6 +300,21 @@ export function RulesSheetEditor({
                     </option>
                   ))}
                 </select>
+                {showTransfer ? (
+                  <select
+                    name="transferAccountId"
+                    className={inputCompactClass}
+                    defaultValue={rule.transferAccountId ?? ""}
+                    aria-label="Transfer to account"
+                  >
+                    <option value="">— Transfer to account</option>
+                    {accountOptions!.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
                 <label className="flex items-center gap-2 text-sm text-fg">
                   <input
                     type="checkbox"

@@ -59,6 +59,7 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
   - Preview unmatched / matched / ignored / duplicates
   - Confirm creates batch + fingerprints (**ignored rows are inserted**, excluded from RTA/Activity via notes)
   - Mapping rules CRUD + create-from-unmatched (match = substring **anywhere** in memo, case-insensitive; saving clears sibling unmatched rows)
+  - **Transfer mappings**: rule picks the other account → confirm creates linked `transferTwinId` pair (CSV sign on statement account, opposite on the other)
   - Ignore patterns (e.g. credit-line covers) excluded from RTA & Activity without skipping ledger insert
   - Import history: revert batch, DB snapshots
 - [x] **Admin Data tools** (`/more/data`): export/import SQLite, selective erase (default keep mappings)

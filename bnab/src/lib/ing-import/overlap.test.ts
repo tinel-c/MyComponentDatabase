@@ -222,6 +222,20 @@ describe("classifyIngRowAgainstLedger — no duplicate spend", () => {
     assert.equal(c.status, "ignored");
   });
 
+  it("treats transferAccountId rows as new (not unmatched)", () => {
+    const row: Parameters<typeof classifyIngRowAgainstLedger>[0] = {
+      fingerprint: "fp-xfer",
+      date: "2026-09-01",
+      amount: 90849,
+      memo: "Din contul:999904927930",
+      categoryId: null,
+      transferAccountId: "credit-line",
+      ignored: false,
+    };
+    const c = classifyIngRowAgainstLedger(row, new Set(), []);
+    assert.equal(c.status, "new");
+  });
+
   it("links ignored ING debit to a pending bill when amount matches", () => {
     const debit: Parameters<typeof classifyIngRowAgainstLedger>[0] = {
       fingerprint: "fp-ign",

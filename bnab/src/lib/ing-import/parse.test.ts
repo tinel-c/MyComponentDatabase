@@ -141,6 +141,57 @@ describe("ING parser", () => {
     assert.equal(credit!.ignored, false);
   });
 
+  it("applies transferAccountId and clears category", () => {
+    const rows = parseIngCsv(SAMPLE);
+    const applied = applyRules(
+      rows,
+      [
+        {
+          id: "xfer",
+          matchText: "Din contul:999904927930",
+          categoryId: null,
+          transferAccountId: "credit-line",
+          ignore: false,
+          sortOrder: 0,
+        },
+      ],
+      "checking",
+      new Map(),
+    );
+    const credit = applied.find((r) =>
+      r.memo.includes("Din contul:999904927930"),
+    );
+    assert.ok(credit);
+    assert.equal(credit!.transferAccountId, "credit-line");
+    assert.equal(credit!.categoryId, null);
+    assert.equal(credit!.ignored, false);
+  });
+
+  it("skips transfer rule when target equals import account", () => {
+    const rows = parseIngCsv(SAMPLE);
+    const applied = applyRules(
+      rows,
+      [
+        {
+          id: "xfer",
+          matchText: "Din contul:999904927930",
+          categoryId: null,
+          transferAccountId: "checking",
+          ignore: false,
+          sortOrder: 0,
+        },
+      ],
+      "checking",
+      new Map(),
+    );
+    const credit = applied.find((r) =>
+      r.memo.includes("Din contul:999904927930"),
+    );
+    assert.ok(credit);
+    assert.equal(credit!.transferAccountId, null);
+    assert.equal(credit!.matchedRuleId, null);
+  });
+
   it("suggests substring from merchant", () => {
     const s = suggestMatchSubstring(
       "Cumparare POS Tranzactie la:LIDL RO 0207  RO  Eforie Nord",

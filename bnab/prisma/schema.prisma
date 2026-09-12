@@ -136,6 +136,7 @@ model FinanceAccount {
   creditCategory   Category?     @relation("CreditPaymentCategory", fields: [creditCategoryId], references: [id], onDelete: SetNull)
   transactions     Transaction[]
   schedules        ScheduledTransaction[]
+  importTransferRules ImportCategoryRule[] @relation("ImportTransferAccount")
 
   @@index([budgetId])
 }
@@ -249,20 +250,24 @@ model Transaction {
   @@index([importBatchId])
 }
 
-/** Substring → category mapping for bank imports (ING HomeBank). */
+/** Substring → category / ignore / transfer mapping for bank imports (ING HomeBank). */
 model ImportCategoryRule {
-  id         String    @id @default(cuid())
-  budgetId   String
-  matchText  String
-  categoryId String?
-  ignore     Boolean   @default(false)
-  sortOrder  Float     @default(0)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  budget     Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  id                 String          @id @default(cuid())
+  budgetId           String
+  matchText          String
+  categoryId         String?
+  /** Other account for a transfer pair (mutually exclusive with category / ignore). */
+  transferAccountId  String?
+  ignore             Boolean         @default(false)
+  sortOrder          Float           @default(0)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  budget             Budget          @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category           Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transferAccount    FinanceAccount? @relation("ImportTransferAccount", fields: [transferAccountId], references: [id], onDelete: SetNull)
 
   @@index([budgetId, sortOrder])
+  @@index([transferAccountId])
   @@unique([budgetId, matchText])
 }
 
