@@ -9,6 +9,7 @@ import {
 } from "@/lib/starter-categories";
 import {
   applyRules,
+  memoMatchesImportRule,
   parseIngCsv,
   type AppliedRow,
 } from "@/lib/ing-import/parse";
@@ -540,7 +541,7 @@ export async function reapplyRulesToBatch(formData: FormData) {
   for (const txn of txns) {
     const memo = txn.notes ?? "";
     for (const rule of rules) {
-      if (!memo.includes(rule.matchText)) continue;
+      if (!memoMatchesImportRule(memo, rule.matchText)) continue;
       if (rule.ignore) {
         if (txn.categoryId) {
           await prisma.transaction.update({

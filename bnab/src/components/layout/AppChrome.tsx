@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutGrid,
   PiggyBank,
@@ -12,10 +13,16 @@ import {
   ArrowRightLeft,
   Receipt,
   FileSpreadsheet,
+  ChevronsLeft,
+  ChevronsRight,
+  PenLine,
 } from "lucide-react";
 import { BnabLogo } from "@/components/brand/BnabLogo";
 import { InstallAppPrompt } from "@/components/pwa/InstallAppPrompt";
 import type { AccountActivitySummary } from "@/lib/account-activity-summary";
+import { accountTypeMeta } from "@/lib/ui-accents";
+
+const ACTIVITY_RAIL_KEY = "bnab-activity-rail-collapsed";
 
 const tabs: {
   href: string;
@@ -57,49 +64,193 @@ function AccountActivityRail({
 }: {
   summaries: AccountActivitySummary[];
 }) {
+  const [collapsed, setCollapsed] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(ACTIVITY_RAIL_KEY);
+      if (raw === "0") setCollapsed(false);
+      if (raw === "1") setCollapsed(true);
+    } catch {
+      /* ignore */
+    }
+    setHydrated(true);
+  }, []);
+
+  function toggle() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(ACTIVITY_RAIL_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+
   if (summaries.length === 0) return null;
   const month = summaries[0]?.month ?? "";
+
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-l border-rim/60 bg-surface/40 backdrop-blur-sm md:flex">
-      <div className="border-b border-rim/60 px-4 py-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-          Account activity
-        </p>
-        <p className="mt-1 text-sm text-fg-muted">{month}</p>
+    <aside
+      className={`hidden shrink-0 flex-col border-l border-rim/60 bg-surface/40 backdrop-blur-sm transition-[width] duration-200 md:flex ${
+        collapsed ? "w-14" : "w-64"
+      }`}
+      aria-label="Account activity"
+    >
+      <div
+        className={`flex items-center border-b border-rim/60 ${
+          collapsed ? "flex-col gap-1 px-1 py-2" : "justify-between gap-2 px-3 py-3"
+        }`}
+      >
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">
+              Account activity
+            </p>
+            <p className="truncate text-xs text-fg-muted">{month}</p>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={toggle}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-fg-muted transition-colors hover:bg-overlay hover:text-fg"
+          title={collapsed ? "Expand activity" : "Collapse activity"}
+          aria-expanded={hydrated ? !collapsed : undefined}
+          aria-label={
+            collapsed ? "Expand account activity" : "Collapse account activity"
+          }
+        >
+          {collapsed ? (
+            <ChevronsLeft className="size-4" />
+          ) : (
+            <ChevronsRight className="size-4" />
+          )}
+        </button>
       </div>
-      <ul className="flex-1 space-y-3 overflow-y-auto p-3">
-        {summaries.map((s) => (
-          <li
-            key={s.accountId}
-            className="rounded-xl border border-rim-subtle bg-canvas/40 px-3 py-2.5"
-          >
-            <Link
-              href={`/accounts/${s.accountId}`}
-              className="block truncate text-sm font-medium text-fg hover:text-accent"
-            >
-              {s.accountName}
-            </Link>
-            <dl className="mt-2 space-y-1 text-xs text-fg-muted">
-              <div className="flex justify-between gap-2">
-                <dt>Bills</dt>
-                <dd className="font-mono tabular-nums text-fg">{s.billsImported}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt>Manual</dt>
-                <dd className="font-mono tabular-nums text-fg">{s.manualEntries}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt>ING batches</dt>
-                <dd className="font-mono tabular-nums text-fg">{s.ingBatches}</dd>
-              </div>
-              <div className="flex justify-between gap-2">
-                <dt>ING txns</dt>
-                <dd className="font-mono tabular-nums text-fg">{s.ingTxnCount}</dd>
-              </div>
-            </dl>
-          </li>
-        ))}
-      </ul>
+
+      {collapsed ? (
+        <ul className="flex-1 space-y-2 overflow-y-auto px-1 py-2">
+          {summaries.map((s) => {
+            const meta = accountTypeMeta(s.accountType);
+            const Icon = meta.icon;
+            const tip = [
+              s.accountName,
+              `Bills ${s.billsImported}`,
+              `Manual ${s.manualEntries}`,
+              `ING batches ${s.ingBatches}`,
+              `ING txns ${s.ingTxnCount}`,
+            ].join(" · ");
+            return (
+              <li key={s.accountId}>
+                <Link
+                  href={`/accounts/${s.accountId}`}
+                  title={tip}
+                  className="flex flex-col items-center gap-0.5 rounded-lg px-0.5 py-1.5 text-fg-muted transition-colors hover:bg-accent-muted/40 hover:text-fg"
+                >
+                  <span
+                    className="flex size-8 items-center justify-center rounded-lg"
+                    style={{
+                      background:
+                        "color-mix(in oklch, var(--accent-muted) 55%, transparent)",
+                      color: meta.accent,
+                    }}
+                  >
+                    <Icon className="size-4" aria-hidden />
+                  </span>
+                  <span className="flex flex-col items-center gap-0 font-mono text-[9px] leading-tight tabular-nums text-fg">
+                    <span
+                      title="Bills"
+                      className="inline-flex items-center gap-0.5"
+                    >
+                      <Receipt className="size-2.5 opacity-60" aria-hidden />
+                      {s.billsImported}
+                    </span>
+                    <span
+                      title="Manual"
+                      className="inline-flex items-center gap-0.5"
+                    >
+                      <PenLine className="size-2.5 opacity-60" aria-hidden />
+                      {s.manualEntries}
+                    </span>
+                    <span
+                      title="ING batches"
+                      className="inline-flex items-center gap-0.5"
+                    >
+                      <FileSpreadsheet
+                        className="size-2.5 opacity-60"
+                        aria-hidden
+                      />
+                      {s.ingBatches}
+                    </span>
+                    <span title="ING txns" className="font-medium">
+                      {s.ingTxnCount}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <ul className="flex-1 space-y-2 overflow-y-auto p-2">
+          {summaries.map((s) => {
+            const meta = accountTypeMeta(s.accountType);
+            const Icon = meta.icon;
+            return (
+              <li
+                key={s.accountId}
+                className="rounded-xl border border-rim-subtle bg-canvas/40 px-2.5 py-2"
+              >
+                <Link
+                  href={`/accounts/${s.accountId}`}
+                  className="flex items-center gap-2 truncate text-sm font-medium text-fg hover:text-accent"
+                >
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-lg"
+                    style={{
+                      background:
+                        "color-mix(in oklch, var(--accent-muted) 55%, transparent)",
+                      color: meta.accent,
+                    }}
+                  >
+                    <Icon className="size-3.5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 truncate">{s.accountName}</span>
+                </Link>
+                <dl className="mt-1.5 space-y-0.5 text-xs text-fg-muted">
+                  <div className="flex justify-between gap-2">
+                    <dt>Bills</dt>
+                    <dd className="font-mono tabular-nums text-fg">
+                      {s.billsImported}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt>Manual</dt>
+                    <dd className="font-mono tabular-nums text-fg">
+                      {s.manualEntries}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt>ING batches</dt>
+                    <dd className="font-mono tabular-nums text-fg">
+                      {s.ingBatches}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2">
+                    <dt>ING txns</dt>
+                    <dd className="font-mono tabular-nums text-fg">
+                      {s.ingTxnCount}
+                    </dd>
+                  </div>
+                </dl>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </aside>
   );
 }
@@ -189,7 +340,8 @@ export function AppChrome({
             href="/transactions/new"
             className="mt-2 flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-3 py-2.5 text-sm font-medium text-accent-fg transition-transform duration-150 hover:bg-accent-hover active:scale-95"
             style={{
-              boxShadow: "0 8px 24px color-mix(in oklch, var(--glow-accent) 55%, transparent)",
+              boxShadow:
+                "0 8px 24px color-mix(in oklch, var(--glow-accent) 55%, transparent)",
             }}
           >
             <Plus className="size-4" />
@@ -214,7 +366,9 @@ export function AppChrome({
           <Link href="/plan" className="min-w-0">
             <BnabLogo compact showTagline={false} markClassName="size-7" />
           </Link>
-          <p className="min-w-0 flex-1 truncate text-xs text-fg-muted">{budgetName}</p>
+          <p className="min-w-0 flex-1 truncate text-xs text-fg-muted">
+            {budgetName}
+          </p>
         </header>
         <main className="mx-auto w-full max-w-none flex-1 px-3 py-4 sm:px-5 md:px-6 md:py-6 lg:px-8">
           {children}

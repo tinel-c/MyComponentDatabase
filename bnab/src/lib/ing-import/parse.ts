@@ -277,6 +277,13 @@ export function parseIngCsv(csvText: string): ParsedIngRow[] {
   return results;
 }
 
+/** True if memo contains the rule match text anywhere (case-insensitive). */
+export function memoMatchesImportRule(memo: string, matchText: string): boolean {
+  const needle = matchText.trim();
+  if (!needle) return false;
+  return memo.toLowerCase().includes(needle.toLowerCase());
+}
+
 export function applyRules(
   rows: ParsedIngRow[],
   rules: ImportRuleLike[],
@@ -290,7 +297,7 @@ export function applyRules(
     let ignored = false;
     for (const rule of ordered) {
       if (!rule.matchText) continue;
-      if (row.memo.includes(rule.matchText)) {
+      if (memoMatchesImportRule(row.memo, rule.matchText)) {
         matchedRuleId = rule.id;
         if (rule.ignore) {
           ignored = true;

@@ -3,7 +3,7 @@
  * Keep DB / server actions thin; put matching + duplicate decisions here for tests.
  */
 
-import { findManualMatch } from "./parse";
+import { findManualMatch, memoMatchesImportRule } from "./parse";
 
 /** Notes prefix stamped on transactions created from bill scans before ING arrives. */
 export const BILL_IMPORT_PENDING_NOTE = "Bill import · pending statement";
@@ -179,5 +179,88 @@ export function classifyIngImportPreview(params: {
         .length,
     },
     wouldCreateFingerprints,
+  };
+}
+
+export type PreviewStats = {
+  total: number;
+  new: number;
+  already: number;
+  ignored: number;
+  unmatched: number;
+  manual: number;
+};
+
+/** Count statuses for a preview row list. */
+export function previewStatsFromRows(
+  rows: { status: IngPreviewStatus }[],
+): PreviewStats {
+  return {
+    total: rows.length,
+    new: rows.filter((r) => r.status === "new").length,
+    already: rows.filter((r) => r.status === "already_imported").length,
+    ignored: rows.filter((r) => r.status === "ignored").length,
+    unmatched: rows.filter((r) => r.status === "unmatched").length,
+    manual: rows.filter((r) => r.status === "possible_manual_match").length,
+  };
+}
+
+type PreviewRuleApplyRow = {
+  fingerprint: string;
+  memo: string;
+  status: IngPreviewStatus;
+  ignored: boolean;
+  categoryId: string | null;
+  categoryName: string | null;
+};
+
+/**
+ * After saving a mapping from "Create rules from unmatched", re-apply that
+ * substring (anywhere in memo, case-insensitive) so sibling unmatched rows
+ * leave the unmatched list without waiting for a full server round-trip.
+ */
+export function applyNewRuleToPreviewRows<T extends PreviewRuleApplyRow>(
+  rows: T[],
+  params: {
+    matchText: string;
+    ignore: boolean;
+    categoryId: string | null;
+    categoryName: string | null;
+  },
+): { rows: T[]; stats: PreviewStats; matchedFingerprints: string[] } {
+  const needle = params.matchText.trim();
+  const matchedFingerprints: string[] = [];
+  const next = rows.map((r) => {
+    if (!memoMatchesImportRule(r.memo, needle)) return r;
+    matchedFingerprints.push(r.fingerprint);
+    if (params.ignore) {
+      return {
+        ...r,
+        ignored: true,
+        categoryId: null,
+        categoryName: null,
+        status:
+          r.status === "already_imported" ||
+          r.status === "possible_manual_match"
+            ? r.status
+            : ("ignored" as const),
+      };
+    }
+    return {
+      ...r,
+      ignored: false,
+      categoryId: params.categoryId,
+      categoryName: params.categoryName,
+      status:
+        r.status === "already_imported" ||
+        r.status === "possible_manual_match"
+          ? r.status
+          : ("new" as const),
+    };
+  });
+  return {
+    rows: next,
+    stats: previewStatsFromRows(next),
+    matchedFingerprints,
   };
 }

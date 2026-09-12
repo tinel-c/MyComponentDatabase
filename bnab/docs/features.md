@@ -58,10 +58,11 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] **ING CSV import**
   - Preview unmatched / matched / ignored / duplicates
   - Confirm creates batch + fingerprints (**ignored rows are inserted**, excluded from RTA/Activity via notes)
-  - Mapping rules CRUD + create-from-unmatched
+  - Mapping rules CRUD + create-from-unmatched (match = substring **anywhere** in memo, case-insensitive; saving clears sibling unmatched rows)
   - Ignore patterns (e.g. credit-line covers) excluded from RTA & Activity without skipping ledger insert
   - Import history: revert batch, DB snapshots
 - [x] **Admin Data tools** (`/more/data`): export/import SQLite, selective erase (default keep mappings)
+- [x] Desktop chrome: ING under Import bill; **collapsible** Account activity right rail (icons + counts when collapsed)
 
 ### Household
 

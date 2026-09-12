@@ -8,6 +8,7 @@ import {
 } from "./parse";
 import {
   BILL_IMPORT_PENDING_NOTE,
+  applyNewRuleToPreviewRows,
   classifyIngImportPreview,
   classifyIngRowAgainstLedger,
   isBillImportPendingNotes,
@@ -380,5 +381,48 @@ describe("bill then ING then re-import regression", () => {
     );
     assert.equal(isBillImportPendingNotes("Regular memo"), false);
     assert.equal(isBillImportPendingNotes(null), false);
+  });
+});
+
+describe("applyNewRuleToPreviewRows", () => {
+  it("clears all unmatched rows whose memo contains the substring anywhere", () => {
+    const rows = [
+      {
+        fingerprint: "a",
+        memo: "xxx MERCHANT yyy",
+        status: "unmatched" as const,
+        ignored: false,
+        categoryId: null,
+        categoryName: null,
+      },
+      {
+        fingerprint: "b",
+        memo: "other",
+        status: "unmatched" as const,
+        ignored: false,
+        categoryId: null,
+        categoryName: null,
+      },
+      {
+        fingerprint: "c",
+        memo: "prefix MERCHANT",
+        status: "unmatched" as const,
+        ignored: false,
+        categoryId: null,
+        categoryName: null,
+      },
+    ];
+    const out = applyNewRuleToPreviewRows(rows, {
+      matchText: "merchant",
+      ignore: false,
+      categoryId: "cat1",
+      categoryName: "Groceries: Food",
+    });
+    assert.equal(out.stats.unmatched, 1);
+    assert.equal(out.stats.new, 2);
+    assert.deepEqual(out.matchedFingerprints.sort(), ["a", "c"]);
+    assert.equal(out.rows[0].status, "new");
+    assert.equal(out.rows[0].categoryId, "cat1");
+    assert.equal(out.rows[1].status, "unmatched");
   });
 });

@@ -10,6 +10,7 @@ import {
   pageStackClass,
 } from "@/components/forms/field-classes";
 import { formatMoney } from "@/lib/money";
+import { applyNewRuleToPreviewRows } from "@/lib/ing-import/overlap";
 import {
   confirmIngImport,
   createImportRuleFromForm,
@@ -61,6 +62,31 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
     reader.readAsText(file);
   }
 
+  function applyPreviewResult(res: Exclude<Awaited<ReturnType<typeof previewIngImport>>, { ok: false }>) {
+    setRows(res.rows);
+    setStats(res.stats);
+    const next: Record<string, ConfirmDecision> = {};
+    for (const r of res.rows) {
+      if (r.status === "possible_manual_match") {
+        next[r.fingerprint] = {
+          fingerprint: r.fingerprint,
+          action: "link",
+          manualMatchId: r.manualMatchId,
+        };
+      } else if (
+        r.status === "new" ||
+        r.status === "unmatched" ||
+        r.status === "ignored"
+      ) {
+        next[r.fingerprint] = {
+          fingerprint: r.fingerprint,
+          action: "import",
+        };
+      }
+    }
+    setDecisions(next);
+  }
+
   function runPreview() {
     setError(null);
     setMessage(null);
@@ -74,24 +100,7 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
         setRows(null);
         return;
       }
-      setRows(res.rows);
-      setStats(res.stats);
-      const next: Record<string, ConfirmDecision> = {};
-      for (const r of res.rows) {
-        if (r.status === "possible_manual_match") {
-          next[r.fingerprint] = {
-            fingerprint: r.fingerprint,
-            action: "link",
-            manualMatchId: r.manualMatchId,
-          };
-        } else if (r.status === "new" || r.status === "unmatched") {
-          next[r.fingerprint] = {
-            fingerprint: r.fingerprint,
-            action: "import",
-          };
-        }
-      }
-      setDecisions(next);
+      applyPreviewResult(res);
     });
   }
 
@@ -128,20 +137,79 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
     });
   }
 
-  function saveRuleForRow(row: PreviewRow, matchText: string, categoryId: string, ignore: boolean) {
+  function saveRuleForRow(
+    _row: PreviewRow,
+    matchText: string,
+    categoryId: string,
+    ignore: boolean,
+  ) {
     setError(null);
+    const needle = matchText.trim();
+    if (needle.length < 3) {
+      setError("Match text must be at least 3 characters");
+      return;
+    }
     const fd = new FormData();
-    fd.set("matchText", matchText);
+    fd.set("matchText", needle);
     if (ignore) fd.set("ignore", "1");
     else fd.set("categoryId", categoryId);
+
+    const cat = categories.find((c) => c.id === categoryId);
+    const categoryName = cat ? `${cat.groupName}: ${cat.name}` : null;
+
     startTransition(async () => {
       const res = await createImportRuleFromForm(fd);
       if (!res.ok) {
         setError(res.error);
         return;
       }
-      setMessage(`Rule saved for “${matchText}”. Re-running preview…`);
-      runPreview();
+
+      // Substring anywhere in memo (case-insensitive): clear matching unmatched
+      // rows immediately, then refresh preview from server rules.
+      setRows((prev) => {
+        if (!prev) return prev;
+        const applied = applyNewRuleToPreviewRows(prev, {
+          matchText: needle,
+          ignore,
+          categoryId: ignore ? null : categoryId,
+          categoryName: ignore ? null : categoryName,
+        });
+        setStats(applied.stats);
+        setDecisions((prevDec) => {
+          const next = { ...prevDec };
+          for (const fp of applied.matchedFingerprints) {
+            const status = applied.rows.find((r) => r.fingerprint === fp)?.status;
+            if (status === "ignored" || status === "new") {
+              next[fp] = { fingerprint: fp, action: "import" };
+            }
+          }
+          return next;
+        });
+        const cleared = applied.matchedFingerprints.filter((fp) => {
+          const before = prev.find((r) => r.fingerprint === fp);
+          return before?.status === "unmatched";
+        }).length;
+        setMessage(
+          `Rule “${needle}” saved — cleared ${cleared} unmatched match${cleared === 1 ? "" : "es"}. Refreshing…`,
+        );
+        return applied.rows;
+      });
+
+      const previewFd = new FormData();
+      previewFd.set("accountId", accountId);
+      previewFd.set("csv", csv);
+      const preview = await previewIngImport(previewFd);
+      if (!preview.ok) {
+        setError(preview.error);
+        setMessage(
+          `Rule “${needle}” saved, but preview refresh failed — unmatched list may be stale.`,
+        );
+        return;
+      }
+      applyPreviewResult(preview);
+      setMessage(
+        `Rule “${needle}” saved. ${preview.stats.unmatched} unmatched remaining.`,
+      );
     });
   }
 
@@ -220,7 +288,9 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-fg">Create rules from unmatched</h2>
           <p className="text-sm text-fg-muted">
-            Save a mapping, then preview re-runs so sibling rows update.
+            Match text can be any substring in the memo (not only the start).
+            Saving a rule re-applies mappings and removes every unmatched row that
+            contains that substring.
           </p>
           <ul className="space-y-3">
             {unmatched.slice(0, 40).map((row) => (

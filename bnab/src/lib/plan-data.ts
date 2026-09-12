@@ -1,3 +1,4 @@
+import { memoMatchesImportRule } from "@/lib/ing-import";
 import { prisma } from "@/lib/prisma";
 import {
   computeBudgetMonths,
@@ -143,7 +144,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
 
   const notesMatchIgnore = (notes: string | null) => {
     if (!notes || ignorePatterns.length === 0) return false;
-    return ignorePatterns.some((p) => notes.includes(p));
+    return ignorePatterns.some((p) => memoMatchesImportRule(notes, p));
   };
 
   const engineTxns: EngineTxn[] = transactions.map((t) => ({

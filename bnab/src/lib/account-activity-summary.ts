@@ -5,6 +5,7 @@ import { currentMonth } from "@/lib/money";
 export type AccountActivitySummary = {
   accountId: string;
   accountName: string;
+  accountType: string;
   month: string;
   billsImported: number;
   manualEntries: number;
@@ -23,7 +24,7 @@ export async function loadAccountActivitySummaries(
   const accounts = await prisma.financeAccount.findMany({
     where: { budgetId, closed: false },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, type: true },
   });
   if (accounts.length === 0) return [];
 
@@ -88,6 +89,7 @@ export async function loadAccountActivitySummaries(
     return {
       accountId: a.id,
       accountName: a.name,
+      accountType: a.type,
       month,
       billsImported,
       manualEntries,

@@ -31,7 +31,7 @@ Same shapes as part-db: `User`, `Account` (OAuth), `Session`, `VerificationToken
 
 | Model | Purpose |
 |-------|---------|
-| `ImportCategoryRule` | Budget-scoped memo `matchText` → category (or `ignore: true`). Ignore still **creates** ledger rows; budget math uses `excludeFromRta`. |
+| `ImportCategoryRule` | Budget-scoped memo `matchText` → category (or `ignore: true`). Match is **substring anywhere** in notes/memo (case-insensitive). Ignore still **creates** ledger rows; budget math uses `excludeFromRta`. |
 | `ImportBatch` | One CSV confirm run (account, filename, counts, optional snapshot path) |
 | `ImportBatchItem` | Per-row outcome: created / linked / skipped (ignored rows use `created` + null category) |
 | `Transaction.importFingerprint` | Dedupe key per account (`@@unique([accountId, importFingerprint])`) |

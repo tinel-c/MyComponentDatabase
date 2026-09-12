@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   applyRules,
   importFingerprint,
+  memoMatchesImportRule,
   parseIngAmount,
   parseIngCsv,
   parseIngDate,
@@ -86,10 +87,44 @@ describe("ING parser", () => {
     );
   });
 
+  it("matches rule substring anywhere in memo, case-insensitive", () => {
+    const rows = parseIngCsv(SAMPLE);
+    const applied = applyRules(
+      rows,
+      [
+        {
+          id: "mid",
+          matchText: "eforie",
+          categoryId: "cat-groc",
+          ignore: false,
+          sortOrder: 0,
+        },
+      ],
+      "acct1",
+      new Map([["cat-groc", "Groceries"]]),
+    );
+    const lidl = applied.find((r) => r.memo.includes("LIDL"));
+    assert.ok(lidl);
+    assert.equal(lidl!.categoryId, "cat-groc");
+    assert.equal(lidl!.ignored, false);
+  });
+
   it("suggests substring from merchant", () => {
     const s = suggestMatchSubstring(
       "Cumparare POS Tranzactie la:LIDL RO 0207  RO  Eforie Nord",
     );
     assert.ok(s.toUpperCase().includes("LIDL"));
+  });
+
+  it("memoMatchesImportRule matches substring anywhere, case-insensitive", () => {
+    assert.equal(
+      memoMatchesImportRule("Tranzactie la:LIDL RO 0207", "lidl"),
+      true,
+    );
+    assert.equal(
+      memoMatchesImportRule("AAA BBB CCC", "BBB"),
+      true,
+    );
+    assert.equal(memoMatchesImportRule("AAA BBB CCC", "zzz"), false);
   });
 });
