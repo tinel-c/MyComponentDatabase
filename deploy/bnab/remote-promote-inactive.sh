@@ -82,16 +82,16 @@ sudo -u deploy bash -lc "
   tar -xzf '${TGZ}'
   test -f .next/BUILD_ID
   echo BUILD_ID=\$(cat .next/BUILD_ID)
-  if [ ! -d node_modules/next ]; then
-    echo 'node_modules missing on inactive — copying from active slot'
-    if [ -d '${APP_ROOT}/${ACTIVE}/bnab/node_modules' ]; then
-      rm -rf node_modules
-      cp -a '${APP_ROOT}/${ACTIVE}/bnab/node_modules' node_modules
-    else
-      echo 'ERROR: no node_modules on active either' >&2
-      exit 1
-    fi
+  # Inactive slot deps often lag; always mirror live slot node_modules for PC builds
+  if [ -d '${APP_ROOT}/${ACTIVE}/bnab/node_modules/next' ]; then
+    echo "sync node_modules from active=${ACTIVE}"
+    rm -rf node_modules
+    cp -a '${APP_ROOT}/${ACTIVE}/bnab/node_modules' node_modules
+  elif [ ! -d node_modules/next ]; then
+    echo 'ERROR: no node_modules on active or inactive' >&2
+    exit 1
   fi
+  echo "next version: \$(node -p \"require('./node_modules/next/package.json').version\")"
   if [ -f '${SHARED}/overlay/schema.prisma' ]; then
     cp -f '${SHARED}/overlay/schema.prisma' prisma/schema.prisma
   fi
