@@ -11,6 +11,7 @@ import {
   cardClass,
   inputClass,
   labelClass,
+  moneyClass,
 } from "@/components/forms/field-classes";
 import {
   renameAccount,
@@ -43,7 +44,7 @@ export default async function AccountDetailPage({
   const pageNum = Math.max(1, Number(sp.page ?? "1") || 1);
   const skip = (pageNum - 1) * PAGE_SIZE;
 
-  const [sumAgg, transactions, count] = await Promise.all([
+  const [sumAgg, transactions, count, balanceAdjustments] = await Promise.all([
     prisma.transaction.aggregate({
       where: { accountId: id, isChild: false },
       _sum: { amount: true },
@@ -56,7 +57,59 @@ export default async function AccountDetailPage({
       take: PAGE_SIZE,
     }),
     prisma.transaction.count({ where: { accountId: id, isChild: false } }),
+    prisma.transaction.findMany({
+      where: {
+        accountId: id,
+        isChild: false,
+        OR: [
+          { payee: { name: "Balance Adjustment" } },
+          { isStartingBalance: true },
+          { notes: { contains: "balance adjustment" } },
+        ],
+      },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+      include: { payee: true, category: true },
+      take: 50,
+    }),
   ]);
+
+  // #region agent log
+  fetch("http://127.0.0.1:7298/ingest/7f3901ac-961b-4078-9b8c-c42ef281edcb", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "3e3435",
+    },
+    body: JSON.stringify({
+      sessionId: "3e3435",
+      runId: "post-fix",
+      hypothesisId: "C",
+      location: "accounts/[id]/page.tsx:load",
+      message: "account_adjustments_loaded",
+      data: {
+        accountId: id,
+        accountName: account.name,
+        pageNum,
+        pageSize: PAGE_SIZE,
+        txnCount: count,
+        adjustmentCount: balanceAdjustments.length,
+        adjustments: balanceAdjustments.map((t) => ({
+          id: t.id,
+          date: t.date,
+          amount: t.amount,
+          categoryId: t.categoryId,
+          payee: t.payee?.name ?? null,
+          isStartingBalance: t.isStartingBalance,
+        })),
+        pageIncludesAdj: transactions.some(
+          (t) =>
+            t.payee?.name === "Balance Adjustment" || t.isStartingBalance,
+        ),
+      },
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+  // #endregion
 
   const balance = sumAgg._sum.amount ?? 0;
   const hasMore = skip + transactions.length < count;
@@ -145,6 +198,52 @@ export default async function AccountDetailPage({
         </form>
       </section>
       </div>
+
+      {balanceAdjustments.length > 0 ? (
+        <section className={`${cardClass} overflow-hidden`}>
+          <div className="border-b border-rim-subtle px-4 py-2.5">
+            <h2 className="text-sm font-semibold text-fg">
+              Balance adjustments
+            </h2>
+            <p className="text-[11px] text-fg-subtle">
+              Statement corrections and starting balances for this account
+              (included in Plan income)
+            </p>
+          </div>
+          <ul className="divide-y divide-rim-subtle/60">
+            {balanceAdjustments.map((t) => (
+              <li key={t.id}>
+                <Link
+                  href={`/transactions/${t.id}`}
+                  prefetch
+                  className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-overlay/40"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-fg">
+                      {t.isStartingBalance
+                        ? "Starting balance"
+                        : (t.payee?.name ?? "Balance Adjustment")}
+                    </p>
+                    <p className="truncate text-xs text-fg-subtle">
+                      {t.date}
+                      {t.category
+                        ? ` · ${t.category.name}`
+                        : " · uncategorized (Ready to Assign)"}
+                    </p>
+                  </div>
+                  <p
+                    className={`shrink-0 tabular-nums text-sm font-semibold ${moneyClass} ${
+                      t.amount < 0 ? "text-danger" : "text-ok"
+                    }`}
+                  >
+                    {formatMoney(t.amount, budget.currency)}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <form action={reconcileAccount}>
         <input type="hidden" name="accountId" value={account.id} />

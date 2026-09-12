@@ -113,22 +113,28 @@ Zero-based goal: drive RTA to **0**.
 
 The **Categories** block below remains the assign / Available UI (unchanged).
 
-### Accounts · income / spending / remaining
+### Accounts · income / groups / remaining
 
 Per on-budget account for month `M` (`src/lib/plan-account-flows.ts`):
 
 ```
-Income(A, M)    = Σ amount where account=A, income category, same Activity rules
+Income(A, M)    = Σ amount where account=A and (income category
+                  OR categoryId is null OR isStartingBalance)
+                  // same skip rules as Activity; aligns with incomeToRta
 Spending(A, M)  = Σ amount where account=A, non-income category (usually ≤ 0)
+                  // broken out by category group on the Plan Accounts table
 Remaining(A, M) = Σ all txn amounts on A with date ≤ end of M   // cumulative balance
 ```
 
-UI shows spending as magnitude `−Spending`. Links:
+Negative statement balance adjustments are uncategorized and therefore count in **Income(A, M)**
+(and RTA), not in Spending.
+
+UI shows spending group columns as magnitude `−amount`. Links:
 
 | Column | Href |
 |--------|------|
 | Income | `/transactions?accountId=&month=&flow=income` |
-| Spending | `/transactions?accountId=&month=&flow=spending` |
+| Group | `/transactions?accountId=&groupId=&month=` |
 | Remaining | `/accounts/{id}` |
 
 ### Transaction activity filters
@@ -139,7 +145,7 @@ UI shows spending as magnitude `−Spending`. Links:
 |--------|--------|
 | `categoryId` + `month` | That category in month (Plan Activity) |
 | `groupId` + `month` | All categories in that group for the month |
-| `flow=income` + `month` | Income categories in month |
+| `flow=income` + `month` | Income categories **or** uncategorized **or** starting balance |
 | `flow=spending` + `month` | Non-income categories in month |
 | `+ accountId` | Restrict to one account |
 

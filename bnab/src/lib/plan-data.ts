@@ -214,15 +214,16 @@ export async function loadPlanMonth(budgetId: string, month: string) {
   const { incomeByAccount, spendingByAccount, spendingByAccountByGroup } =
     computeAccountMonthFlows({
       month,
-      transactions: engineTxns.map((t) => ({
-        accountId: t.accountId,
-        date: t.date,
-        amount: t.amount,
-        categoryId: t.categoryId,
-        isParent: t.isParent,
-        transferTwinId: t.transferTwinId,
-        excludeFromRta: Boolean(t.excludeFromRta),
-      })),
+    transactions: engineTxns.map((t) => ({
+      accountId: t.accountId,
+      date: t.date,
+      amount: t.amount,
+      categoryId: t.categoryId,
+      isParent: t.isParent,
+      transferTwinId: t.transferTwinId,
+      excludeFromRta: Boolean(t.excludeFromRta),
+      isStartingBalance: Boolean(t.isStartingBalance),
+    })),
       accountOnBudget,
       categoryIsIncome,
       categoryGroupId,

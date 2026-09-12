@@ -1,6 +1,9 @@
 /**
  * Pure helpers for Plan account Income / Spending columns.
  * Amounts are integer minor units (same sign as ledger: spend negative).
+ *
+ * Income matches Ready-to-Assign incomeToRta: income categories, starting
+ * balances, and uncategorized amounts (including negative balance adjustments).
  */
 
 export type AccountFlowTxn = {
@@ -11,12 +14,13 @@ export type AccountFlowTxn = {
   isParent: boolean;
   transferTwinId: string | null;
   excludeFromRta: boolean;
+  isStartingBalance?: boolean;
 };
 
 export type AccountFlowMaps = {
-  /** Σ income-category amounts per account in the month */
+  /** Σ income-side amounts per account in the month (incl. adj / starting) */
   incomeByAccount: Record<string, number>;
-  /** Σ non-income-category amounts per account in the month (usually ≤ 0) */
+  /** Σ spending-category amounts per account in the month (usually ≤ 0) */
   spendingByAccount: Record<string, number>;
   /** Σ spending per account per category group (usually ≤ 0) */
   spendingByAccountByGroup: Record<string, Record<string, number>>;
@@ -45,7 +49,13 @@ export function computeAccountMonthFlows(params: {
     if (t.excludeFromRta) continue;
     if (!t.date.startsWith(prefix)) continue;
     if (!params.accountOnBudget.get(t.accountId)) continue;
-    if (!t.categoryId) continue;
+
+    // RTA-aligned income: starting balance, uncategorized (balance adj), income cats
+    if (t.isStartingBalance || !t.categoryId) {
+      incomeByAccount[t.accountId] =
+        (incomeByAccount[t.accountId] ?? 0) + t.amount;
+      continue;
+    }
 
     const isIncome = params.categoryIsIncome.get(t.categoryId);
     if (isIncome == null) continue;

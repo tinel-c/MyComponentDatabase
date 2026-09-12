@@ -106,18 +106,19 @@ export default async function TransactionsPage({
         },
         ...(categoryId
           ? { categoryId }
-          : groupId || flow
-            ? {
-                category: {
-                  ...(groupId ? { groupId } : {}),
-                  ...(flow === "income"
-                    ? { isIncome: true }
-                    : flow === "spending"
-                      ? { isIncome: false }
-                      : {}),
-                },
-              }
-            : {}),
+          : groupId
+            ? { category: { groupId } }
+            : flow === "income"
+              ? {
+                  OR: [
+                    { category: { isIncome: true } },
+                    { categoryId: null },
+                    { isStartingBalance: true },
+                  ],
+                }
+              : flow === "spending"
+                ? { category: { isIncome: false } }
+                : {}),
       }
     : {
         isChild: false,

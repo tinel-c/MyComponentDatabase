@@ -88,4 +88,47 @@ describe("computeAccountMonthFlows", () => {
     assert.equal(spendingByAccountByGroup.checking?.bills, -80_000);
     assert.equal(incomeByAccount.off, undefined);
   });
+
+  it("counts uncategorized and starting-balance amounts as income (RTA-aligned)", () => {
+    const { incomeByAccount, spendingByAccount } = computeAccountMonthFlows({
+      month: "2026-09",
+      accountOnBudget,
+      categoryIsIncome,
+      categoryGroupId,
+      transactions: [
+        {
+          accountId: "checking",
+          date: "2026-09-06",
+          amount: -600_200,
+          categoryId: null,
+          isParent: false,
+          transferTwinId: null,
+          excludeFromRta: false,
+          isStartingBalance: false,
+        },
+        {
+          accountId: "checking",
+          date: "2026-09-01",
+          amount: 50_000,
+          categoryId: null,
+          isParent: false,
+          transferTwinId: null,
+          excludeFromRta: false,
+          isStartingBalance: true,
+        },
+        {
+          accountId: "checking",
+          date: "2026-09-02",
+          amount: 10_000,
+          categoryId: "paycheck",
+          isParent: false,
+          transferTwinId: null,
+          excludeFromRta: false,
+        },
+      ],
+    });
+
+    assert.equal(incomeByAccount.checking, -600_200 + 50_000 + 10_000);
+    assert.equal(spendingByAccount.checking, undefined);
+  });
 });
