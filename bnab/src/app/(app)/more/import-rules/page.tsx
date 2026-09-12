@@ -6,10 +6,11 @@ import {
   seedDefaultImportRules,
 } from "@/lib/starter-categories";
 import {
-  buttonSecondaryClass,
-  cardClass,
-  inputClass,
-  labelClass,
+  buttonCompactClass,
+  cardCompactClass,
+  inputCompactClass,
+  pageStackClass,
+  sectionSubheadingClass,
 } from "@/components/forms/field-classes";
 import { createImportRuleAction } from "../import/actions";
 import { ImportRulesEditor } from "@/components/import/ImportRulesEditor";
@@ -50,13 +51,15 @@ export default async function ImportRulesPage() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className={pageStackClass}>
       <div>
         <Link href="/more" className="text-sm text-fg-muted hover:text-fg">
           ← More
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-fg">Import mappings</h1>
-        <p className="mt-1 text-sm text-fg-muted">
+        <h1 className="mt-1 text-xl font-semibold text-fg md:text-2xl">
+          Import mappings
+        </h1>
+        <p className={sectionSubheadingClass}>
           Substring rules applied in order to ING memos. First match wins.{" "}
           <Link href="/more/import" className="text-accent hover:underline">
             Import CSV
@@ -64,15 +67,22 @@ export default async function ImportRulesPage() {
         </p>
       </div>
 
-      <form action={createImportRuleAction} className={`${cardClass} space-y-3 p-4`}>
-        <h2 className="text-sm font-semibold text-fg">Add rule</h2>
-        <label className={labelClass}>
-          Match substring
-          <input name="matchText" required minLength={3} className={inputClass} />
+      <form
+        action={createImportRuleAction}
+        className={`${cardCompactClass} grid gap-2 p-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end`}
+      >
+        <label className="block text-xs font-medium text-fg-muted">
+          Match
+          <input
+            name="matchText"
+            required
+            minLength={3}
+            className={`${inputCompactClass} mt-1`}
+          />
         </label>
-        <label className={labelClass}>
+        <label className="block text-xs font-medium text-fg-muted">
           Category
-          <select name="categoryId" className={inputClass}>
+          <select name="categoryId" className={`${inputCompactClass} mt-1`}>
             <option value="">—</option>
             {categoryOptions.map((c) => (
               <option key={c.id} value={c.id}>
@@ -81,11 +91,11 @@ export default async function ImportRulesPage() {
             ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm text-fg">
-          <input type="checkbox" name="ignore" value="1" />
-          Ignore (skip import)
+        <label className="flex h-8 items-center gap-2 text-sm text-fg sm:mb-0">
+          <input type="checkbox" name="ignore" value="1" className="size-4 accent-[var(--accent)]" />
+          Ignore
         </label>
-        <button type="submit" className={buttonSecondaryClass}>
+        <button type="submit" className={buttonCompactClass}>
           Add
         </button>
       </form>

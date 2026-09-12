@@ -100,7 +100,7 @@ export function TransactionSheetEditor({
           </>
         ) : null}
 
-        <div className={`${cardClass} space-y-4 p-4 md:p-5`}>
+        <div className={`${cardClass} space-y-3 p-3 md:p-4`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <label className="flex items-center gap-2 text-sm text-fg">
               <input

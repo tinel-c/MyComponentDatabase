@@ -2,10 +2,12 @@
 
 import { useMemo, useState, useTransition } from "react";
 import {
+  buttonCompactClass,
   buttonPrimaryClass,
-  buttonSecondaryClass,
+  cardCompactClass,
   inputClass,
   labelClass,
+  pageStackClass,
 } from "@/components/forms/field-classes";
 import { formatMoney } from "@/lib/money";
 import {
@@ -144,8 +146,8 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-3 rounded-xl border border-rim bg-surface p-4">
+    <div className={pageStackClass}>
+      <div className={`${cardCompactClass} space-y-2 p-3`}>
         <label className={labelClass}>
           Account
           <select
@@ -195,7 +197,7 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
           {rows && (
             <button
               type="button"
-              className={buttonSecondaryClass}
+              className={buttonCompactClass}
               disabled={pending}
               onClick={runConfirm}
             >
@@ -435,7 +437,7 @@ function UnmatchedRuleCard({
       </div>
       <button
         type="button"
-        className={buttonSecondaryClass}
+        className={buttonCompactClass}
         disabled={disabled || matchText.trim().length < 3}
         onClick={() => onSave(row, matchText.trim(), categoryId, ignore)}
       >

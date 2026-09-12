@@ -159,7 +159,7 @@ export function AppChrome({
                 key={href}
                 href={href}
                 prefetch
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 active:scale-[0.98] ${
+                className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-150 active:scale-[0.98] ${
                   active
                     ? "bg-accent-muted text-accent shadow-sm"
                     : "text-fg-muted hover:bg-overlay/80 hover:text-fg"
@@ -173,7 +173,7 @@ export function AppChrome({
           <Link
             href="/more"
             prefetch
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 active:scale-[0.98] ${
+            className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-150 active:scale-[0.98] ${
               pathname.startsWith("/more") &&
               !pathname.startsWith("/more/import-bill") &&
               pathname !== "/more/import" &&

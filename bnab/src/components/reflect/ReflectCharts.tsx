@@ -248,7 +248,7 @@ function ChartCard({
 }) {
   return (
     <section
-      className={`${cardClass} relative p-4`}
+      className={`${cardClass} relative p-3`}
       style={{
         background:
           "linear-gradient(165deg, color-mix(in oklch, var(--surface) 92%, var(--accent-muted)) 0%, var(--surface) 55%)",
@@ -405,7 +405,7 @@ export function ReflectCharts({
   const lineColors = [colors.fg, colors.danger, colors.accent];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:gap-6">
+    <div className="grid gap-3 md:grid-cols-2 xl:gap-4">
       <ChartCard title="Spending by category" empty={spending.length === 0}>
         {spending.length === 0 ? (
           <EmptyState

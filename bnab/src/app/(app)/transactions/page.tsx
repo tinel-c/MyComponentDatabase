@@ -250,7 +250,7 @@ export default async function TransactionsPage({
 
       {activityView ? (
         <div
-          className={`${cardClass} flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between`}
+          className={`${cardClass} flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between`}
         >
           <div>
             <p className="text-sm font-medium text-fg">{activityTitle}</p>

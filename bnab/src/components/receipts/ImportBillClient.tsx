@@ -278,7 +278,7 @@ export function ImportBillClient({
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 lg:mx-0 lg:max-w-none lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
-      <div className={`${cardClass} space-y-4 p-4 sm:p-5 lg:sticky lg:top-6`}>
+      <div className={`${cardClass} space-y-3 p-3 sm:p-4 lg:sticky lg:top-6`}>
         <div className="flex items-start gap-3">
           <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-muted text-accent">
             <Receipt className="size-5" aria-hidden />
@@ -384,7 +384,7 @@ export function ImportBillClient({
         {statusBanner}
 
         {state.ok && (state.receiptTotalCents || state.receiptDate) ? (
-          <div className={`${cardClass} space-y-1 p-4 text-sm`}>
+          <div className={`${cardClass} space-y-1 p-3 text-sm`}>
             <p className="font-medium text-fg">
               {state.merchant || "Receipt"}
               {state.receiptDate ? ` · ${state.receiptDate}` : ""}
@@ -398,7 +398,7 @@ export function ImportBillClient({
         ) : null}
 
         {!finished && state.phase === "mapping" && state.scanId ? (
-          <div className={`${cardClass} space-y-4 p-4`}>
+          <div className={`${cardClass} space-y-3 p-3`}>
             <div>
               <h2 className="text-sm font-semibold text-fg">
                 Map or create entry
@@ -498,7 +498,7 @@ export function ImportBillClient({
         {(state.phase === "preview" || state.phase === "done") &&
         state.proposedSplits &&
         state.proposedSplits.length > 0 ? (
-          <div className={`${cardClass} space-y-3 p-4`}>
+          <div className={`${cardClass} space-y-2 p-3`}>
             <h2 className="text-sm font-semibold text-fg">
               {state.phase === "done" ? "Applied categories" : "Proposed splits"}
             </h2>
@@ -567,7 +567,7 @@ export function ImportBillClient({
         ) : null}
 
         {!statusBanner && !pending && state.phase === "upload" && !state.ok ? (
-          <div className={`${cardClass} border-dashed p-6 text-center sm:p-8`}>
+          <div className={`${cardClass} border-dashed p-4 text-center sm:p-6`}>
             <p className="text-sm text-fg-muted">
               Results appear here after you scan a bill.
             </p>

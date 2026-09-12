@@ -45,7 +45,7 @@ export function ReceiptUploadPanel({
 
   if (disabled) {
     return (
-      <div className={`${cardClass} p-4 text-sm text-fg-muted`}>
+      <div className={`${cardClass} p-3 text-sm text-fg-muted`}>
         Receipt detailing is not available for transfers.
       </div>
     );
@@ -66,7 +66,7 @@ export function ReceiptUploadPanel({
   const applied = confirm.ok && Boolean(confirm.proposedSplits?.length);
 
   return (
-    <div className={`${cardClass} space-y-4 p-4`}>
+    <div className={`${cardClass} space-y-3 p-3`}>
       <div>
         <h2 className="text-sm font-semibold text-fg">Detail from bill</h2>
         <p className="mt-1 text-sm text-fg-muted">

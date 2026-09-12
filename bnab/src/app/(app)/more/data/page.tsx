@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdmin, requireBudgetAccess } from "@/lib/authz";
-import { sectionSubheadingClass } from "@/components/forms/field-classes";
+import { pageStackClass, sectionSubheadingClass } from "@/components/forms/field-classes";
 import { DataToolsClient } from "@/components/data/DataToolsClient";
 
 export default async function DataToolsPage() {
@@ -8,16 +8,15 @@ export default async function DataToolsPage() {
   await requireBudgetAccess();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className={`mx-auto max-w-2xl ${pageStackClass}`}>
       <div>
         <Link href="/more" className="text-sm text-fg-muted hover:text-fg">
           ← More
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-fg">Data</h1>
+        <h1 className="mt-1 text-xl font-semibold text-fg md:text-2xl">Data</h1>
         <p className={sectionSubheadingClass}>
-          Admin-only export, import, and selective erase. Ignored ING rows stay in
-          the ledger (balances); budget math excludes them via ignore rules in
-          notes — no re-import needed when toggling rules.
+          Admin export, import, and selective erase. Ignored ING rows stay in the
+          ledger; budget math excludes them via ignore rules.
         </p>
       </div>
       <DataToolsClient />

@@ -6,18 +6,14 @@ import {
   seedDefaultReceiptRules,
 } from "@/lib/starter-categories";
 import {
-  buttonDangerClass,
-  buttonSecondaryClass,
-  cardClass,
-  inputClass,
-  labelClass,
+  buttonCompactClass,
+  cardCompactClass,
+  inputCompactClass,
+  pageStackClass,
+  sectionSubheadingClass,
 } from "@/components/forms/field-classes";
-import {
-  createReceiptRuleAction,
-  deleteReceiptRule,
-  moveReceiptRule,
-  updateReceiptRule,
-} from "../receipts/actions";
+import { createReceiptRuleAction } from "../receipts/actions";
+import { ReceiptRulesEditor } from "@/components/import/ReceiptRulesEditor";
 
 export default async function ReceiptRulesPage() {
   const { budget } = await requireBudgetAccess();
@@ -37,135 +33,72 @@ export default async function ReceiptRulesPage() {
     orderBy: { sortOrder: "asc" },
   });
 
+  const categoryOptions = groups.flatMap((g) =>
+    g.categories.map((c) => ({
+      id: c.id,
+      label: `${g.name}: ${c.name}`,
+    })),
+  );
+
+  const ruleRows = rules.map((rule) => ({
+    id: rule.id,
+    matchText: rule.matchText,
+    categoryId: rule.categoryId,
+    ignore: rule.ignore,
+    categoryLabel: rule.category
+      ? `${rule.category.group.name}: ${rule.category.name}`
+      : null,
+  }));
+
   return (
-    <div className="space-y-6">
+    <div className={pageStackClass}>
       <div>
         <Link href="/more" className="text-sm text-fg-muted hover:text-fg">
           ← More
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-fg">Receipt mappings</h1>
-        <p className="mt-1 text-sm text-fg-muted">
-          Second mapping table for bill line items (Gemini detailing). First
-          substring match wins — independent of ING import rules.
+        <h1 className="mt-1 text-xl font-semibold text-fg md:text-2xl">
+          Receipt mappings
+        </h1>
+        <p className={sectionSubheadingClass}>
+          Bill line items (Gemini detailing). First substring match wins —
+          independent of ING import rules.
         </p>
       </div>
 
       <form
         action={createReceiptRuleAction}
-        className={`${cardClass} space-y-3 p-4`}
+        className={`${cardCompactClass} grid gap-2 p-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end`}
       >
-        <h2 className="text-sm font-semibold text-fg">Add rule</h2>
-        <label className={labelClass}>
-          Match substring
-          <input name="matchText" required minLength={2} className={inputClass} />
+        <label className="block text-xs font-medium text-fg-muted">
+          Match
+          <input
+            name="matchText"
+            required
+            minLength={2}
+            className={`${inputCompactClass} mt-1`}
+          />
         </label>
-        <label className={labelClass}>
+        <label className="block text-xs font-medium text-fg-muted">
           Category
-          <select name="categoryId" className={inputClass}>
+          <select name="categoryId" className={`${inputCompactClass} mt-1`}>
             <option value="">—</option>
-            {groups.map((g) =>
-              g.categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {g.name}: {c.name}
-                </option>
-              )),
-            )}
+            {categoryOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
           </select>
         </label>
-        <label className="flex items-center gap-2 text-sm text-fg">
-          <input type="checkbox" name="ignore" value="1" />
-          Ignore line
+        <label className="flex h-8 items-center gap-2 text-sm text-fg">
+          <input type="checkbox" name="ignore" value="1" className="size-4 accent-[var(--accent)]" />
+          Ignore
         </label>
-        <button type="submit" className={`${buttonSecondaryClass} w-full sm:w-auto`}>
+        <button type="submit" className={buttonCompactClass}>
           Add
         </button>
       </form>
 
-      <ul className={`${cardClass} divide-y divide-rim-subtle/60`}>
-        {rules.map((rule) => (
-          <li key={rule.id} className="space-y-2 p-4">
-            <form
-              action={updateReceiptRule}
-              className="grid grid-cols-1 gap-2 sm:grid-cols-3"
-            >
-              <input type="hidden" name="id" value={rule.id} />
-              <label className={labelClass}>
-                Match
-                <input
-                  name="matchText"
-                  defaultValue={rule.matchText}
-                  className={inputClass}
-                  required
-                  minLength={2}
-                />
-              </label>
-              <label className={labelClass}>
-                Category
-                <select
-                  name="categoryId"
-                  className={inputClass}
-                  defaultValue={rule.categoryId ?? ""}
-                >
-                  <option value="">—</option>
-                  {groups.map((g) =>
-                    g.categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {g.name}: {c.name}
-                      </option>
-                    )),
-                  )}
-                </select>
-              </label>
-              <div className="flex flex-wrap items-end gap-2">
-                <label className="flex items-center gap-2 pb-2 text-sm text-fg">
-                  <input
-                    type="checkbox"
-                    name="ignore"
-                    value="1"
-                    defaultChecked={rule.ignore}
-                  />
-                  Ignore
-                </label>
-                <button type="submit" className={`${buttonSecondaryClass} w-full sm:w-auto`}>
-                  Save
-                </button>
-              </div>
-            </form>
-            <div className="flex flex-wrap gap-2">
-              <form action={moveReceiptRule}>
-                <input type="hidden" name="id" value={rule.id} />
-                <input type="hidden" name="dir" value="up" />
-                <button type="submit" className={buttonSecondaryClass}>
-                  ↑
-                </button>
-              </form>
-              <form action={moveReceiptRule}>
-                <input type="hidden" name="id" value={rule.id} />
-                <input type="hidden" name="dir" value="down" />
-                <button type="submit" className={buttonSecondaryClass}>
-                  ↓
-                </button>
-              </form>
-              <form action={deleteReceiptRule}>
-                <input type="hidden" name="id" value={rule.id} />
-                <button type="submit" className={buttonDangerClass}>
-                  Delete
-                </button>
-              </form>
-              <p className="self-center text-xs text-fg-subtle">
-                {rule.ignore
-                  ? "→ ignore"
-                  : rule.category
-                    ? `→ ${rule.category.group.name}: ${rule.category.name}`
-                    : "→ (no category)"}
-              </p>
-            </div>
-          </li>
-        ))}
-        {rules.length === 0 && (
-          <li className="p-4 text-sm text-fg-muted">No rules yet.</li>
-        )}
-      </ul>
+      <ReceiptRulesEditor rules={ruleRows} categoryOptions={categoryOptions} />
     </div>
   );
 }

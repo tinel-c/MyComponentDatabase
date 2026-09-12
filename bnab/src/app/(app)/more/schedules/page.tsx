@@ -3,11 +3,12 @@ import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, todayISO } from "@/lib/money";
 import {
+  buttonCompactClass,
   buttonPrimaryClass,
-  buttonSecondaryClass,
-  cardClass,
+  cardCompactClass,
   inputClass,
   labelClass,
+  pageStackClass,
 } from "@/components/forms/field-classes";
 import { createSchedule, enterScheduled } from "../actions";
 
@@ -31,27 +32,29 @@ export default async function SchedulesPage() {
   ]);
 
   return (
-    <div className="space-y-6">
+    <div className={pageStackClass}>
       <div>
         <Link href="/more" className="text-sm text-fg-muted hover:text-fg">
           ← More
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-fg">Scheduled</h1>
+        <h1 className="mt-1 text-xl font-semibold text-fg md:text-2xl">
+          Scheduled
+        </h1>
       </div>
 
-      <ul className={`${cardClass} divide-y divide-rim-subtle`}>
+      <ul className={`${cardCompactClass} divide-y divide-rim-subtle`}>
         {schedules.length === 0 ? (
-          <li className="px-4 py-8 text-center text-sm text-fg-muted">
+          <li className="px-3 py-6 text-center text-sm text-fg-muted">
             No scheduled transactions.
           </li>
         ) : (
           schedules.map((s) => (
             <li
               key={s.id}
-              className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center"
+              className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center"
             >
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-fg">
+                <p className="truncate text-sm font-medium text-fg">
                   {s.payee?.name ?? s.notes ?? "Scheduled"}
                 </p>
                 <p className="text-xs text-fg-subtle">
@@ -59,16 +62,13 @@ export default async function SchedulesPage() {
                   {s.category ? ` · ${s.category.name}` : ""}
                 </p>
               </div>
-              <div className="flex items-center justify-between gap-3 sm:justify-end">
+              <div className="flex items-center justify-between gap-2 sm:justify-end">
                 <p className="tabular-nums text-sm font-medium text-fg">
                   {formatMoney(s.amount, budget.currency)}
                 </p>
                 <form action={enterScheduled}>
                   <input type="hidden" name="id" value={s.id} />
-                  <button
-                    type="submit"
-                    className={`${buttonSecondaryClass} min-h-10 px-4`}
-                  >
+                  <button type="submit" className={buttonCompactClass}>
                     Enter
                   </button>
                 </form>
@@ -80,7 +80,7 @@ export default async function SchedulesPage() {
 
       <form
         action={createSchedule}
-        className={`${cardClass} space-y-3 p-4 lg:grid lg:max-w-4xl lg:grid-cols-2 lg:gap-3 lg:space-y-0`}
+        className={`${cardCompactClass} space-y-2 p-3 lg:grid lg:max-w-4xl lg:grid-cols-2 lg:gap-2 lg:space-y-0`}
       >
         <h2 className="text-sm font-semibold text-fg lg:col-span-2">
           New schedule

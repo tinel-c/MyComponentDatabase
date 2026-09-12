@@ -6,11 +6,11 @@ import { formatMoney } from "@/lib/money";
 import { accountTypeMeta } from "@/lib/ui-accents";
 import {
   buttonPrimaryClass,
-  cardClass,
+  cardCompactClass,
   inputClass,
   labelClass,
   moneyClass,
-  sectionHeadingClass,
+  pageStackClass,
   sectionSubheadingClass,
 } from "@/components/forms/field-classes";
 import { createAccount } from "@/app/(app)/plan/actions";
@@ -36,9 +36,11 @@ export default async function AccountsPage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className={pageStackClass}>
       <div>
-        <h1 className={sectionHeadingClass}>Accounts</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-fg md:text-2xl">
+          Accounts
+        </h1>
         <p className={sectionSubheadingClass}>
           On-budget balances feed Ready to Assign. Tracking accounts are for net
           worth.
@@ -46,7 +48,7 @@ export default async function AccountsPage() {
       </div>
 
       {accounts.length === 0 ? (
-        <div className={cardClass}>
+        <div className={cardCompactClass}>
           <EmptyState
             icon={PiggyBank}
             title="No accounts yet"
@@ -59,7 +61,7 @@ export default async function AccountsPage() {
           />
         </div>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {accounts.map((a) => {
             const balance = balanceMap.get(a.id) ?? 0;
             const meta = accountTypeMeta(a.type);
@@ -69,7 +71,7 @@ export default async function AccountsPage() {
                 <Link
                   href={`/accounts/${a.id}`}
                   prefetch
-                  className={`${cardClass} flex h-full items-center gap-3 overflow-hidden px-4 py-4 transition-colors hover:border-rim ${
+                  className={`${cardCompactClass} flex h-full items-center gap-2.5 overflow-hidden px-3 py-2.5 transition-colors hover:border-rim ${
                     a.closed ? "opacity-50" : ""
                   }`}
                 >
@@ -79,25 +81,25 @@ export default async function AccountsPage() {
                     aria-hidden
                   />
                   <span
-                    className="flex size-11 shrink-0 items-center justify-center rounded-xl"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-lg"
                     style={{
                       background:
                         "color-mix(in oklch, var(--accent-muted) 70%, transparent)",
                       color: meta.accent,
                     }}
                   >
-                    <Icon className="size-5" />
+                    <Icon className="size-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-fg">{a.name}</p>
-                    <p className="text-xs text-fg-subtle">
+                    <p className="truncate text-sm font-medium text-fg">{a.name}</p>
+                    <p className="text-[10px] text-fg-subtle">
                       {meta.label}
                       {!a.onBudget ? " · tracking" : ""}
                       {a.closed ? " · closed" : ""}
                     </p>
                   </div>
                   <p
-                    className={`text-base font-semibold ${moneyClass} ${
+                    className={`text-sm font-semibold ${moneyClass} ${
                       balance < 0 ? "text-danger" : "text-fg"
                     }`}
                   >
@@ -112,10 +114,10 @@ export default async function AccountsPage() {
 
       <section
         id="add-account"
-        className={`${cardClass} scroll-mt-20 p-4 sm:max-w-lg lg:max-w-xl`}
+        className={`${cardCompactClass} scroll-mt-20 p-3 sm:max-w-lg lg:max-w-xl`}
       >
         <h2 className="text-sm font-semibold text-fg">Add account</h2>
-        <form action={createAccount} className="mt-3 space-y-3">
+        <form action={createAccount} className="mt-2 space-y-2">
           <label className={labelClass}>
             Name
             <input name="name" required className={inputClass} placeholder="Checking" />

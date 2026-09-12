@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react";
 import {
-  buttonDangerClass,
-  buttonPrimaryClass,
-  buttonSecondaryClass,
-  cardClass,
+  buttonCompactClass,
+  buttonCompactDangerClass,
+  cardCompactClass,
   inputClass,
   labelClass,
+  pageStackClass,
 } from "@/components/forms/field-classes";
 import { DEFAULT_ERASE_FLAGS } from "@/lib/data-tools/selective-erase";
 import {
@@ -87,36 +87,30 @@ export function DataToolsClient() {
   const [eraseResult, setEraseResult] = useState<DataToolsResult | null>(null);
 
   return (
-    <div className="space-y-6">
-      <section className={`${cardClass} space-y-3 p-4`}>
+    <div className={pageStackClass}>
+      <section className={`${cardCompactClass} space-y-2 p-3`}>
         <h2 className="text-sm font-semibold text-fg">Export database</h2>
-        <p className="text-sm text-fg-muted">
-          Download the live SQLite file. A snapshot is taken first. Prefer gzip on
-          slow links.
+        <p className="text-xs text-fg-muted">
+          Download the live SQLite file. A snapshot is taken first.
         </p>
         <div className="flex flex-wrap gap-2">
-          <a href="/api/admin/db-export" className={buttonPrimaryClass}>
+          <a href="/api/admin/db-export" className={buttonCompactClass}>
             Download .db
           </a>
-          <a
-            href="/api/admin/db-export?gzip=1"
-            className={buttonSecondaryClass}
-          >
+          <a href="/api/admin/db-export?gzip=1" className={buttonCompactClass}>
             Download .db.gz
           </a>
         </div>
       </section>
 
-      <section className={`${cardClass} space-y-3 p-4`}>
+      <section className={`${cardCompactClass} space-y-2 p-3`}>
         <h2 className="text-sm font-semibold text-fg">Import / replace database</h2>
-        <p className="text-sm text-fg-muted">
-          Uploads replace the shared SQLite file after snapshotting the current DB.
+        <p className="text-xs text-fg-muted">
           Type <span className="font-mono text-fg">REPLACE DATABASE</span> to
-          confirm. After import, soft-restart the app process if balances look
-          stale.
+          confirm. Soft-restart if balances look stale.
         </p>
         <form
-          className="space-y-3"
+          className="space-y-2"
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
@@ -148,7 +142,7 @@ export function DataToolsClient() {
           </label>
           <button
             type="submit"
-            className={buttonDangerClass}
+            className={buttonCompactDangerClass}
             disabled={pending}
           >
             {pending ? "Working…" : "Replace database"}
@@ -157,14 +151,14 @@ export function DataToolsClient() {
         </form>
       </section>
 
-      <section className={`${cardClass} space-y-3 p-4`}>
+      <section className={`${cardCompactClass} space-y-2 p-3`}>
         <h2 className="text-sm font-semibold text-fg">Selective erase</h2>
-        <p className="text-sm text-fg-muted">
-          Wipe chosen data for this household budget. Team members and login users
-          are never deleted. Defaults keep import and receipt mappings.
+        <p className="text-xs text-fg-muted">
+          Team / users are never deleted. Defaults keep import and receipt
+          mappings.
         </p>
         <form
-          className="space-y-3"
+          className="space-y-2"
           onSubmit={(e) => {
             e.preventDefault();
             const fd = new FormData(e.currentTarget);
@@ -173,20 +167,22 @@ export function DataToolsClient() {
             });
           }}
         >
-          <ul className="space-y-2">
+          <ul className="space-y-1.5">
             {ERASE_OPTIONS.map(({ key, label, hint }) => (
               <li key={key}>
-                <label className="flex cursor-pointer items-start gap-3 text-sm">
+                <label className="flex cursor-pointer items-start gap-2 text-sm">
                   <input
                     type="checkbox"
                     name={key}
                     defaultChecked={DEFAULT_ERASE_FLAGS[key]}
-                    className="mt-1 size-4 accent-[var(--accent)]"
+                    className="mt-0.5 size-4 accent-[var(--accent)]"
                     disabled={pending}
                   />
                   <span>
                     <span className="font-medium text-fg">{label}</span>
-                    <span className="mt-0.5 block text-fg-muted">{hint}</span>
+                    <span className="mt-0.5 block text-xs text-fg-muted">
+                      {hint}
+                    </span>
                   </span>
                 </label>
               </li>
@@ -204,7 +200,7 @@ export function DataToolsClient() {
           </label>
           <button
             type="submit"
-            className={buttonDangerClass}
+            className={buttonCompactDangerClass}
             disabled={pending}
           >
             {pending ? "Working…" : "Erase selected"}

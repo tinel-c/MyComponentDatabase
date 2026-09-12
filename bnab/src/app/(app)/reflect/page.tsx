@@ -1,7 +1,7 @@
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { addMonths, currentMonth, formatMoney } from "@/lib/money";
-import { cardClass, tableClass, thClass, tdClass } from "@/components/forms/field-classes";
+import { cardCompactClass, tableClass, thClass, tdClass, pageStackClass } from "@/components/forms/field-classes";
 import { ReflectChartsLazy as ReflectCharts } from "@/components/reflect/ReflectChartsLazy";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BarChart3 } from "lucide-react";
@@ -335,7 +335,7 @@ export default async function ReflectPage({
     receiptCatRows.length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className={pageStackClass}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-fg">Reflect</h1>
@@ -388,7 +388,7 @@ export default async function ReflectPage({
       )}
 
       {receiptCatRows.length > 0 ? (
-        <section className={`${cardClass} p-4`}>
+        <section className={`${cardCompactClass} p-3`}>
           <h2 className="text-sm font-semibold text-fg">
             Receipt-detailed spending
           </h2>
@@ -455,7 +455,7 @@ export default async function ReflectPage({
       ) : null}
 
       {hasAnyData ? (
-        <details className={`${cardClass} p-4`}>
+        <details className={`${cardCompactClass} p-3`}>
           <summary className="cursor-pointer text-sm font-semibold text-fg">
             Income vs Expense table
           </summary>

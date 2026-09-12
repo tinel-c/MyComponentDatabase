@@ -6,9 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/money";
 import { accountTypeMeta } from "@/lib/ui-accents";
 import {
+  buttonCompactClass,
   buttonPrimaryClass,
-  buttonSecondaryClass,
-  cardClass,
+  cardCompactClass,
   inputClass,
   labelClass,
   moneyClass,
@@ -73,44 +73,6 @@ export default async function AccountDetailPage({
     }),
   ]);
 
-  // #region agent log
-  fetch("http://127.0.0.1:7298/ingest/7f3901ac-961b-4078-9b8c-c42ef281edcb", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "3e3435",
-    },
-    body: JSON.stringify({
-      sessionId: "3e3435",
-      runId: "post-fix",
-      hypothesisId: "C",
-      location: "accounts/[id]/page.tsx:load",
-      message: "account_adjustments_loaded",
-      data: {
-        accountId: id,
-        accountName: account.name,
-        pageNum,
-        pageSize: PAGE_SIZE,
-        txnCount: count,
-        adjustmentCount: balanceAdjustments.length,
-        adjustments: balanceAdjustments.map((t) => ({
-          id: t.id,
-          date: t.date,
-          amount: t.amount,
-          categoryId: t.categoryId,
-          payee: t.payee?.name ?? null,
-          isStartingBalance: t.isStartingBalance,
-        })),
-        pageIncludesAdj: transactions.some(
-          (t) =>
-            t.payee?.name === "Balance Adjustment" || t.isStartingBalance,
-        ),
-      },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
-
   const balance = sumAgg._sum.amount ?? 0;
   const hasMore = skip + transactions.length < count;
   const remaining = Math.max(0, count - skip - transactions.length);
@@ -127,7 +89,7 @@ export default async function AccountDetailPage({
           </Link>
           <div className="mt-2 flex items-center gap-3">
             <span
-              className="flex size-11 shrink-0 items-center justify-center rounded-xl"
+              className="flex size-9 shrink-0 items-center justify-center rounded-lg"
               style={{
                 background:
                   "color-mix(in oklch, var(--accent-muted) 70%, transparent)",
@@ -137,7 +99,7 @@ export default async function AccountDetailPage({
               <Icon className="size-5" />
             </span>
             <div className="min-w-0">
-              <h1 className="truncate text-2xl font-semibold text-fg">
+              <h1 className="truncate text-xl font-semibold text-fg md:text-2xl">
                 {account.name}
               </h1>
               <p className="text-sm text-fg-muted">
@@ -156,8 +118,8 @@ export default async function AccountDetailPage({
         </Link>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-      <section className={`${cardClass} space-y-3 p-4`}>
+      <div className="grid gap-3 lg:grid-cols-2">
+      <section className={`${cardCompactClass} space-y-2 p-3`}>
         <h2 className="text-sm font-semibold text-fg">
           Adjust to ING / statement
         </h2>
@@ -172,7 +134,7 @@ export default async function AccountDetailPage({
         />
       </section>
 
-      <section className={`${cardClass} space-y-3 p-4`}>
+      <section className={`${cardCompactClass} space-y-2 p-3`}>
         <h2 className="text-sm font-semibold text-fg">Rename</h2>
         <form action={renameAccount} className="flex flex-col gap-2 sm:flex-row">
           <input type="hidden" name="id" value={account.id} />
@@ -186,13 +148,13 @@ export default async function AccountDetailPage({
               className={inputClass}
             />
           </label>
-          <button type="submit" className={`${buttonSecondaryClass} sm:mt-6`}>
+          <button type="submit" className={`${buttonCompactClass} sm:mt-5`}>
             Save name
           </button>
         </form>
         <form action={toggleAccountClosed}>
           <input type="hidden" name="id" value={account.id} />
-          <button type="submit" className={`${buttonSecondaryClass} w-full`}>
+          <button type="submit" className={`${buttonCompactClass} w-full`}>
             {account.closed ? "Reopen account" : "Close account"}
           </button>
         </form>
@@ -200,7 +162,7 @@ export default async function AccountDetailPage({
       </div>
 
       {balanceAdjustments.length > 0 ? (
-        <section className={`${cardClass} overflow-hidden`}>
+        <section className={`${cardCompactClass} overflow-hidden`}>
           <div className="border-b border-rim-subtle px-4 py-2.5">
             <h2 className="text-sm font-semibold text-fg">
               Balance adjustments
@@ -247,14 +209,14 @@ export default async function AccountDetailPage({
 
       <form action={reconcileAccount}>
         <input type="hidden" name="accountId" value={account.id} />
-        <button type="submit" className={buttonSecondaryClass}>
+        <button type="submit" className={buttonCompactClass}>
           Reconcile cleared
         </button>
       </form>
 
       <p className="text-xs text-fg-subtle">{count} transactions · tap a row to edit</p>
 
-      <ul className={`${cardClass} divide-y divide-rim-subtle/60`}>
+      <ul className={`${cardCompactClass} divide-y divide-rim-subtle/60`}>
         {page.length === 0 ? (
           <li>
             <EmptyState
@@ -313,7 +275,7 @@ export default async function AccountDetailPage({
       {hasMore ? (
         <Link
           href={`/accounts/${id}?page=${pageNum + 1}`}
-          className={`${buttonSecondaryClass} w-full`}
+          className={`${buttonCompactClass} w-full`}
         >
           Next page · {remaining} remaining
         </Link>
@@ -321,7 +283,7 @@ export default async function AccountDetailPage({
       {pageNum > 1 ? (
         <Link
           href={`/accounts/${id}?page=${pageNum - 1}`}
-          className={`${buttonSecondaryClass} w-full`}
+          className={`${buttonCompactClass} w-full`}
         >
           Previous page
         </Link>

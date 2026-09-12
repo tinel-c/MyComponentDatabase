@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **UI densify (except Plan):** Excel-style one-line desktop rows for Import/Receipt mappings (actions on the right); compact tokens (`buttonCompactClass`, `inputCompactClass`, `pageStackClass`); denser More lists, Accounts, Reflect, ING/Import bill, and desktop chrome
 - **ING ignore = ledger + budget exclude:** confirm always inserts (or links) ignore-matched rows; RTA/Activity skip via `excludeFromRta` on notes — reapply rules without re-importing CSV
 - **More → Data (admin):** export/download SQLite (optional gzip), upload/replace DB, selective erase (defaults keep import + receipt mappings)
 - Desktop chrome: **ING import** under Import bill; right rail with per-account month bills / manual / ING stats

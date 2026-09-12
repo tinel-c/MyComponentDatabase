@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import {
   buttonDangerClass,
   cardClass,
+  cardCompactClass,
+  pageStackClass,
   sectionSubheadingClass,
 } from "@/components/forms/field-classes";
 import { logoutAction } from "./actions";
@@ -146,9 +148,11 @@ export default async function MorePage() {
   const FeaturedIcon = featured.icon;
 
   return (
-    <div className="space-y-6">
+    <div className={pageStackClass}>
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-fg">More</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-fg md:text-2xl">
+          More
+        </h1>
         <p className={sectionSubheadingClass}>
           {budget.name} · {budget.currency} · {session?.user?.email}
         </p>
@@ -158,14 +162,14 @@ export default async function MorePage() {
 
       <Link
         href={featured.href}
-        className={`${cardClass} flex items-center gap-4 border-accent/30 bg-accent-muted/30 p-4 transition-all duration-150 hover:border-accent active:scale-[0.99] sm:p-5`}
+        className={`${cardCompactClass} flex items-center gap-3 border-accent/30 bg-accent-muted/30 p-3 transition-all duration-150 hover:border-accent active:scale-[0.99]`}
       >
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-fg">
-          <FeaturedIcon className="size-6" />
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-fg">
+          <FeaturedIcon className="size-5" />
         </span>
         <div className="min-w-0">
-          <p className="text-lg font-semibold text-fg">{featured.label}</p>
-          <p className="text-sm text-fg-muted">{featured.desc}</p>
+          <p className="font-semibold text-fg">{featured.label}</p>
+          <p className="text-xs text-fg-muted">{featured.desc}</p>
         </div>
       </Link>
 
@@ -173,25 +177,25 @@ export default async function MorePage() {
         const items = section.items.filter((l) => !l.adminOnly || isAdmin);
         if (items.length === 0) return null;
         return (
-          <section key={section.title} className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+          <section key={section.title} className="space-y-2">
+            <h2 className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">
               {section.title}
             </h2>
-            <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {items.map((l) => {
                 const Icon = l.icon;
                 return (
                   <li key={l.href}>
                     <Link
                       href={l.href}
-                      className={`${cardClass} flex h-full items-start gap-3 p-4 transition-all duration-150 hover:border-rim hover:bg-overlay/40 active:scale-[0.99]`}
+                      className={`${cardCompactClass} flex h-full items-center gap-2.5 px-3 py-2.5 transition-all duration-150 hover:border-rim hover:bg-overlay/40 active:scale-[0.99]`}
                     >
-                      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-overlay text-accent">
-                        <Icon className="size-5" />
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-overlay text-accent">
+                        <Icon className="size-4" />
                       </span>
                       <div className="min-w-0">
-                        <p className="font-medium text-fg">{l.label}</p>
-                        <p className="mt-0.5 text-sm text-fg-muted">{l.desc}</p>
+                        <p className="text-sm font-medium text-fg">{l.label}</p>
+                        <p className="truncate text-xs text-fg-muted">{l.desc}</p>
                       </div>
                     </Link>
                   </li>
@@ -202,14 +206,14 @@ export default async function MorePage() {
         );
       })}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className={`${cardClass} p-4`}>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <section className={`${cardCompactClass} p-3`}>
           <h2 className="text-sm font-semibold text-fg">Theme</h2>
-          <div className="mt-3">
+          <div className="mt-2">
             <ThemeSelector />
           </div>
         </section>
-        <form action={logoutAction} className={`${cardClass} flex items-center p-4`}>
+        <form action={logoutAction} className={`${cardClass} flex items-center p-3`}>
           <button type="submit" className={`${buttonDangerClass} w-full`}>
             Sign out
           </button>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/money";
-import { cardClass, buttonSecondaryClass, buttonPrimaryClass } from "@/components/forms/field-classes";
+import { cardCompactClass, buttonCompactClass, buttonPrimaryClass, pageStackClass, sectionSubheadingClass } from "@/components/forms/field-classes";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Link2, Link2Off, AlertCircle, Clock, CheckCircle2, Receipt } from "lucide-react";
 
@@ -89,32 +89,32 @@ export default async function BillsPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className={pageStackClass}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link href="/more" className="text-sm text-fg-muted hover:text-fg md:hidden">
             ← More
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-fg">
+          <h1 className="mt-1 text-xl font-semibold tracking-tight text-fg md:text-2xl">
             Imported bills
           </h1>
-          <p className="mt-1 text-sm text-fg-muted">
-            Bill scans and how they link to ING / register transactions.{" "}
+          <p className={sectionSubheadingClass}>
+            Bill scans and ING / register linkage.{" "}
             <Link href="/more/import-bill" className="text-accent hover:underline">
-              Import another bill
+              Import another
             </Link>
           </p>
         </div>
         <Link
           href="/more/import-bill"
-          className={`${buttonSecondaryClass} w-full shrink-0 sm:w-auto`}
+          className={`${buttonCompactClass} w-full shrink-0 sm:w-auto`}
         >
           Import bill
         </Link>
       </div>
 
       {scans.length === 0 ? (
-        <div className={cardClass}>
+        <div className={cardCompactClass}>
           <EmptyState
             icon={Receipt}
             title="No bills imported yet"
@@ -127,7 +127,7 @@ export default async function BillsPage() {
           />
         </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2">
           {scans.map((scan) => {
             const meta = parseReceiptMeta(scan.rawJson);
             const lineSum = scan.lines.reduce((s, l) => s + l.amountCents, 0);
@@ -143,27 +143,27 @@ export default async function BillsPage() {
             const linkedIng = Boolean(txn?.importFingerprint);
 
             return (
-              <li key={scan.id} className={`${cardClass} overflow-hidden`}>
-                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 space-y-2">
+              <li key={scan.id} className={`${cardCompactClass} overflow-hidden`}>
+                <div className="flex flex-col gap-1.5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${st.className}`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${st.className}`}
                       >
-                        <StatusIcon className="size-3.5" aria-hidden />
+                        <StatusIcon className="size-3" aria-hidden />
                         {st.label}
                       </span>
-                      <span className="text-xs text-fg-subtle">
+                      <span className="text-[10px] text-fg-subtle">
                         {scan.createdAt.toISOString().slice(0, 16).replace("T", " ")}
                       </span>
                     </div>
-                    <p className="text-base font-semibold text-fg">
+                    <p className="truncate text-sm font-semibold text-fg">
                       {meta.merchant || txn?.payee?.name || "Receipt"}
                       {meta.date || txn?.date
                         ? ` · ${meta.date ?? txn?.date}`
                         : ""}
                     </p>
-                    <p className="text-sm text-fg-muted">
+                    <p className="text-xs text-fg-muted">
                       {totalCents != null
                         ? formatMoney(-Math.abs(totalCents), budget.currency)
                         : "—"}
@@ -173,79 +173,67 @@ export default async function BillsPage() {
                       {scan.model ? ` · ${scan.model}` : ""}
                     </p>
                     {scan.errorText ? (
-                      <p className="text-sm text-danger-fg">{scan.errorText}</p>
+                      <p className="text-xs text-danger-fg">{scan.errorText}</p>
                     ) : null}
                   </div>
                 </div>
 
-                <div className="border-t border-rim-subtle bg-overlay/30 px-4 py-3">
+                <div className="border-t border-rim-subtle bg-overlay/30 px-3 py-2">
                   {!txn ? (
-                    <div className="flex items-start gap-2 text-sm text-fg-muted">
-                      <Link2Off className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
+                    <div className="flex items-start gap-2 text-xs text-fg-muted">
+                      <Link2Off className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
                       <div>
                         <p className="font-medium text-fg">No transaction linked</p>
-                        <p className="text-fg-muted">
-                          Finish mapping on{" "}
+                        <p>
+                          Finish on{" "}
                           <Link
                             href="/more/import-bill"
                             className="text-accent hover:underline"
                           >
                             Import bill
-                          </Link>{" "}
-                          or create a new entry from the scan.
+                          </Link>
+                          .
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-start gap-2">
-                        {linkedIng ? (
-                          <Link2 className="mt-0.5 size-4 shrink-0 text-ok" />
-                        ) : pendingIng ? (
-                          <Clock className="mt-0.5 size-4 shrink-0 text-accent" />
-                        ) : (
-                          <Link2 className="mt-0.5 size-4 shrink-0 text-fg-muted" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-fg">
-                            {linkedIng
-                              ? "Linked to ING statement"
-                              : pendingIng
-                                ? "Awaiting ING statement link"
-                                : "Linked to register entry"}
+                    <div className="flex items-start gap-2 text-xs">
+                      {linkedIng ? (
+                        <Link2 className="mt-0.5 size-3.5 shrink-0 text-ok" />
+                      ) : pendingIng ? (
+                        <Clock className="mt-0.5 size-3.5 shrink-0 text-accent" />
+                      ) : (
+                        <Link2 className="mt-0.5 size-3.5 shrink-0 text-fg-muted" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-fg">
+                          {linkedIng
+                            ? "Linked to ING"
+                            : pendingIng
+                              ? "Awaiting ING link"
+                              : "Linked to register"}
+                        </p>
+                        <p className="mt-0.5 text-fg-muted">
+                          {txn.date} · {txn.account.name}
+                          {txn.payee?.name ? ` · ${txn.payee.name}` : ""} ·{" "}
+                          {formatMoney(txn.amount, budget.currency)}
+                        </p>
+                        {linkedIng && txn.importBatch ? (
+                          <p className="mt-0.5 text-[10px] text-fg-subtle">
+                            <Link
+                              href={`/more/import-history?batch=${txn.importBatch.id}`}
+                              className="text-accent hover:underline"
+                            >
+                              Import history
+                            </Link>
                           </p>
-                          <p className="mt-0.5 text-fg-muted">
-                            {txn.date} · {txn.account.name}
-                            {txn.payee?.name ? ` · ${txn.payee.name}` : ""} ·{" "}
-                            {formatMoney(txn.amount, budget.currency)}
-                            {txn.isParent ? " · split" : ""}
-                            {txn.cleared ? " · cleared" : " · uncleared"}
-                          </p>
-                          {linkedIng && txn.importBatch ? (
-                            <p className="mt-1 text-xs text-fg-subtle">
-                              ING batch: {txn.importBatch.sourceLabel} ·{" "}
-                              <Link
-                                href={`/more/import-history?batch=${txn.importBatch.id}`}
-                                className="text-accent hover:underline"
-                              >
-                                View import history
-                              </Link>
-                            </p>
-                          ) : null}
-                          {pendingIng ? (
-                            <p className="mt-1 text-xs text-fg-subtle">
-                              When you import the ING CSV, choose{" "}
-                              <span className="font-medium text-fg">Link</span> on
-                              the matching row.
-                            </p>
-                          ) : null}
-                          <Link
-                            href={`/transactions/${txn.id}`}
-                            className="mt-2 inline-block text-accent underline hover:text-fg"
-                          >
-                            Open transaction
-                          </Link>
-                        </div>
+                        ) : null}
+                        <Link
+                          href={`/transactions/${txn.id}`}
+                          className="mt-1 inline-block text-accent underline hover:text-fg"
+                        >
+                          Open transaction
+                        </Link>
                       </div>
                     </div>
                   )}
