@@ -74,56 +74,55 @@ rm -rf "${APP_DIR}/.next"
 mkdir -p "${APP_DIR}"
 
 # --- extract + prisma as deploy ---
-sudo -u deploy bash -lc "
+sudo -u deploy bash -lc '
   set -euo pipefail
-  cd '${APP_DIR}'
+  cd "'"${APP_DIR}"'"
   git fetch origin && git reset --hard origin/main || true
   rm -rf .next
-  tar -xzf '${TGZ}'
+  tar -xzf "'"${TGZ}"'"
   test -f .next/BUILD_ID
-  echo BUILD_ID=\$(cat .next/BUILD_ID)
+  echo BUILD_ID=$(cat .next/BUILD_ID)
   # Inactive slot deps often lag; always mirror live slot node_modules for PC builds
-  if [ -d '${APP_ROOT}/${ACTIVE}/bnab/node_modules/next' ]; then
-    echo "sync node_modules from active=${ACTIVE}"
+  if [ -d "'"${APP_ROOT}/${ACTIVE}"'"/bnab/node_modules/next ]; then
+    echo "sync node_modules from active='"${ACTIVE}"'"
     rm -rf node_modules
-    cp -a '${APP_ROOT}/${ACTIVE}/bnab/node_modules' node_modules
+    cp -a "'"${APP_ROOT}/${ACTIVE}"'"/bnab/node_modules node_modules
   elif [ ! -d node_modules/next ]; then
-    echo 'ERROR: no node_modules on active or inactive' >&2
+    echo "ERROR: no node_modules on active or inactive" >&2
     exit 1
   fi
-  echo "next version: \$(node -p \"require('./node_modules/next/package.json').version\")"
-  if [ -f '${SHARED}/overlay/schema.prisma' ]; then
-    cp -f '${SHARED}/overlay/schema.prisma' prisma/schema.prisma
+  if [ -f "'"${SHARED}"'"/overlay/schema.prisma ]; then
+    cp -f "'"${SHARED}"'"/overlay/schema.prisma prisma/schema.prisma
   fi
-  if [ -f '${SHARED}/overlay/seed.ts' ]; then
-    cp -f '${SHARED}/overlay/seed.ts' prisma/seed.ts
+  if [ -f "'"${SHARED}"'"/overlay/seed.ts ]; then
+    cp -f "'"${SHARED}"'"/overlay/seed.ts prisma/seed.ts
   fi
-  if [ -f '${SHARED}/bnab-overlay.tgz' ]; then
-    tar -xzf '${SHARED}/bnab-overlay.tgz'
+  if [ -f "'"${SHARED}"'"/bnab-overlay.tgz ]; then
+    tar -xzf "'"${SHARED}"'"/bnab-overlay.tgz
   fi
-  if [ -f '${SHARED}/bnab-public.tgz' ]; then
+  if [ -f "'"${SHARED}"'"/bnab-public.tgz ]; then
     mkdir -p public/brand
-    tar -xzf '${SHARED}/bnab-public.tgz' -C public
+    tar -xzf "'"${SHARED}"'"/bnab-public.tgz -C public
   fi
-  set -a; . '${SHARED}/.env'; set +a
-  export DATABASE_URL=file:${SHARED}/bnab.db
-  ln -sfn '${SHARED}/.env' .env
+  set -a; . "'"${SHARED}"'"/.env; set +a
+  export DATABASE_URL=file:'"${SHARED}"'/bnab.db
+  ln -sfn "'"${SHARED}"'"/.env .env
   npx prisma generate
   npx prisma migrate deploy
-  node -e 'const {PrismaClient}=require(\"@prisma/client\"); const p=new PrismaClient(); if(!p.importCategoryRule){console.error(\"MISSING importCategoryRule\"); process.exit(1)}; console.log(\"PRISMA_OK\")'
+  node -e "const {PrismaClient}=require(\"@prisma/client\"); const p=new PrismaClient(); if(!p.importCategoryRule){console.error(\"MISSING importCategoryRule\"); process.exit(1)}; console.log(\"PRISMA_OK\")"
   shopt -s nullglob
   for d in .next/node_modules/@prisma/client-*; do
-    echo \"sync \$d\"
-    rm -rf \"\$d\"; mkdir -p \"\$d\"
-    cp -a node_modules/@prisma/client/. \"\$d/\"
+    echo "sync $d"
+    rm -rf "$d"; mkdir -p "$d"
+    cp -a node_modules/@prisma/client/. "$d/"
   done
   if [ -d node_modules/.prisma ]; then
-    echo 'sync .next/node_modules/.prisma'
+    echo "sync .next/node_modules/.prisma"
     rm -rf .next/node_modules/.prisma
     mkdir -p .next/node_modules
     cp -a node_modules/.prisma .next/node_modules/
   fi
-"
+'
 chown -R deploy:deploy "${APP_DIR}/.next"
 
 # --- start inactive ---
