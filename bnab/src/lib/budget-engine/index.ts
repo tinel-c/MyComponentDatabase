@@ -238,11 +238,19 @@ export function computeBudgetMonths(input: {
     }
 
     // Income to RTA: operating (non-savings) on-budget only.
+    // Transfer twins are skipped unless the leg is categorized as income
+    // (import hybrid: Paycheck + debit savings).
     for (const t of monthTxns) {
-      if (t.transferTwinId) continue;
       if (t.excludeFromRta) continue;
       const acct = accountById.get(t.accountId);
       if (!isOperatingOnBudget(acct)) continue;
+
+      if (t.transferTwinId) {
+        if (!t.categoryId) continue;
+        const cat = categoryById.get(t.categoryId);
+        if (cat?.isIncome) incomeToRta += t.amount;
+        continue;
+      }
 
       if (t.isStartingBalance) {
         incomeToRta += t.amount;
@@ -261,12 +269,18 @@ export function computeBudgetMonths(input: {
     }
 
     // Net transfers into SAVINGS leave the Ready-to-Assign pool.
+    // Skip pairs where either leg is income-categorized (hybrid import).
     let toSavings = 0;
     for (const t of monthTxns) {
       if (!t.transferTwinId || t.amount <= 0) continue;
       if (t.excludeFromRta) continue;
       const twin = txnById.get(t.transferTwinId);
       if (!twin || twin.excludeFromRta) continue;
+      const tCat = t.categoryId ? categoryById.get(t.categoryId) : null;
+      const twinCat = twin.categoryId
+        ? categoryById.get(twin.categoryId)
+        : null;
+      if (tCat?.isIncome || twinCat?.isIncome) continue;
       const dest = accountById.get(t.accountId);
       const src = accountById.get(twin.accountId);
       if (isSavingsAccount(dest) && isOperatingOnBudget(src)) {

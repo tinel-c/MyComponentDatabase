@@ -333,6 +333,12 @@ export function applyRules(
         ignored = true;
         categoryId = null;
         transferAccountId = null;
+      } else if (transferTo && rule.categoryId) {
+        // Hybrid: categorize statement (e.g. Paycheck) and twin-debit the
+        // transfer account (e.g. savings outflow).
+        ignored = false;
+        categoryId = rule.categoryId;
+        transferAccountId = transferTo;
       } else if (transferTo) {
         ignored = false;
         categoryId = null;

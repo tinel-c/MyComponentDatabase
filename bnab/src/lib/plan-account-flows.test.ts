@@ -197,4 +197,39 @@ describe("computeAccountMonthFlows", () => {
     assert.equal(toSavingsByAccount.savings, 40_000);
     assert.equal(spendingByAccount.savings, -5_000);
   });
+
+  it("counts hybrid income transfer as income and skips toSavings", () => {
+    const { incomeByAccount, toSavingsByAccount } = computeAccountMonthFlows({
+      month: "2026-09",
+      accountOnBudget,
+      accountType,
+      categoryIsIncome,
+      categoryGroupId,
+      transactions: [
+        {
+          id: "pay",
+          accountId: "checking",
+          date: "2026-09-01",
+          amount: 100_000,
+          categoryId: "paycheck",
+          isParent: false,
+          transferTwinId: "sav",
+          excludeFromRta: false,
+        },
+        {
+          id: "sav",
+          accountId: "savings",
+          date: "2026-09-01",
+          amount: -100_000,
+          categoryId: null,
+          isParent: false,
+          transferTwinId: "pay",
+          excludeFromRta: false,
+        },
+      ],
+    });
+
+    assert.equal(incomeByAccount.checking, 100_000);
+    assert.equal(toSavingsByAccount.savings, undefined);
+  });
 });

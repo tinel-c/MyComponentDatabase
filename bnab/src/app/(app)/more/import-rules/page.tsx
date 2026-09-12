@@ -79,8 +79,9 @@ export default async function ImportRulesPage() {
         </h1>
         <p className={sectionSubheadingClass}>
           Substring rules applied in order to ING memos. First match wins.
-          Transfer rules create a linked pair on the statement account and the
-          other account.{" "}
+          Transfer-only rules create a linked pair. Category + transfer (e.g.
+          Paycheck + savings) categorizes the statement row and posts the
+          opposite amount on the other account.{" "}
           <Link href="/more/import" className="text-accent hover:underline">
             Import CSV
           </Link>
@@ -112,12 +113,12 @@ export default async function ImportRulesPage() {
           </select>
         </label>
         <label className="block text-xs font-medium text-fg-muted">
-          Transfer to account
+          Transfer / debit account
           <select
             name="transferAccountId"
             className={`${inputCompactClass} mt-1`}
           >
-            <option value="">— not a transfer —</option>
+            <option value="">— none —</option>
             {accountOptions.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.label}
@@ -139,8 +140,10 @@ export default async function ImportRulesPage() {
         </button>
       </form>
       <p className="text-xs text-fg-subtle">
-        Choose category, transfer account, or Ignore — not more than one mode.
-        Transfer wins over category when both are set.
+        Category alone categorizes. Transfer alone links a twin pair. Both
+        together (e.g. Income → Paycheck + savings) keep the category on the
+        statement account and post a negative twin on the savings account.
+        Ignore excludes the row from the budget.
       </p>
 
       <Suspense fallback={<p className="text-sm text-fg-muted">Loading mappings…</p>}>

@@ -489,4 +489,63 @@ describe("computeBudgetMonths", () => {
     assert.equal(m.toSavings, -50_000);
     assert.equal(m.rta, 550_000);
   });
+
+  it("counts hybrid income+transfer twin as income without toSavings", () => {
+    const checking = {
+      id: "chk",
+      onBudget: true,
+      type: "CHECKING",
+      creditCategoryId: null,
+    };
+    const savings = {
+      id: "sav",
+      onBudget: true,
+      type: "SAVINGS",
+      creditCategoryId: null,
+    };
+    const income = {
+      id: "inc",
+      isIncome: true,
+      isSystem: false,
+      systemKey: null,
+    };
+
+    const results = computeBudgetMonths({
+      firstMonth: "2026-09",
+      endMonth: "2026-09",
+      accounts: [checking, savings],
+      categories: [income],
+      transactions: [
+        {
+          id: "pay",
+          accountId: "chk",
+          date: "2026-09-01",
+          amount: 800_000,
+          categoryId: "inc",
+          isParent: false,
+          isChild: false,
+          transferTwinId: "sav-leg",
+          isStartingBalance: false,
+        },
+        {
+          id: "sav-leg",
+          accountId: "sav",
+          date: "2026-09-01",
+          amount: -800_000,
+          categoryId: null,
+          isParent: false,
+          isChild: false,
+          transferTwinId: "pay",
+          isStartingBalance: false,
+        },
+      ],
+      assigned: [],
+    });
+
+    const m = results[0];
+    assert.equal(m.incomeToRta, 800_000);
+    assert.equal(m.toSavings, 0);
+    assert.equal(m.rta, 800_000);
+    assert.equal(m.categories.inc.activity, 800_000);
+  });
 });

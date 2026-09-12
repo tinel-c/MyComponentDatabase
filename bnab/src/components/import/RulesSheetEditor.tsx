@@ -162,11 +162,7 @@ export function RulesSheetEditor({
       const isTransfer = Boolean(rule.transferAccountId);
       if (kind === "ignore" && !rule.ignore) return false;
       if (kind === "transfer" && !isTransfer) return false;
-      if (
-        kind === "mapped" &&
-        (rule.ignore || isTransfer || !rule.categoryId)
-      )
-        return false;
+      if (kind === "mapped" && (rule.ignore || !rule.categoryId)) return false;
       if (
         kind === "uncategorized" &&
         (rule.ignore || isTransfer || rule.categoryId)
@@ -284,7 +280,7 @@ export function RulesSheetEditor({
               <th className={denseThClass}>Match</th>
               <th className={denseThClass}>Category</th>
               {showTransfer ? (
-                <th className={denseThClass}>Transfer to</th>
+                <th className={denseThClass}>Transfer / debit</th>
               ) : null}
               <th className={`${denseThClass} w-20`}>Ignore</th>
               <th className={`${denseThClass} w-[13.5rem] text-right`}>Actions</th>
@@ -364,7 +360,7 @@ export function RulesSheetEditor({
                         form={formId}
                         className={inputCompactClass}
                         defaultValue={rule.transferAccountId ?? ""}
-                        aria-label="Transfer to account"
+                        aria-label="Transfer or debit account"
                       >
                         <option value="">—</option>
                         {accountOptions!.map((a) => (
@@ -447,7 +443,7 @@ export function RulesSheetEditor({
                     defaultValue={rule.transferAccountId ?? ""}
                     aria-label="Transfer to account"
                   >
-                    <option value="">— Transfer to account</option>
+                    <option value="">— Transfer / debit account</option>
                     {accountOptions!.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.label}

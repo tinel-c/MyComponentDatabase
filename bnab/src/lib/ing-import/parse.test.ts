@@ -168,6 +168,32 @@ describe("ING parser", () => {
     assert.equal(credit!.ignored, false);
   });
 
+  it("keeps income category when transferAccountId is also set", () => {
+    const rows = parseIngCsv(SAMPLE);
+    const applied = applyRules(
+      rows,
+      [
+        {
+          id: "hybrid",
+          matchText: "Din contul:999904927930",
+          categoryId: "paycheck",
+          transferAccountId: "savings",
+          ignore: false,
+          sortOrder: 0,
+        },
+      ],
+      "checking",
+      new Map([["paycheck", "Paycheck"]]),
+    );
+    const credit = applied.find((r) =>
+      r.memo.includes("Din contul:999904927930"),
+    );
+    assert.ok(credit);
+    assert.equal(credit!.transferAccountId, "savings");
+    assert.equal(credit!.categoryId, "paycheck");
+    assert.equal(credit!.ignored, false);
+  });
+
   it("skips transfer rule when target equals import account", () => {
     const rows = parseIngCsv(SAMPLE);
     const applied = applyRules(

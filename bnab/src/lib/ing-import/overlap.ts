@@ -257,8 +257,8 @@ export function applyNewRuleToPreviewRows<T extends PreviewRuleApplyRow>(
       return {
         ...r,
         ignored: false,
-        categoryId: null,
-        categoryName: null,
+        categoryId: params.categoryId,
+        categoryName: params.categoryName,
         transferAccountId: params.transferAccountId,
         transferAccountName: params.transferAccountName ?? null,
         status:

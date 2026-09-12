@@ -256,7 +256,7 @@ model ImportCategoryRule {
   budgetId           String
   matchText          String
   categoryId         String?
-  /** Other account for a transfer pair (mutually exclusive with category / ignore). */
+  /** Other account for a transfer twin; may combine with categoryId (hybrid income + debit). */
   transferAccountId  String?
   ignore             Boolean         @default(false)
   sortOrder          Float           @default(0)

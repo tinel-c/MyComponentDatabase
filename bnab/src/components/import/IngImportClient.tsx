@@ -38,11 +38,16 @@ function importRuleHref(row: PreviewRow): string | null {
 }
 
 function ImportMatchedRuleLabel({ row }: { row: PreviewRow }) {
-  const label = row.ignored
-    ? "Ignore"
-    : row.transferAccountName
-      ? `Transfer ↔ ${row.transferAccountName}`
-      : (row.categoryName ?? "(uncategorized)");
+  const parts: string[] = [];
+  if (row.ignored) {
+    parts.push("Ignore");
+  } else {
+    if (row.categoryName) parts.push(row.categoryName);
+    if (row.transferAccountName) {
+      parts.push(`↔ ${row.transferAccountName}`);
+    }
+  }
+  const label = parts.length > 0 ? parts.join(" · ") : "(uncategorized)";
   const href = importRuleHref(row);
   if (!href) {
     return <span className="text-fg-muted">{label}</span>;
@@ -184,8 +189,10 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
     const fd = new FormData();
     fd.set("matchText", needle);
     if (ignore) fd.set("ignore", "1");
-    else if (transferAccountId) fd.set("transferAccountId", transferAccountId);
-    else fd.set("categoryId", categoryId);
+    else {
+      if (categoryId) fd.set("categoryId", categoryId);
+      if (transferAccountId) fd.set("transferAccountId", transferAccountId);
+    }
 
     const cat = categories.find((c) => c.id === categoryId);
     const categoryName = cat ? `${cat.groupName}: ${cat.name}` : null;
@@ -206,8 +213,8 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
         const applied = applyNewRuleToPreviewRows(prev, {
           matchText: needle,
           ignore,
-          categoryId: ignore || transferAccountId ? null : categoryId,
-          categoryName: ignore || transferAccountId ? null : categoryName,
+          categoryId: ignore ? null : categoryId || null,
+          categoryName: ignore || !categoryId ? null : categoryName,
           transferAccountId: ignore ? null : transferAccountId || null,
           transferAccountName: ignore ? null : transferAccountName,
         });
@@ -532,11 +539,8 @@ function UnmatchedRuleCard({
           <select
             className={inputClass}
             value={categoryId}
-            disabled={ignore || Boolean(transferAccountId)}
-            onChange={(e) => {
-              setCategoryId(e.target.value);
-              setTransferAccountId("");
-            }}
+            disabled={ignore}
+            onChange={(e) => setCategoryId(e.target.value)}
           >
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -546,7 +550,7 @@ function UnmatchedRuleCard({
           </select>
         </label>
         <label className={labelClass}>
-          Transfer to
+          Transfer / debit account
           <select
             className={inputClass}
             value={transferAccountId}
@@ -556,7 +560,7 @@ function UnmatchedRuleCard({
               if (e.target.value) setIgnore(false);
             }}
           >
-            <option value="">— category instead —</option>
+            <option value="">— none —</option>
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}

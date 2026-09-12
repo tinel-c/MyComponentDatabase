@@ -319,7 +319,8 @@ export async function confirmIngImport(formData: FormData): Promise<
 
     let payeeId: string | null = null;
     const isTransfer = Boolean(row.transferAccountId);
-    if (!isTransfer) {
+    const wantsPayee = !row.ignored && Boolean(row.categoryId);
+    if (wantsPayee) {
       const payeeName = row.payeeGuess?.trim();
       if (payeeName && payeeName !== "Unknown") {
         let id = payeeIdByName.get(payeeName);
@@ -328,12 +329,12 @@ export async function confirmIngImport(formData: FormData): Promise<
             data: {
               budgetId: budget.id,
               name: payeeName,
-              lastCategoryId: row.ignored ? null : row.categoryId,
+              lastCategoryId: row.categoryId,
             },
           });
           id = payee.id;
           payeeIdByName.set(payeeName, id);
-        } else if (row.categoryId && !row.ignored) {
+        } else if (row.categoryId) {
           await prisma.payee.update({
             where: { id },
             data: { lastCategoryId: row.categoryId },
@@ -358,14 +359,15 @@ export async function confirmIngImport(formData: FormData): Promise<
         continue;
       }
 
-      // Statement account keeps CSV sign; twin gets the opposite (out ↔ in pair).
+      // Statement keeps CSV sign (+ category when hybrid e.g. Paycheck).
+      // Twin on transfer account gets the opposite (debit savings on inflow).
       const txn = await prisma.transaction.create({
         data: {
           accountId,
           date: row.date,
           amount: row.amount,
-          payeeId: null,
-          categoryId: null,
+          payeeId,
+          categoryId: row.ignored ? null : row.categoryId,
           notes: row.memo,
           cleared: true,
           importFingerprint: row.fingerprint,
@@ -473,9 +475,11 @@ export async function createImportRuleFromForm(formData: FormData) {
     return { ok: false as const, error: "A rule with this match text already exists" };
   }
 
-  let mode: "ignore" | "transfer" | "category";
+  let mode: "ignore" | "transfer" | "category" | "category_transfer";
   if (ignore) {
     mode = "ignore";
+  } else if (transferAccountId && categoryId) {
+    mode = "category_transfer";
   } else if (transferAccountId) {
     mode = "transfer";
   } else if (categoryId) {
@@ -487,14 +491,20 @@ export async function createImportRuleFromForm(formData: FormData) {
     };
   }
 
-  if (mode === "category" && categoryId) {
+  if (
+    (mode === "category" || mode === "category_transfer") &&
+    categoryId
+  ) {
     const cat = await prisma.category.findFirst({
       where: { id: categoryId, group: { budgetId: budget.id } },
     });
     if (!cat) return { ok: false as const, error: "Category not found" };
   }
 
-  if (mode === "transfer" && transferAccountId) {
+  if (
+    (mode === "transfer" || mode === "category_transfer") &&
+    transferAccountId
+  ) {
     const acct = await prisma.financeAccount.findFirst({
       where: { id: transferAccountId, budgetId: budget.id },
     });
@@ -511,8 +521,12 @@ export async function createImportRuleFromForm(formData: FormData) {
       budgetId: budget.id,
       matchText,
       ignore: mode === "ignore",
-      categoryId: mode === "category" ? categoryId : null,
-      transferAccountId: mode === "transfer" ? transferAccountId : null,
+      categoryId:
+        mode === "category" || mode === "category_transfer" ? categoryId : null,
+      transferAccountId:
+        mode === "transfer" || mode === "category_transfer"
+          ? transferAccountId
+          : null,
       sortOrder: (max._max.sortOrder ?? 0) + 1,
     },
   });
@@ -541,19 +555,21 @@ export async function updateImportRule(formData: FormData) {
   });
   if (!rule || matchText.length < 3) return;
 
-  let mode: "ignore" | "transfer" | "category" | null = null;
+  let mode: "ignore" | "transfer" | "category" | "category_transfer" | null =
+    null;
   if (ignore) mode = "ignore";
+  else if (transferAccountId && categoryId) mode = "category_transfer";
   else if (transferAccountId) mode = "transfer";
   else if (categoryId) mode = "category";
   if (!mode) return;
 
-  if (mode === "transfer") {
+  if (mode === "transfer" || mode === "category_transfer") {
     const acct = await prisma.financeAccount.findFirst({
       where: { id: transferAccountId!, budgetId: budget.id },
     });
     if (!acct) return;
   }
-  if (mode === "category") {
+  if (mode === "category" || mode === "category_transfer") {
     const cat = await prisma.category.findFirst({
       where: { id: categoryId!, group: { budgetId: budget.id } },
     });
@@ -565,8 +581,12 @@ export async function updateImportRule(formData: FormData) {
     data: {
       matchText,
       ignore: mode === "ignore",
-      categoryId: mode === "category" ? categoryId : null,
-      transferAccountId: mode === "transfer" ? transferAccountId : null,
+      categoryId:
+        mode === "category" || mode === "category_transfer" ? categoryId : null,
+      transferAccountId:
+        mode === "transfer" || mode === "category_transfer"
+          ? transferAccountId
+          : null,
     },
   });
   revalidatePath("/more/import-rules");

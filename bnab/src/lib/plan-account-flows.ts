@@ -77,6 +77,27 @@ export function computeAccountMonthFlows(params: {
       if (t.amount <= 0 || !t.id) continue;
       const twin = txnById.get(t.transferTwinId);
       if (!twin || twin.excludeFromRta) continue;
+
+      const tIsIncome = Boolean(
+        t.categoryId && params.categoryIsIncome.get(t.categoryId),
+      );
+      const twinIsIncome = Boolean(
+        twin.categoryId && params.categoryIsIncome.get(twin.categoryId),
+      );
+
+      // Hybrid income + twin: count income on operating leg; skip toSavings.
+      if (tIsIncome || twinIsIncome) {
+        if (tIsIncome && isOperating(t.accountId)) {
+          incomeByAccount[t.accountId] =
+            (incomeByAccount[t.accountId] ?? 0) + t.amount;
+        }
+        if (twinIsIncome && isOperating(twin.accountId)) {
+          incomeByAccount[twin.accountId] =
+            (incomeByAccount[twin.accountId] ?? 0) + twin.amount;
+        }
+        continue;
+      }
+
       if (isSavings(t.accountId) && isOperating(twin.accountId)) {
         toSavingsByAccount[t.accountId] =
           (toSavingsByAccount[t.accountId] ?? 0) + t.amount;
