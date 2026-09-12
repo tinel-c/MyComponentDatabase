@@ -325,27 +325,35 @@ export function RulesSheetEditor({
                     </td>
                   ) : null}
                   <td className={denseTdClass}>
-                    <form id={formId} action={onUpdate} className="contents">
+                    {/*
+                      Avoid display:contents on <form> — it drops associated
+                      category/transfer fields in some browsers, so clearing
+                      Category to "—" could not persist as transfer-only.
+                    */}
+                    <form id={formId} action={onUpdate} hidden>
                       <input type="hidden" name="id" value={rule.id} />
-                      <input
-                        name="matchText"
-                        defaultValue={rule.matchText}
-                        className={inputCompactClass}
-                        required
-                        minLength={matchMinLength}
-                        aria-label="Match substring"
-                      />
                     </form>
+                    <input
+                      form={formId}
+                      name="matchText"
+                      key={`${rule.id}-match-${rule.matchText}`}
+                      defaultValue={rule.matchText}
+                      className={inputCompactClass}
+                      required
+                      minLength={matchMinLength}
+                      aria-label="Match substring"
+                    />
                   </td>
                   <td className={denseTdClass}>
                     <select
                       name="categoryId"
                       form={formId}
+                      key={`${rule.id}-cat-${rule.categoryId ?? "none"}`}
                       className={inputCompactClass}
                       defaultValue={rule.categoryId ?? ""}
                       aria-label="Category"
                     >
-                      <option value="">—</option>
+                      <option value="">— (transfer only)</option>
                       {categoryOptions.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.label}
@@ -358,6 +366,7 @@ export function RulesSheetEditor({
                       <select
                         name="transferAccountId"
                         form={formId}
+                        key={`${rule.id}-xfer-${rule.transferAccountId ?? "none"}`}
                         className={inputCompactClass}
                         defaultValue={rule.transferAccountId ?? ""}
                         aria-label="Transfer or debit account"
@@ -377,6 +386,7 @@ export function RulesSheetEditor({
                       name="ignore"
                       value="1"
                       form={formId}
+                      key={`${rule.id}-ign-${rule.ignore ? "1" : "0"}`}
                       defaultChecked={rule.ignore}
                       className="size-4 accent-[var(--accent)]"
                       title={ignoreHint}
@@ -416,6 +426,7 @@ export function RulesSheetEditor({
                 <input type="hidden" name="id" value={rule.id} />
                 <input
                   name="matchText"
+                  key={`${rule.id}-m-match-${rule.matchText}`}
                   defaultValue={rule.matchText}
                   className={inputCompactClass}
                   required
@@ -425,11 +436,12 @@ export function RulesSheetEditor({
                 />
                 <select
                   name="categoryId"
+                  key={`${rule.id}-m-cat-${rule.categoryId ?? "none"}`}
                   className={inputCompactClass}
                   defaultValue={rule.categoryId ?? ""}
                   aria-label="Category"
                 >
-                  <option value="">— Category</option>
+                  <option value="">— Category (transfer only)</option>
                   {categoryOptions.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.label}
@@ -439,9 +451,10 @@ export function RulesSheetEditor({
                 {showTransfer ? (
                   <select
                     name="transferAccountId"
+                    key={`${rule.id}-m-xfer-${rule.transferAccountId ?? "none"}`}
                     className={inputCompactClass}
                     defaultValue={rule.transferAccountId ?? ""}
-                    aria-label="Transfer to account"
+                    aria-label="Transfer or debit account"
                   >
                     <option value="">— Transfer / debit account</option>
                     {accountOptions!.map((a) => (
@@ -456,6 +469,7 @@ export function RulesSheetEditor({
                     type="checkbox"
                     name="ignore"
                     value="1"
+                    key={`${rule.id}-m-ign-${rule.ignore ? "1" : "0"}`}
                     defaultChecked={rule.ignore}
                     className="size-4 accent-[var(--accent)]"
                   />

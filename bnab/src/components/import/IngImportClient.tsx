@@ -509,7 +509,7 @@ function UnmatchedRuleCard({
   ) => void;
 }) {
   const [matchText, setMatchText] = useState(row.suggestedSubstring);
-  const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
+  const [categoryId, setCategoryId] = useState("");
   const [transferAccountId, setTransferAccountId] = useState("");
   const [ignore, setIgnore] = useState(false);
 
@@ -542,6 +542,7 @@ function UnmatchedRuleCard({
             disabled={ignore}
             onChange={(e) => setCategoryId(e.target.value)}
           >
+            <option value="">— (transfer only)</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.groupName}: {c.name}

@@ -15,6 +15,7 @@ import {
 } from "@/lib/ing-import/parse";
 import { classifyIngRowAgainstLedger, planIngConfirmAction } from "@/lib/ing-import/overlap";
 import { createDbSnapshot } from "@/lib/ing-import/snapshot";
+import { resolveImportRuleMode } from "@/lib/ing-import/rule-mode";
 
 export type PreviewRow = AppliedRow & {
   categoryName: string | null;
@@ -475,16 +476,12 @@ export async function createImportRuleFromForm(formData: FormData) {
     return { ok: false as const, error: "A rule with this match text already exists" };
   }
 
-  let mode: "ignore" | "transfer" | "category" | "category_transfer";
-  if (ignore) {
-    mode = "ignore";
-  } else if (transferAccountId && categoryId) {
-    mode = "category_transfer";
-  } else if (transferAccountId) {
-    mode = "transfer";
-  } else if (categoryId) {
-    mode = "category";
-  } else {
+  const mode = resolveImportRuleMode({
+    ignore,
+    categoryId,
+    transferAccountId,
+  });
+  if (!mode) {
     return {
       ok: false as const,
       error: "Pick a category, a transfer account, or enable Ignore",
@@ -555,12 +552,11 @@ export async function updateImportRule(formData: FormData) {
   });
   if (!rule || matchText.length < 3) return;
 
-  let mode: "ignore" | "transfer" | "category" | "category_transfer" | null =
-    null;
-  if (ignore) mode = "ignore";
-  else if (transferAccountId && categoryId) mode = "category_transfer";
-  else if (transferAccountId) mode = "transfer";
-  else if (categoryId) mode = "category";
+  const mode = resolveImportRuleMode({
+    ignore,
+    categoryId,
+    transferAccountId,
+  });
   if (!mode) return;
 
   if (mode === "transfer" || mode === "category_transfer") {

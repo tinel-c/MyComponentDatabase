@@ -140,10 +140,11 @@ export default async function ImportRulesPage() {
         </button>
       </form>
       <p className="text-xs text-fg-subtle">
-        Category alone categorizes. Transfer alone links a twin pair. Both
-        together (e.g. Income → Paycheck + savings) keep the category on the
-        statement account and post a negative twin on the savings account.
-        Ignore excludes the row from the budget.
+        Category alone categorizes the statement row. Transfer alone (Category
+        = —) creates a linked twin: statement keeps the CSV sign, the other
+        account gets the opposite (checking → savings = out / in). Income
+        category + savings posts income on the statement account and a debit
+        twin on savings. Ignore excludes the row from the budget.
       </p>
 
       <Suspense fallback={<p className="text-sm text-fg-muted">Loading mappings…</p>}>
