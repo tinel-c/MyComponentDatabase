@@ -51,9 +51,24 @@ def cmd_build() -> None:
     tgz = BNAB / ".next-upload.tgz"
     if tgz.exists():
         tgz.unlink()
-    run(["tar", "-czf", ".next-upload.tgz", ".next"], cwd=BNAB)
+    # Runtime .next only — exclude Turbopack cache/dev (hundreds of MB, unused by next start)
+    run(
+        [
+            "tar",
+            "-czf",
+            ".next-upload.tgz",
+            "--exclude=.next/cache",
+            "--exclude=.next/dev",
+            ".next",
+        ],
+        cwd=BNAB,
+    )
     mb = tgz.stat().st_size / 1e6
-    print(f"PACKED {tgz.name} ({mb:.1f} MB) BUILD_SEC={time.time() - t0:.1f}", flush=True)
+    print(
+        f"PACKED {tgz.name} ({mb:.1f} MB, lean: no cache/dev) "
+        f"BUILD_SEC={time.time() - t0:.1f}",
+        flush=True,
+    )
 
 
 def cmd_upload() -> None:

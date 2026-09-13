@@ -26,11 +26,15 @@ This runs: **build** (local, site stays up) → **upload/promote inactive** → 
 
 ```powershell
 python deploy/bnab/bnab_deploy.py status   # active slot, health, public HTTP
-python deploy/bnab/bnab_deploy.py build   # npm run build + .next-upload.tgz
+python deploy/bnab/bnab_deploy.py build   # npm run build + lean .next-upload.tgz
 python deploy/bnab/bnab_deploy.py upload  # promote inactive only
 python deploy/bnab/bnab_deploy.py clean   # wipe inactive .next only (live stays up)
 python deploy/bnab/bnab_deploy.py brand   # public assets to current active (upload already includes brand)
 ```
+
+## Lean pack / upload speed
+
+`build` packs runtime `.next` only — **excludes** `.next/cache` and `.next/dev` (Turbopack junk). Expect **~10–40 MB** tarball (not ~400 MB). Local upload of that artifact uses OpenSSH **scp** (with MB/s timing); small overlays still use SFTP.
 
 ## Rollback
 

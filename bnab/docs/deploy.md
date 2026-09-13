@@ -121,10 +121,12 @@ Requires local `deploy/deploy.secrets` (gitignored) with `DEPLOY_HOST`, `DEPLOY_
 python deploy/bnab/bnab_deploy.py all
 
 # Or step-by-step:
-python deploy/bnab/bnab_deploy.py build    # npm run build + .next-upload.tgz (site stays up)
+python deploy/bnab/bnab_deploy.py build    # npm run build + lean .next-upload.tgz (site stays up)
 python deploy/bnab/bnab_deploy.py upload   # inactive slot extract/migrate/start + nginx cutover
 python deploy/bnab/bnab_deploy.py status
 ```
+
+`build` packs a **lean** `.next-upload.tgz` (excludes `.next/cache` and `.next/dev`; typically **~10–40 MB**). Upload uses OpenSSH **scp** for that tarball. CI mirrors the same excludes.
 
 `clean` only preps the **inactive** slot (does not kill live). Brand assets are packed into the upload promote; `brand` is optional afterward.
 

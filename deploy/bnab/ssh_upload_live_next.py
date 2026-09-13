@@ -2,10 +2,16 @@
 """
 Zero-downtime BNAB promote: upload local .next to the INACTIVE blue/green slot,
 health-check it, then cut nginx over. The active slot stays up during build/upload.
+
+Large `.next-upload.tgz` uses OpenSSH scp (faster than Paramiko SFTP). Small overlays
+still go over Paramiko SFTP; remote promote stays Paramiko exec.
 """
 from __future__ import annotations
 
+import os
 import re
+import shutil
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -53,6 +59,91 @@ def run(client: paramiko.SSHClient, cmd: str, timeout: int = 300) -> int:
         print("(timeout)", flush=True)
         return 1
     return stdout.channel.recv_exit_status()
+
+
+def scp_put(local: Path, remote_path: str, secrets: dict[str, str]) -> None:
+    """Upload one file via OpenSSH scp (sshpass when available, else SSH_ASKPASS)."""
+    host = secrets["DEPLOY_HOST"]
+    user = secrets["DEPLOY_USER"]
+    port = secrets.get("DEPLOY_SSH_PORT") or "22"
+    password = secrets["DEPLOY_SSH_PASSWORD"]
+    remote = f"{user}@{host}:{remote_path}"
+    scp_opts = [
+        "-P",
+        port,
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        "-o",
+        "PreferredAuthentications=password",
+        "-o",
+        "PubkeyAuthentication=no",
+        "-o",
+        "ServerAliveInterval=30",
+    ]
+    mb = local.stat().st_size / 1e6
+    t0 = time.time()
+    print(f"scp {local.name} → {remote_path} ({mb:.1f} MB)", flush=True)
+
+    if shutil.which("sshpass"):
+        cmd = [
+            "sshpass",
+            "-e",
+            "scp",
+            *scp_opts,
+            str(local),
+            remote,
+        ]
+        r = subprocess.run(
+            cmd,
+            env={**os.environ, "SSHPASS": password},
+            check=False,
+        )
+    else:
+        # Windows OpenSSH / systems without sshpass: force askpass helper
+        ask_dir = Path(tempfile.mkdtemp(prefix="bnab-askpass-"))
+        if os.name == "nt":
+            # Echo via Python so passwords with &, %, |, etc. stay intact
+            askpass = ask_dir / "askpass.cmd"
+            askpass.write_text(
+                "@echo off\r\n"
+                f"\"{sys.executable}\" -c "
+                "\"import os; print(os.environ['BNAB_SCP_PASSWORD'], end='')\"\r\n",
+                encoding="utf-8",
+            )
+        else:
+            askpass = ask_dir / "askpass.sh"
+            askpass.write_text(
+                "#!/bin/sh\nprintf '%s\\n' \"$BNAB_SCP_PASSWORD\"\n",
+                encoding="utf-8",
+            )
+            askpass.chmod(0o700)
+        try:
+            env = {
+                **os.environ,
+                "SSH_ASKPASS": str(askpass),
+                "SSH_ASKPASS_REQUIRE": "force",
+                "DISPLAY": os.environ.get("DISPLAY") or "1",
+                "BNAB_SCP_PASSWORD": password,
+            }
+            # Detach from TTY so OpenSSH uses ASKPASS instead of prompting
+            cmd = ["scp", *scp_opts, str(local), remote]
+            r = subprocess.run(
+                cmd,
+                env=env,
+                check=False,
+                stdin=subprocess.DEVNULL,
+            )
+        finally:
+            askpass.unlink(missing_ok=True)
+            ask_dir.rmdir()
+
+    if r.returncode != 0:
+        raise RuntimeError(f"scp failed ({r.returncode}) for {local.name}")
+    elapsed = max(time.time() - t0, 0.001)
+    print(
+        f"scp ok {local.name} in {elapsed:.1f}s ({mb / elapsed:.1f} MB/s)",
+        flush=True,
+    )
 
 
 def pack_brand_tarball(root: Path) -> Path | None:
@@ -148,9 +239,10 @@ def main() -> None:
             "install -o deploy -g deploy -m 775 /dev/null /opt/bnab/shared/remote-promote-inactive.sh",
         )
 
+        # Large runtime build via scp (lean pack ≈ tens of MB, not Turbopack cache)
+        scp_put(tarball, "/opt/bnab/shared/bnab-next-upload.tgz", env)
+
         sftp = client.open_sftp()
-        print(f"upload .next {tarball.stat().st_size / 1e6:.1f} MB", flush=True)
-        sftp.put(str(tarball), "/opt/bnab/shared/bnab-next-upload.tgz")
         sftp.put(str(PROMOTE_SCRIPT), "/opt/bnab/shared/remote-promote-inactive.sh")
 
         for local in schema_files:
