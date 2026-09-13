@@ -14,5 +14,6 @@ All envelope math for a viewed month goes through `computeBudgetMonths` in `bnab
 ## Consequences
 
 - Mutations that change assignments or transactions invalidate plan caches (see ADR 0004).
-- Reflect should consume the plan pack rather than re-query overlapping history when possible.
+- Reflect should consume the plan pack / `loadPlanMonthCached` rather than re-query overlapping history when possible.
+- Callers may pass `continueFrom` (prior `MonthResult` including `heldForNext`) to skip replaying earlier months.
 - Engine correctness tests live in `budget-engine/index.test.ts`.

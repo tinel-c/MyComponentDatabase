@@ -9,7 +9,7 @@ Transactions and account registers used `?page=` Prev/Next. Bills and import his
 
 ## Decision
 
-All long BNAB lists use **cursor-based infinite scroll** via shared `InfiniteList` + load-more server actions. Drop `page` query params. Cursor is `(date, id)` (or equivalent stable pair), chunk size ≈ 40–50.
+All long BNAB lists use **cursor-based infinite scroll** via shared `InfiniteList` + load-more server actions. Drop `page` query params. Cursor is `(date, id)` (or equivalent stable pair), chunk size ≈ 40–50. Surfaces include transactions, account register, imported bills, and import-history batches **and** batch items.
 
 ## Consequences
 

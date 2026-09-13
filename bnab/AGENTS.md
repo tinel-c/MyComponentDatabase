@@ -14,9 +14,10 @@ Before changing how subsystems interact, consult:
 |-----|-----|
 | [docs/adr/README.md](./docs/adr/README.md) | Decision index |
 | [docs/import-vocabulary.md](./docs/import-vocabulary.md) | Canonical UI/code terms |
-| [docs/performance.md](./docs/performance.md) | Cache tags, hotspots (when present) |
-| [docs/lists.md](./docs/lists.md) | Infinite scroll contract (when present) |
-| [docs/planned-payments.md](./docs/planned-payments.md) | Planned payments model (when present) |
+| [docs/performance.md](./docs/performance.md) | Cache tags, engine tip, hotspots |
+| [docs/lists.md](./docs/lists.md) | Infinite scroll contract |
+| [docs/planned-payments.md](./docs/planned-payments.md) | Planned payments model |
+| [docs/receipt-agent.md](./docs/receipt-agent.md) | Bill scans / batch / AI audit |
 
 After shipping an architecture decision, add/update an ADR in the same commit.
 

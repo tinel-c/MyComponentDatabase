@@ -6,7 +6,7 @@ Detailed docs live under [`bnab/docs/`](./bnab/docs/README.md).
 
 ## Status
 
-**v1 implemented** in [`bnab/`](./bnab/): Plan, accounts, transactions, credit-card payment categories, schedules, Reflect reports, team invite, CSV import, PWA, deploy scripts for `bnab.bogza.ro`. See [`bnab/docs/`](./bnab/docs/README.md).
+**v1.1.0 live** at https://bnab.bogza.ro — Plan (AJAX), accounts, transactions, planned payments, Reflect (shared plan pack), multi-bill Gemini scans, ING import + history infinite scroll, tagged caches, PWA, ADRs. See [`bnab/docs/`](./bnab/docs/README.md) and [`bnab/docs/changelog.md`](./bnab/docs/changelog.md).
 
 ## Defaults
 

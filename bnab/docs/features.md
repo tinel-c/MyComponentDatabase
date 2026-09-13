@@ -53,19 +53,20 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Split transactions
 - [x] Cleared / uncleared
 - [x] Scheduled / recurring + enter now
-- [x] **Planned payments** (`/planned`): billing URL, import-rule link, ING match, Make planned payment
+- [x] **Planned payments** (`/planned`): billing URL, import-rule link, due nav badge, ING + manual match, Make planned payment, Assign from planned
 - [x] Search / filter + Excel-style register (**infinite scroll**)
 - [x] Mobile quick-add / sheet editor
 - [x] **Delete transaction** (account list, register, edit sheet) with confirm
 - [x] **ING CSV import**
   - Preview unmatched / matched / ignored / duplicates
-  - Confirm creates batch + fingerprints (**ignored rows are inserted**, excluded from RTA/Activity via notes)
+  - Confirm creates batch + fingerprints (**ignored rows are inserted**, excluded from RTA/Activity via notes); writes batched in `$transaction`
   - Mapping rules CRUD + create-from-unmatched (match = substring **anywhere** in memo, case-insensitive; saving clears sibling unmatched rows)
   - **Transfer mappings**: rule picks the other account → confirm creates linked `transferTwinId` pair (CSV sign on statement account, opposite on the other)
   - Ignore patterns (e.g. credit-line covers) excluded from RTA & Activity without skipping ledger insert
-  - Import history: revert batch, DB snapshots
+  - Import history: batch + item infinite scroll, enrichment fields, revert, DB snapshots
+  - Import rules UI shows linked planned payments
 - [x] **Admin Data tools** (`/more/data`): export/import SQLite, selective erase (default keep mappings)
-- [x] Desktop chrome: ING under Import bill; **collapsible** Account activity right rail (icons + counts when collapsed)
+- [x] Desktop chrome: ING under Import bill; **collapsible** Account activity right rail (icons + counts when collapsed); Suspense-streamed activity slot
 
 ### Household
 
@@ -89,8 +90,9 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Service worker caching for static assets / faster return visits
 - [x] BNAB envelope mark + wordmark (`BnabLogo`)
 - [x] **Receipt detailing** — Gemini vision bill upload → split children via `ReceiptCategoryRule`
-- [x] **Multi-bill batch** + Imported bills **AI audit**
-- [x] Reflect “Receipt-detailed spending” from scan lines
+- [x] **Multi-bill batch** + Imported bills **AI audit** + status chips
+- [x] Reflect “Receipt-detailed spending” from scan lines; Reflect shares tagged plan pack
+- [x] Tagged caches (plan / activity / engine tip) + `invalidateBudgetCaches`
 - [x] Agent ADRs + import vocabulary (`docs/adr/`, `docs/import-vocabulary.md`)
 
 ---

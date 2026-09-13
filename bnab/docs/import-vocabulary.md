@@ -74,9 +74,10 @@ Preview status `ignored` ≠ “not imported”.
 
 | Term | Definition |
 |------|------------|
-| **Planned match** | Statement outflow uniquely matched an active planned payment (amount ±2 bani, date ±3 days) and linked `scheduledTransactionId` |
+| **Planned match** | Outflow (ING or manual create) uniquely matched an active planned payment (amount ±2 bani, date ±3 days) and linked `scheduledTransactionId` |
 | **Planned satisfied** | Plan’s `nextDate` advanced because this txn paid it |
 | **No planned match** | Ambiguous or none — link later from `/planned` |
+| **Due planned** | Active schedule with `nextDate` ≤ today (drives desktop nav badge) |
 
 ---
 

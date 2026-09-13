@@ -12,7 +12,8 @@ YNAB-style **zero-based envelope budgeting** for a two-person household, optimiz
 | [import-vocabulary.md](./import-vocabulary.md) | Canonical import / planned / bill terms |
 | [planned-payments.md](./planned-payments.md) | Recurring planned payments |
 | [lists.md](./lists.md) | Cursor infinite scroll contract |
-| [performance.md](./performance.md) | Cache tags and hotspots |
+| [performance.md](./performance.md) | Cache tags, engine tip, hotspots |
+| [receipt-agent.md](./receipt-agent.md) | Gemini bill scans, batch queue, AI audit |
 | [adr/README.md](./adr/README.md) | Architecture decision records (agent memory) |
 | [deploy.md](./deploy.md) | DNS, nginx, PM2, secrets, **PC build → live upload** |
 | [changelog.md](./changelog.md) | Release notes |
@@ -37,7 +38,7 @@ Open [http://localhost:3010](http://localhost:3010) (port **3010** so it does no
 
 ```bash
 cd bnab
-npm test          # budget-engine, ING import parser, banner helpers
+npm test          # budget-engine, ING import, planned payments, receipt-ai, …
 npm run build     # production build
 ```
 
@@ -72,17 +73,20 @@ Put real ING CSV exports only under **`bnab/ING/`** (gitignored). Never commit s
 
 | Route | Purpose |
 |-------|---------|
-| `/plan` | Month envelopes, RTA, assign, quick cover/release, assign from planned |
+| `/plan` | Month envelopes, RTA, assign, quick cover/release, assign from planned (AJAX) |
 | `/accounts`, `/accounts/[id]` | Balances, register (infinite scroll), adjust-to-statement |
 | `/transactions` | Excel-style global register (infinite scroll) |
-| `/planned` | Planned payments (recurring ledger) |
-| `/reflect` | Review spend, budget gaps, plan next month |
+| `/planned` | Planned payments (due badge on desktop nav) |
+| `/reflect` | Review spend, budget gaps, plan next month (shares plan pack) |
 | `/more/import` | ING CSV preview + confirm |
-| `/more/import-rules` | Memo → category / ignore / transfer |
-| `/more/import-history` | Batches, item detail, revert, snapshots |
+| `/more/import-bill` | Bill photo / multi-bill queue (Reflect-first) |
+| `/more/bills` | Imported bills + AI audit (infinite) |
+| `/more/import-rules` | Memo → category / ignore / transfer (+ linked planned) |
+| `/more/receipt-rules` | Bill line → category |
+| `/more/import-history` | Batches, item detail (infinite), revert, snapshots |
 | `/more/data` | Admin: DB export / import / selective erase |
 | `/more/categories`, `/payees`, `/schedules`, `/team` | CRUD & household |
 
 ## Version
 
-See [`package.json`](../package.json) and [changelog.md](./changelog.md).
+See [`package.json`](../package.json) and [changelog.md](./changelog.md). Current: **1.1.0**.

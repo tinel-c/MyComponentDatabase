@@ -18,7 +18,7 @@ BNAB can split spending using a **bill photo** and Google **Gemini** vision.
   Reflect-first finish per file, cancel remaining / retry failed.
 - Mapping is not opened mid-batch — review on **Imported bills** (`/more/bills`).
 - Each bill has an expandable **AI audit** (Store, Bill lines, Category matched,
-  Linked transaction). Canonical terms: [import-vocabulary.md](./import-vocabulary.md).
+  Linked transaction). Canonical terms: [import-vocabulary.md](./import-vocabulary.md). ADR: [0002](./adr/0002-reflect-first-bills.md).
 
 ### B. Detail an existing bank transaction
 1. Open an outflow → **Detail from bill**, or Import bill → pick a matching row.
