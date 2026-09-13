@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireBudgetAccess } from "@/lib/authz";
+import { invalidateBudgetCaches } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { parseMoneyInput } from "@/lib/money";
 import { plannedMonthTotal } from "@/lib/planned-payments";
@@ -69,6 +70,7 @@ export async function assignFromPlanned(formData: FormData): Promise<{
   }
 
   revalidatePath("/plan");
+  invalidateBudgetCaches(budget.id);
   return { ok: true, count };
 }
 
@@ -99,6 +101,7 @@ export async function assignToCategory(formData: FormData) {
   });
 
   revalidatePath("/plan");
+  invalidateBudgetCaches(budget.id);
   return;
 }
 
@@ -149,6 +152,7 @@ export async function quickAdjustAssigned(formData: FormData) {
   });
 
   revalidatePath("/plan");
+  invalidateBudgetCaches(budget.id);
 }
 
 export async function moveMoney(formData: FormData) {
@@ -192,6 +196,7 @@ export async function moveMoney(formData: FormData) {
   });
 
   revalidatePath("/plan");
+  invalidateBudgetCaches(budget.id);
   return;
 }
 

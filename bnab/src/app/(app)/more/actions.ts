@@ -4,6 +4,7 @@ import { signOut } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { MemberRole, Role } from "@prisma/client";
 import { requireBudgetAccess, requireAdmin } from "@/lib/authz";
+import { invalidateBudgetCaches } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/email";
 import { parseMoneyInput, todayISO } from "@/lib/money";
@@ -143,6 +144,7 @@ export async function enterScheduled(formData: FormData) {
   revalidatePath("/planned");
   revalidatePath("/plan");
   revalidatePath("/accounts");
+  invalidateBudgetCaches(budget.id);
   return;
 }
 

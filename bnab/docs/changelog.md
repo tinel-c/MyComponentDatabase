@@ -5,6 +5,8 @@
 - **Agent architecture memory:** `docs/adr/` + `.cursor/rules/bnab-architecture.mdc` + expanded `AGENTS.md`
 - **Import vocabulary** + planned payments docs; `/planned` nav; Assign from planned; Make planned payment; ING planned match + import history item detail
 - **Cursor infinite scroll** on Transactions, Account register, and Imported bills (no `?page=`)
+- **Multi-bill batch import:** multi-file queue (scan-only), cancel/retry; expandable **AI audit** on Imported bills; status chips
+- **Perf:** Suspense activity rail; tagged cache invalidation on mutations; import confirm `$transaction` + deferred receipt auto-link
 - **Pending actions rail** + tagged plan/activity cache helpers (`cache-tags.ts`)
 - **Schema:** `Transaction.isPendingBill`, `scheduledTransactionId`; `ScheduledTransaction` billingUrl/importRule; `ImportBatchItem` enrichment fields
 - **ING transfer mappings:** import rules can target another account; confirm creates a linked transfer pair (statement keeps CSV sign, other account gets the opposite)

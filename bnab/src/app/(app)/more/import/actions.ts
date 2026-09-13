@@ -1,7 +1,9 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { requireBudgetAccess } from "@/lib/authz";
+import { invalidateBudgetCaches } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import {
   ensureYngsbCategories,
@@ -62,6 +64,7 @@ function importItemClassification(params: {
 }
 
 async function tryMatchAndSatisfyPlanned(opts: {
+  db: Prisma.TransactionClient;
   accountId: string;
   amount: number;
   date: string;
@@ -82,14 +85,14 @@ async function tryMatchAndSatisfyPlanned(opts: {
   const sched = opts.candidates.find((c) => c.id === matchId);
   if (!sched) return null;
 
-  await prisma.transaction.update({
+  await opts.db.transaction.update({
     where: { id: opts.transactionId },
     data: { scheduledTransactionId: matchId },
   });
 
   const nextDate = advancePlannedDate(sched.nextDate, sched.recurrence);
   const active = sched.recurrence === "ONCE" ? false : true;
-  await prisma.scheduledTransaction.update({
+  await opts.db.scheduledTransaction.update({
     where: { id: matchId },
     data: { nextDate, active },
   });
@@ -316,11 +319,6 @@ export async function confirmIngImport(formData: FormData): Promise<
     };
   }
 
-  let created = 0;
-  let skipped = 0;
-  let linked = 0;
-  let ignored = 0;
-
   const fps = applied.map((r) => r.fingerprint);
   const existingRows = await prisma.transaction.findMany({
     where: { accountId, importFingerprint: { in: fps } },
@@ -370,261 +368,293 @@ export async function confirmIngImport(formData: FormData): Promise<
     }),
   );
 
-  const batchItems: BatchItemRow[] = [];
-  const outflowIdsForReceiptLink: string[] = [];
+  // Row writes + planned-match enrichment in one transaction. Bill-scan
+  // auto-link stays after commit (slow / non-fatal; must not hold the lock).
+  const {
+    created,
+    skipped,
+    linked,
+    ignored,
+    batchItems,
+    outflowIdsForReceiptLink,
+  } = await prisma.$transaction(
+    async (tx) => {
+      let created = 0;
+      let skipped = 0;
+      let linked = 0;
+      let ignored = 0;
+      const batchItems: BatchItemRow[] = [];
+      const outflowIdsForReceiptLink: string[] = [];
 
-  for (const row of applied) {
-    const memoPreview = row.memo.slice(0, 160);
-    const rowMeta = {
-      ignored: row.ignored,
-      transferAccountId: row.transferAccountId,
-      categoryId: row.categoryId,
-      matchedRuleId: row.matchedRuleId,
-    };
+      for (const row of applied) {
+        const memoPreview = row.memo.slice(0, 160);
+        const rowMeta = {
+          ignored: row.ignored,
+          transferAccountId: row.transferAccountId,
+          categoryId: row.categoryId,
+          matchedRuleId: row.matchedRuleId,
+        };
 
-    const existingId = existingByFp.get(row.fingerprint) ?? null;
-    const decision = decisionByFp.get(row.fingerprint);
-    const plan = planIngConfirmAction({
-      ignored: row.ignored,
-      fingerprint: row.fingerprint,
-      fingerprintAlreadyOnAccount: Boolean(existingId),
-      decision,
-    });
-
-    if (plan.kind === "skip_duplicate") {
-      skipped++;
-      pushBatchItem(
-        batchItems,
-        {
-          batchId: batch.id,
-          action: "skipped_duplicate",
-          transactionId: existingId,
+        const existingId = existingByFp.get(row.fingerprint) ?? null;
+        const decision = decisionByFp.get(row.fingerprint);
+        const plan = planIngConfirmAction({
+          ignored: row.ignored,
           fingerprint: row.fingerprint,
-          memoPreview,
-        },
-        rowMeta,
-      );
-      continue;
-    }
+          fingerprintAlreadyOnAccount: Boolean(existingId),
+          decision,
+        });
 
-    if (plan.kind === "skip_user") {
-      skipped++;
-      pushBatchItem(
-        batchItems,
-        {
-          batchId: batch.id,
-          action: "skipped_duplicate",
-          fingerprint: row.fingerprint,
-          memoPreview,
-        },
-        rowMeta,
-      );
-      continue;
-    }
+        if (plan.kind === "skip_duplicate") {
+          skipped++;
+          pushBatchItem(
+            batchItems,
+            {
+              batchId: batch.id,
+              action: "skipped_duplicate",
+              transactionId: existingId,
+              fingerprint: row.fingerprint,
+              memoPreview,
+            },
+            rowMeta,
+          );
+          continue;
+        }
 
-    if (plan.kind === "link") {
-      const childCount = await prisma.transaction.count({
-        where: { parentId: plan.manualMatchId },
-      });
-      await prisma.transaction.update({
-        where: { id: plan.manualMatchId },
-        data: {
-          importFingerprint: row.fingerprint,
-          importContentHash: row.contentHash,
-          importBatchId: batch.id,
-          cleared: true,
-          date: row.date,
-          // Keep bill splits; never restore a parent category when children exist
-          ...(row.ignored || childCount > 0 ? { categoryId: null } : {}),
-        },
-      });
-      await prisma.transaction.updateMany({
-        where: { parentId: plan.manualMatchId },
-        data: { date: row.date, cleared: true },
-      });
-      existingByFp.set(row.fingerprint, plan.manualMatchId);
-      linked++;
-      if (row.ignored) ignored++;
-      if (row.amount < 0) outflowIdsForReceiptLink.push(plan.manualMatchId);
-      const plannedId = await tryMatchAndSatisfyPlanned({
-        accountId,
-        amount: row.amount,
-        date: row.date,
-        transactionId: plan.manualMatchId,
-        candidates: plannedCandidates,
-      });
-      pushBatchItem(
-        batchItems,
-        {
-          batchId: batch.id,
-          action: "linked_manual",
-          transactionId: plan.manualMatchId,
-          fingerprint: row.fingerprint,
-          memoPreview,
-        },
-        rowMeta,
-        plannedId,
-      );
-      continue;
-    }
+        if (plan.kind === "skip_user") {
+          skipped++;
+          pushBatchItem(
+            batchItems,
+            {
+              batchId: batch.id,
+              action: "skipped_duplicate",
+              fingerprint: row.fingerprint,
+              memoPreview,
+            },
+            rowMeta,
+          );
+          continue;
+        }
 
-    if (plan.kind === "replace_then_create") {
-      await prisma.transaction.delete({ where: { id: plan.manualMatchId } });
-    }
-
-    let payeeId: string | null = null;
-    const isTransfer = Boolean(row.transferAccountId);
-    const wantsPayee = !row.ignored && Boolean(row.categoryId);
-    if (wantsPayee) {
-      const payeeName = row.payeeGuess?.trim();
-      if (payeeName && payeeName !== "Unknown") {
-        let id = payeeIdByName.get(payeeName);
-        if (!id) {
-          const payee = await prisma.payee.create({
+        if (plan.kind === "link") {
+          const childCount = await tx.transaction.count({
+            where: { parentId: plan.manualMatchId },
+          });
+          await tx.transaction.update({
+            where: { id: plan.manualMatchId },
             data: {
-              budgetId: budget.id,
-              name: payeeName,
-              lastCategoryId: row.categoryId,
+              importFingerprint: row.fingerprint,
+              importContentHash: row.contentHash,
+              importBatchId: batch.id,
+              cleared: true,
+              date: row.date,
+              // Keep bill splits; never restore a parent category when children exist
+              ...(row.ignored || childCount > 0 ? { categoryId: null } : {}),
             },
           });
-          id = payee.id;
-          payeeIdByName.set(payeeName, id);
-        } else if (row.categoryId) {
-          await prisma.payee.update({
-            where: { id },
-            data: { lastCategoryId: row.categoryId },
+          await tx.transaction.updateMany({
+            where: { parentId: plan.manualMatchId },
+            data: { date: row.date, cleared: true },
           });
+          existingByFp.set(row.fingerprint, plan.manualMatchId);
+          linked++;
+          if (row.ignored) ignored++;
+          if (row.amount < 0) outflowIdsForReceiptLink.push(plan.manualMatchId);
+          const plannedId = await tryMatchAndSatisfyPlanned({
+            db: tx,
+            accountId,
+            amount: row.amount,
+            date: row.date,
+            transactionId: plan.manualMatchId,
+            candidates: plannedCandidates,
+          });
+          pushBatchItem(
+            batchItems,
+            {
+              batchId: batch.id,
+              action: "linked_manual",
+              transactionId: plan.manualMatchId,
+              fingerprint: row.fingerprint,
+              memoPreview,
+            },
+            rowMeta,
+            plannedId,
+          );
+          continue;
         }
-        payeeId = id;
-      }
-    }
 
-    if (isTransfer && row.transferAccountId) {
-      const to = await prisma.financeAccount.findFirst({
-        where: { id: row.transferAccountId, budgetId: budget.id },
-      });
-      if (!to || to.id === accountId) {
-        skipped++;
+        if (plan.kind === "replace_then_create") {
+          await tx.transaction.delete({ where: { id: plan.manualMatchId } });
+        }
+
+        let payeeId: string | null = null;
+        const isTransfer = Boolean(row.transferAccountId);
+        const wantsPayee = !row.ignored && Boolean(row.categoryId);
+        if (wantsPayee) {
+          const payeeName = row.payeeGuess?.trim();
+          if (payeeName && payeeName !== "Unknown") {
+            let id = payeeIdByName.get(payeeName);
+            if (!id) {
+              const payee = await tx.payee.create({
+                data: {
+                  budgetId: budget.id,
+                  name: payeeName,
+                  lastCategoryId: row.categoryId,
+                },
+              });
+              id = payee.id;
+              payeeIdByName.set(payeeName, id);
+            } else if (row.categoryId) {
+              await tx.payee.update({
+                where: { id },
+                data: { lastCategoryId: row.categoryId },
+              });
+            }
+            payeeId = id;
+          }
+        }
+
+        if (isTransfer && row.transferAccountId) {
+          const to = await tx.financeAccount.findFirst({
+            where: { id: row.transferAccountId, budgetId: budget.id },
+          });
+          if (!to || to.id === accountId) {
+            skipped++;
+            pushBatchItem(
+              batchItems,
+              {
+                batchId: batch.id,
+                action: "skipped_duplicate",
+                fingerprint: row.fingerprint,
+                memoPreview,
+              },
+              rowMeta,
+            );
+            continue;
+          }
+
+          // Statement keeps CSV sign (+ category when hybrid e.g. Paycheck).
+          // Twin on transfer account gets the opposite (debit savings on inflow).
+          const txn = await tx.transaction.create({
+            data: {
+              accountId,
+              date: row.date,
+              amount: row.amount,
+              payeeId,
+              categoryId: row.ignored ? null : row.categoryId,
+              notes: row.memo,
+              cleared: true,
+              importFingerprint: row.fingerprint,
+              importContentHash: row.contentHash,
+              importBatchId: batch.id,
+            },
+          });
+          const twin = await tx.transaction.create({
+            data: {
+              accountId: to.id,
+              date: row.date,
+              amount: -row.amount,
+              payeeId: null,
+              categoryId: null,
+              notes: row.memo,
+              cleared: true,
+              transferTwinId: txn.id,
+              importBatchId: batch.id,
+            },
+          });
+          await tx.transaction.update({
+            where: { id: txn.id },
+            data: { transferTwinId: twin.id },
+          });
+          existingByFp.set(row.fingerprint, txn.id);
+          created++;
+          const plannedId = await tryMatchAndSatisfyPlanned({
+            db: tx,
+            accountId,
+            amount: row.amount,
+            date: row.date,
+            transactionId: txn.id,
+            candidates: plannedCandidates,
+          });
+          pushBatchItem(
+            batchItems,
+            {
+              batchId: batch.id,
+              action: "created",
+              transactionId: txn.id,
+              fingerprint: row.fingerprint,
+              memoPreview,
+            },
+            rowMeta,
+            plannedId,
+          );
+          pushBatchItem(
+            batchItems,
+            {
+              batchId: batch.id,
+              action: "created_transfer_twin",
+              transactionId: twin.id,
+              fingerprint: row.fingerprint,
+              memoPreview,
+            },
+            rowMeta,
+          );
+          continue;
+        }
+
+        const txn = await tx.transaction.create({
+          data: {
+            accountId,
+            date: row.date,
+            amount: row.amount,
+            payeeId,
+            categoryId: row.ignored ? null : row.categoryId,
+            notes: row.memo,
+            cleared: true,
+            importFingerprint: row.fingerprint,
+            importContentHash: row.contentHash,
+            importBatchId: batch.id,
+          },
+        });
+        existingByFp.set(row.fingerprint, txn.id);
+        created++;
+        if (row.ignored) ignored++;
+        if (row.amount < 0) outflowIdsForReceiptLink.push(txn.id);
+        const plannedId = await tryMatchAndSatisfyPlanned({
+          db: tx,
+          accountId,
+          amount: row.amount,
+          date: row.date,
+          transactionId: txn.id,
+          candidates: plannedCandidates,
+        });
         pushBatchItem(
           batchItems,
           {
             batchId: batch.id,
-            action: "skipped_duplicate",
+            action: "created",
+            transactionId: txn.id,
             fingerprint: row.fingerprint,
             memoPreview,
           },
           rowMeta,
+          plannedId,
         );
-        continue;
       }
 
-      // Statement keeps CSV sign (+ category when hybrid e.g. Paycheck).
-      // Twin on transfer account gets the opposite (debit savings on inflow).
-      const txn = await prisma.transaction.create({
-        data: {
-          accountId,
-          date: row.date,
-          amount: row.amount,
-          payeeId,
-          categoryId: row.ignored ? null : row.categoryId,
-          notes: row.memo,
-          cleared: true,
-          importFingerprint: row.fingerprint,
-          importContentHash: row.contentHash,
-          importBatchId: batch.id,
-        },
-      });
-      const twin = await prisma.transaction.create({
-        data: {
-          accountId: to.id,
-          date: row.date,
-          amount: -row.amount,
-          payeeId: null,
-          categoryId: null,
-          notes: row.memo,
-          cleared: true,
-          transferTwinId: txn.id,
-          importBatchId: batch.id,
-        },
-      });
-      await prisma.transaction.update({
-        where: { id: txn.id },
-        data: { transferTwinId: twin.id },
-      });
-      existingByFp.set(row.fingerprint, txn.id);
-      created++;
-      const plannedId = await tryMatchAndSatisfyPlanned({
-        accountId,
-        amount: row.amount,
-        date: row.date,
-        transactionId: txn.id,
-        candidates: plannedCandidates,
-      });
-      pushBatchItem(
+      return {
+        created,
+        skipped,
+        linked,
+        ignored,
         batchItems,
-        {
-          batchId: batch.id,
-          action: "created",
-          transactionId: txn.id,
-          fingerprint: row.fingerprint,
-          memoPreview,
-        },
-        rowMeta,
-        plannedId,
-      );
-      pushBatchItem(
-        batchItems,
-        {
-          batchId: batch.id,
-          action: "created_transfer_twin",
-          transactionId: twin.id,
-          fingerprint: row.fingerprint,
-          memoPreview,
-        },
-        rowMeta,
-      );
-      continue;
-    }
+        outflowIdsForReceiptLink,
+      };
+    },
+    { timeout: 60_000, maxWait: 15_000 },
+  );
 
-    const txn = await prisma.transaction.create({
-      data: {
-        accountId,
-        date: row.date,
-        amount: row.amount,
-        payeeId,
-        categoryId: row.ignored ? null : row.categoryId,
-        notes: row.memo,
-        cleared: true,
-        importFingerprint: row.fingerprint,
-        importContentHash: row.contentHash,
-        importBatchId: batch.id,
-      },
-    });
-    existingByFp.set(row.fingerprint, txn.id);
-    created++;
-    if (row.ignored) ignored++;
-    if (row.amount < 0) outflowIdsForReceiptLink.push(txn.id);
-    const plannedId = await tryMatchAndSatisfyPlanned({
-      accountId,
-      amount: row.amount,
-      date: row.date,
-      transactionId: txn.id,
-      candidates: plannedCandidates,
-    });
-    pushBatchItem(
-      batchItems,
-      {
-        batchId: batch.id,
-        action: "created",
-        transactionId: txn.id,
-        fingerprint: row.fingerprint,
-        memoPreview,
-      },
-      rowMeta,
-      plannedId,
-    );
-  }
-
+  // Second pass: receipt auto-link after commit (keeps planned_match / batch
+  // enrichment intact; appends linked_receipt_scan items when successful).
   for (const txnId of outflowIdsForReceiptLink) {
     try {
       const linkedScan = await tryAutoLinkPendingScanToTransaction({
@@ -658,6 +688,7 @@ export async function confirmIngImport(formData: FormData): Promise<
     },
   });
 
+  invalidateBudgetCaches(budget.id);
   revalidatePath("/more/import");
   revalidatePath("/more/import-history");
   revalidatePath("/more/bills");

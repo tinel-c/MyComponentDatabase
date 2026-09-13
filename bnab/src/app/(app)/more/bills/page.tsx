@@ -1,20 +1,41 @@
 import Link from "next/link";
 import { Receipt } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
-import { fetchBillsChunk } from "@/lib/bills-chunk";
+import {
+  fetchBillsChunk,
+  parseBillStatusFilter,
+  type BillListStatusFilter,
+} from "@/lib/bills-chunk";
 import {
   buttonCompactClass,
   buttonPrimaryClass,
   cardCompactClass,
+  chipClass,
+  chipMutedClass,
   pageStackClass,
   sectionSubheadingClass,
 } from "@/components/forms/field-classes";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BillsInfiniteList } from "@/components/bills/BillsInfiniteList";
 
-export default async function BillsPage() {
+const STATUS_CHIPS: {
+  value: BillListStatusFilter;
+  label: string;
+}[] = [
+  { value: "all", label: "All" },
+  { value: "unlinked", label: "Unlinked" },
+  { value: "needs_mapping", label: "Needs mapping" },
+];
+
+export default async function BillsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const { budget } = await requireBudgetAccess();
-  const chunk = await fetchBillsChunk(budget.id);
+  const sp = await searchParams;
+  const statusFilter = parseBillStatusFilter(sp.status);
+  const chunk = await fetchBillsChunk(budget.id, null, undefined, statusFilter);
 
   return (
     <div className={pageStackClass}>
@@ -41,12 +62,40 @@ export default async function BillsPage() {
         </Link>
       </div>
 
+      <div className="flex flex-wrap gap-2" role="navigation" aria-label="Bill status filter">
+        {STATUS_CHIPS.map((chip) => {
+          const href =
+            chip.value === "all"
+              ? "/more/bills"
+              : `/more/bills?status=${chip.value}`;
+          const active = statusFilter === chip.value;
+          return (
+            <Link
+              key={chip.value}
+              href={href}
+              className={active ? chipClass : chipMutedClass}
+              aria-current={active ? "page" : undefined}
+            >
+              {chip.label}
+            </Link>
+          );
+        })}
+      </div>
+
       {chunk.items.length === 0 ? (
         <div className={cardCompactClass}>
           <EmptyState
             icon={Receipt}
-            title="No bills imported yet"
-            description="Scan a receipt to categorize spend before the ING statement arrives."
+            title={
+              statusFilter === "all"
+                ? "No bills imported yet"
+                : "No bills match this filter"
+            }
+            description={
+              statusFilter === "all"
+                ? "Scan a receipt to categorize spend before the ING statement arrives."
+                : "Try another status chip or import a bill."
+            }
             action={
               <Link href="/more/import-bill" className={buttonPrimaryClass}>
                 Scan a receipt
@@ -60,6 +109,7 @@ export default async function BillsPage() {
           initialItems={chunk.items}
           initialCursor={chunk.nextCursor}
           hasMore={chunk.hasMore}
+          statusFilter={statusFilter}
         />
       )}
     </div>

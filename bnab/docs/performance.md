@@ -7,8 +7,8 @@ BNAB interaction map and cache contract (ADR 0004).
 1. `loadPlanMonth` — history from firstMonth → viewed month + engine walk
 2. Reflect overlapping queries + plan pack
 3. Layout `loadAccountActivitySummaries` on every nav
-4. `confirmIngImport` per-row writes (batching still improving)
-5. Broad `revalidatePath` vs tagged invalidation
+4. `confirmIngImport` row writes batched in `$transaction`; bill-scan auto-link after commit
+5. Broad `revalidatePath` vs tagged invalidation (`invalidateBudgetCaches` on plan assign / import confirm / enter scheduled)
 
 ## Cache
 
@@ -23,7 +23,7 @@ Mutations should call `invalidateBudgetCaches(budgetId)` (`revalidateTag(..., "m
 
 - [ ] Plan cold load Prisma query count / wall time
 - [ ] Reflect uses one plan pack per request
-- [ ] Layout streams without blocking forever on activity (Suspense target)
+- [x] Layout streams without blocking forever on activity (Suspense `activitySlot`)
 - [ ] Import confirm timing for N ≥ 50 rows
 
 ## Phase 2

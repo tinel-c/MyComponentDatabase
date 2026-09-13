@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -20,6 +20,13 @@ import {
   importBillScanAction,
   type BillImportActionState,
 } from "@/app/(app)/more/receipts/actions";
+import {
+  BillImportQueue,
+  filesToQueueItems,
+  MAX_FILES,
+  validateBillFiles,
+  type BillQueueItem,
+} from "@/components/receipts/BillImportQueue";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -169,10 +176,13 @@ export function ImportBillClient({
   accounts: { id: string; name: string }[];
 }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<{
     name: string;
     sizeLabel: string;
   } | null>(null);
+  const [queue, setQueue] = useState<BillQueueItem[]>([]);
+  const [pickErrors, setPickErrors] = useState<string[]>([]);
   const [scan, scanAction, scanPending] = useActionState(
     importBillScanAction,
     initial,
@@ -194,6 +204,8 @@ export function ImportBillClient({
     initial,
   );
   const [createPendingLedger, setCreatePendingLedger] = useState(false);
+
+  const batchMode = queue.length > 0;
 
   const scanTouched = Boolean(scan.ok || scan.error || scan.scanId);
   const finished =
@@ -241,8 +253,60 @@ export function ImportBillClient({
     finishPending;
   const defaultAccountId = accounts[0]?.id ?? "";
 
+  const ingestFiles = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) {
+      setSelectedFile(null);
+      setPickErrors([]);
+      return;
+    }
+    const { accepted, rejected } = validateBillFiles(fileList);
+    const errors = rejected.map((r) => `${r.name}: ${r.reason}`);
+
+    if (accepted.length === 0) {
+      setSelectedFile(null);
+      setPickErrors(errors.length ? errors : ["No valid bill photos"]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // Single file → keep existing mapping flow (form submit)
+    if (accepted.length === 1 && queue.length === 0) {
+      const file = accepted[0];
+      const mb = file.size / (1024 * 1024);
+      setSelectedFile({
+        name: file.name,
+        sizeLabel:
+          mb >= 0.1
+            ? `${mb.toFixed(1)} MB`
+            : `${Math.max(1, Math.round(file.size / 1024))} KB`,
+      });
+      setPickErrors(errors);
+      return;
+    }
+
+    // Multi-file (or add to existing queue) → scan-only batch
+    setSelectedFile(null);
+    const room = MAX_FILES - queue.length;
+    if (room <= 0) {
+      setPickErrors([...errors, `Queue full (max ${MAX_FILES} files).`]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    const slice = accepted.slice(0, room);
+    const nextErrors =
+      accepted.length > room
+        ? [
+            ...errors,
+            `Only ${room} more file${room === 1 ? "" : "s"} fit (max ${MAX_FILES}).`,
+          ]
+        : errors;
+    setPickErrors(nextErrors);
+    setQueue((prev) => [...prev, ...filesToQueueItems(slice)]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const statusBanner = (() => {
-    if (pending) return null;
+    if (batchMode || pending) return null;
     if (finished?.ok) {
       return (
         <StatusBanner
@@ -304,104 +368,142 @@ export function ImportBillClient({
           <div>
             <h2 className="text-sm font-semibold text-fg">Upload a bill</h2>
             <p className="mt-1 text-sm text-fg-muted">
-              Gemini reads lines and assigns existing categories. The scan
-              enriches Reflect first — map a payment when it appears, or
-              optionally create a pending ledger entry.
+              One photo opens mapping. Multiple photos scan for Reflect only
+              (up to {MAX_FILES}). JPEG, PNG, or WebP · max 12 MB each.
             </p>
           </div>
         </div>
 
-        <form action={scanAction} className="space-y-3">
-          <label
-            className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-4 py-10 text-center transition-colors ${
-              selectedFile
-                ? "border-accent bg-accent-muted/40 hover:bg-accent-muted/50"
-                : "border-rim bg-accent-muted/20 hover:border-accent hover:bg-accent-muted/35"
-            } ${scanPending ? "animate-pulse" : ""}`}
-          >
-            <span
-              className={`inline-flex size-14 items-center justify-center rounded-2xl ${
-                selectedFile
-                  ? "bg-accent text-accent-fg"
-                  : "bg-accent-muted text-accent"
+        {batchMode ? (
+          <div className="space-y-3">
+            <label
+              className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-4 py-8 text-center transition-colors border-rim bg-accent-muted/20 hover:border-accent hover:bg-accent-muted/35 ${
+                pending ? "pointer-events-none opacity-60" : ""
               }`}
             >
-              {selectedFile ? (
-                <FileImage className="size-7" aria-hidden />
-              ) : (
-                <ScanLine className="size-7" aria-hidden />
-              )}
-            </span>
-            <span className="space-y-1">
-              <span className="block text-sm font-semibold text-fg">
-                {scanPending
-                  ? "Scanning bill…"
-                  : selectedFile
-                    ? "Photo selected — tap to change"
-                    : "Drop or choose a bill photo"}
+              <span className="inline-flex size-12 items-center justify-center rounded-2xl bg-accent-muted text-accent">
+                <ScanLine className="size-6" aria-hidden />
               </span>
-              {selectedFile ? (
-                <span className="mx-auto flex max-w-full items-center justify-center gap-1.5 text-xs text-fg">
-                  <CheckCircle2
-                    className="size-3.5 shrink-0 text-ok"
-                    aria-hidden
-                  />
-                  <span className="min-w-0 truncate font-medium">
-                    {selectedFile.name}
-                  </span>
-                  <span className="shrink-0 text-fg-muted">
-                    · {selectedFile.sizeLabel}
-                  </span>
+              <span className="space-y-1">
+                <span className="block text-sm font-semibold text-fg">
+                  Add more bill photos
                 </span>
-              ) : (
                 <span className="block text-xs text-fg-muted">
-                  JPEG, PNG, or WebP · max 12 MB
+                  Queue has {queue.length} / {MAX_FILES}
                 </span>
-              )}
-            </span>
-            <input
-              type="file"
-              name="bill"
-              accept="image/jpeg,image/png,image/webp"
-              required
-              disabled={pending}
-              className="sr-only"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) {
-                  setSelectedFile(null);
-                  return;
-                }
-                const mb = file.size / (1024 * 1024);
-                setSelectedFile({
-                  name: file.name,
-                  sizeLabel:
-                    mb >= 0.1
-                      ? `${mb.toFixed(1)} MB`
-                      : `${Math.max(1, Math.round(file.size / 1024))} KB`,
-                });
-              }}
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={pending || !selectedFile}
-            className={`${buttonPrimaryClass} inline-flex w-full items-center justify-center gap-2`}
-          >
-            <Upload className="h-4 w-4" aria-hidden />
-            {scanPending
-              ? "Scanning…"
-              : selectedFile
-                ? "Import bill"
-                : "Choose a photo first"}
-          </button>
-        </form>
+              </span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                disabled={pending || queue.length >= MAX_FILES}
+                className="sr-only"
+                onChange={(e) => ingestFiles(e.target.files)}
+              />
+            </label>
+            {pickErrors.length > 0 ? (
+              <ul className="space-y-1 text-xs text-danger-fg">
+                {pickErrors.map((err) => (
+                  <li key={err}>{err}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : (
+          <form action={scanAction} className="space-y-3">
+            <label
+              className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed px-4 py-10 text-center transition-colors ${
+                selectedFile
+                  ? "border-accent bg-accent-muted/40 hover:bg-accent-muted/50"
+                  : "border-rim bg-accent-muted/20 hover:border-accent hover:bg-accent-muted/35"
+              } ${scanPending ? "animate-pulse" : ""}`}
+            >
+              <span
+                className={`inline-flex size-14 items-center justify-center rounded-2xl ${
+                  selectedFile
+                    ? "bg-accent text-accent-fg"
+                    : "bg-accent-muted text-accent"
+                }`}
+              >
+                {selectedFile ? (
+                  <FileImage className="size-7" aria-hidden />
+                ) : (
+                  <ScanLine className="size-7" aria-hidden />
+                )}
+              </span>
+              <span className="space-y-1">
+                <span className="block text-sm font-semibold text-fg">
+                  {scanPending
+                    ? "Scanning bill…"
+                    : selectedFile
+                      ? "Photo selected — tap to change"
+                      : "Drop or choose bill photo(s)"}
+                </span>
+                {selectedFile ? (
+                  <span className="mx-auto flex max-w-full items-center justify-center gap-1.5 text-xs text-fg">
+                    <CheckCircle2
+                      className="size-3.5 shrink-0 text-ok"
+                      aria-hidden
+                    />
+                    <span className="min-w-0 truncate font-medium">
+                      {selectedFile.name}
+                    </span>
+                    <span className="shrink-0 text-fg-muted">
+                      · {selectedFile.sizeLabel}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="block text-xs text-fg-muted">
+                    JPEG, PNG, or WebP · max 12 MB · up to {MAX_FILES} files
+                  </span>
+                )}
+              </span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                name="bill"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                required={!selectedFile}
+                disabled={pending}
+                className="sr-only"
+                onChange={(e) => ingestFiles(e.target.files)}
+              />
+            </label>
+            {pickErrors.length > 0 ? (
+              <ul className="space-y-1 text-xs text-danger-fg">
+                {pickErrors.map((err) => (
+                  <li key={err}>{err}</li>
+                ))}
+              </ul>
+            ) : null}
+            <button
+              type="submit"
+              disabled={pending || !selectedFile}
+              className={`${buttonPrimaryClass} inline-flex w-full items-center justify-center gap-2`}
+            >
+              <Upload className="h-4 w-4" aria-hidden />
+              {scanPending
+                ? "Scanning…"
+                : selectedFile
+                  ? "Import bill"
+                  : "Choose a photo first"}
+            </button>
+          </form>
+        )}
       </div>
 
       <div className="space-y-4">
+        {batchMode ? (
+          <BillImportQueue items={queue} onChange={setQueue} />
+        ) : null}
+
         {statusBanner}
 
-        {state.ok && (state.receiptTotalCents || state.receiptDate) ? (
+        {!batchMode &&
+        state.ok &&
+        (state.receiptTotalCents || state.receiptDate) ? (
           <div className={`${cardClass} space-y-1 p-3 text-sm`}>
             <p className="font-medium text-fg">
               {state.merchant || "Receipt"}
@@ -415,12 +517,10 @@ export function ImportBillClient({
           </div>
         ) : null}
 
-        {!finished && state.phase === "mapping" && state.scanId ? (
+        {!batchMode && !finished && state.phase === "mapping" && state.scanId ? (
           <div className={`${cardClass} space-y-3 p-3`}>
             <div>
-              <h2 className="text-sm font-semibold text-fg">
-                Bill scanned
-              </h2>
+              <h2 className="text-sm font-semibold text-fg">Bill scanned</h2>
               <p className="mt-1 text-sm text-fg-muted">
                 Categories are ready for Reflect. Map an existing outflow,
                 finish without a ledger entry, or optionally create a pending
@@ -512,7 +612,9 @@ export function ImportBillClient({
                   name="receiptTotalCents"
                   value={state.receiptTotalCents ?? ""}
                 />
-                <p className="text-sm font-medium text-fg">Create pending entry</p>
+                <p className="text-sm font-medium text-fg">
+                  Create pending entry
+                </p>
                 <label className={labelClass}>
                   Account
                   <select
@@ -556,7 +658,8 @@ export function ImportBillClient({
           </div>
         ) : null}
 
-        {(state.phase === "preview" || state.phase === "done") &&
+        {!batchMode &&
+        (state.phase === "preview" || state.phase === "done") &&
         state.proposedSplits &&
         state.proposedSplits.length > 0 ? (
           <div className={`${cardClass} space-y-2 p-3`}>
@@ -602,7 +705,7 @@ export function ImportBillClient({
           </div>
         ) : null}
 
-        {state.lines && state.lines.length > 0 && !finished ? (
+        {!batchMode && state.lines && state.lines.length > 0 && !finished ? (
           <details className={`${cardClass} p-4 text-sm`}>
             <summary className="cursor-pointer text-fg-muted hover:text-fg">
               {state.lines.length} scanned lines
@@ -627,7 +730,11 @@ export function ImportBillClient({
           </details>
         ) : null}
 
-        {!statusBanner && !pending && state.phase === "upload" && !state.ok ? (
+        {!batchMode &&
+        !statusBanner &&
+        !pending &&
+        state.phase === "upload" &&
+        !state.ok ? (
           <div className={`${cardClass} border-dashed p-4 text-center sm:p-6`}>
             <p className="text-sm text-fg-muted">
               Results appear here after you scan a bill.

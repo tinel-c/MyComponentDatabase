@@ -87,7 +87,7 @@ function PendingActionsRail() {
     </div>
   );
 }
-function AccountActivityRail({
+export function AccountActivityRail({
   summaries,
 }: {
   summaries: AccountActivitySummary[];
@@ -290,11 +290,12 @@ function AccountActivityRail({
 export function AppChrome({
   children,
   budgetName,
-  accountActivity,
+  activitySlot,
 }: {
   children: React.ReactNode;
   budgetName: string;
-  accountActivity?: AccountActivitySummary[];
+  /** Desktop activity rail — typically a Suspense-wrapped async server child. */
+  activitySlot?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -433,7 +434,7 @@ export function AppChrome({
         <InstallAppPrompt />
       </div>
 
-      <AccountActivityRail summaries={accountActivity ?? []} />
+      {activitySlot}
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-rim/60 bg-surface/95 backdrop-blur md:hidden">
         <ul className="mx-auto flex max-w-lg items-end justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
