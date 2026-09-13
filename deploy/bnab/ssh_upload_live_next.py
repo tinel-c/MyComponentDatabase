@@ -82,7 +82,7 @@ def scp_put(local: Path, remote_path: str, secrets: dict[str, str]) -> None:
     ]
     mb = local.stat().st_size / 1e6
     t0 = time.time()
-    print(f"scp {local.name} → {remote_path} ({mb:.1f} MB)", flush=True)
+    print(f"scp {local.name} -> {remote_path} ({mb:.1f} MB)", flush=True)
 
     if shutil.which("sshpass"):
         cmd = [
