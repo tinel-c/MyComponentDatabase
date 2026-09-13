@@ -5,15 +5,40 @@ import {
   buttonCompactClass,
   buttonCompactDangerClass,
   cardCompactClass,
+  denseTdClass,
+  denseThClass,
   inputCompactClass,
   pageStackClass,
   sectionSubheadingClass,
+  tableClass,
 } from "@/components/forms/field-classes";
 import {
   createImportRuleAction,
   reapplyRulesToBatch,
   revertImportBatch,
 } from "../import/actions";
+
+/** Import batch outcomes — docs/import-vocabulary.md */
+const ACTION_LABELS: Record<string, string> = {
+  created: "Created",
+  created_transfer_twin: "Transfer twin",
+  linked_manual: "Linked existing",
+  linked_receipt_scan: "Linked bill scan",
+  skipped_duplicate: "Skipped duplicate",
+};
+
+/** IdentifiedAs — docs/import-vocabulary.md */
+const CLASS_LABELS: Record<string, string> = {
+  new: "New ledger entry",
+  linked_existing: "Linked existing payment",
+  duplicate: "Already imported",
+  rule_category: "Categorized by import rule",
+  rule_transfer: "Transfer by import rule",
+  rule_hybrid: "Income + transfer twin",
+  rule_ignore: "Ignore-rule (RTA excluded)",
+  planned_match: "Matched planned payment",
+  unmatched: "No rule / no plan",
+};
 
 export default async function ImportHistoryPage({
   searchParams,
@@ -38,10 +63,57 @@ export default async function ImportHistoryPage({
     ? await prisma.importBatch.findFirst({
         where: { id: selectedId, budgetId: budget.id },
         include: {
-          items: { orderBy: { id: "asc" }, take: 500 },
+          items: { orderBy: { id: "asc" } },
         },
       })
     : null;
+
+  const ruleIds = [
+    ...new Set(
+      (selected?.items ?? [])
+        .map((i) => i.importRuleId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const scheduleIds = [
+    ...new Set(
+      (selected?.items ?? [])
+        .map((i) => i.scheduledTransactionId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const [rules, schedules] = await Promise.all([
+    ruleIds.length
+      ? prisma.importCategoryRule.findMany({
+          where: { id: { in: ruleIds }, budgetId: budget.id },
+          select: { id: true, matchText: true },
+        })
+      : Promise.resolve([]),
+    scheduleIds.length
+      ? prisma.scheduledTransaction.findMany({
+          where: { id: { in: scheduleIds }, budgetId: budget.id },
+          select: {
+            id: true,
+            notes: true,
+            amount: true,
+            payee: { select: { name: true } },
+            category: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
+  ]);
+  const ruleById = new Map(rules.map((r) => [r.id, r.matchText]));
+  const scheduleLabelById = new Map(
+    schedules.map((s) => {
+      const label =
+        s.payee?.name ??
+        s.category?.name ??
+        s.notes?.slice(0, 40) ??
+        "Planned payment";
+      return [s.id, label] as const;
+    }),
+  );
 
   const uncategorized =
     selected
@@ -131,6 +203,57 @@ export default async function ImportHistoryPage({
               Snapshot: {selected.snapshotPath}. Full DB restore needs{" "}
               <code className="text-accent">ALLOW_DB_RESTORE=1</code>.
             </p>
+          )}
+
+          {selected.items.length > 0 && (
+            <div className="overflow-x-auto">
+              <h3 className="mb-2 text-sm font-semibold text-fg">
+                Batch items ({selected.items.length})
+              </h3>
+              <table className={tableClass}>
+                <thead>
+                  <tr>
+                    <th className={denseThClass}>Memo</th>
+                    <th className={denseThClass}>Outcome</th>
+                    <th className={denseThClass}>Rule hit</th>
+                    <th className={denseThClass}>Planned payment</th>
+                    <th className={denseThClass}>Classification</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selected.items.map((item) => (
+                    <tr key={item.id}>
+                      <td
+                        className={`${denseTdClass} max-w-[14rem] truncate font-mono text-[11px] text-fg-muted`}
+                        title={item.memoPreview ?? undefined}
+                      >
+                        {item.memoPreview || "—"}
+                      </td>
+                      <td className={denseTdClass}>
+                        {ACTION_LABELS[item.action] ?? item.action}
+                      </td>
+                      <td className={denseTdClass}>
+                        {item.importRuleId
+                          ? (ruleById.get(item.importRuleId) ?? "Rule hit")
+                          : "—"}
+                      </td>
+                      <td className={denseTdClass}>
+                        {item.scheduledTransactionId
+                          ? (scheduleLabelById.get(item.scheduledTransactionId) ??
+                            "Planned match")
+                          : "—"}
+                      </td>
+                      <td className={denseTdClass}>
+                        {item.classification
+                          ? (CLASS_LABELS[item.classification] ??
+                            item.classification)
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {uncategorized.length > 0 && (

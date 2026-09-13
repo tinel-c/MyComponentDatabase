@@ -17,9 +17,15 @@ import {
   ChevronsRight,
   PenLine,
   Wallet,
+  CalendarClock,
+  Loader2,
 } from "lucide-react";
 import { BnabLogo } from "@/components/brand/BnabLogo";
 import { InstallAppPrompt } from "@/components/pwa/InstallAppPrompt";
+import {
+  PendingActionsProvider,
+  usePendingActionsOptional,
+} from "@/components/providers/PendingActionsProvider";
 import type { AccountActivitySummary } from "@/lib/account-activity-summary";
 import { uniqueAccountMonograms } from "@/lib/account-activity-summary";
 import { accountTypeMeta } from "@/lib/ui-accents";
@@ -56,11 +62,31 @@ const desktopLinks: {
   { href: "/plan", label: "Plan", icon: LayoutGrid },
   { href: "/accounts", label: "Accounts", icon: PiggyBank },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
+  { href: "/planned", label: "Planned", icon: CalendarClock },
   { href: "/more/import-bill", label: "Import bill", icon: Receipt },
   { href: "/more/import", label: "ING import", icon: FileSpreadsheet },
   { href: "/reflect", label: "Reflect", icon: BarChart3 },
 ];
 
+function PendingActionsRail() {
+  const ctx = usePendingActionsOptional();
+  if (!ctx || ctx.count === 0) return null;
+  return (
+    <div className="mx-3 mb-2 rounded-xl border border-rim-subtle bg-accent-muted/40 px-2.5 py-2">
+      <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+        <Loader2 className="size-3 animate-spin" aria-hidden />
+        Working… {ctx.count}
+      </p>
+      <ul className="mt-1 max-h-24 space-y-0.5 overflow-y-auto text-xs text-fg-muted" aria-live="polite">
+        {ctx.pending.map((p) => (
+          <li key={p.id} className="truncate">
+            {p.label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 function AccountActivityRail({
   summaries,
 }: {
@@ -283,6 +309,7 @@ export function AppChrome({
     pathname === "/plan/move" || pathname.startsWith("/plan/move/");
 
   return (
+    <PendingActionsProvider>
     <div
       className="relative flex min-h-dvh flex-col md:flex-row"
       style={{
@@ -305,11 +332,16 @@ export function AppChrome({
           <p className="mt-2 truncate pl-0.5 text-xs text-fg-subtle">{budgetName}</p>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
+          <PendingActionsRail />
           {desktopLinks.map(({ href, label, icon: Icon }) => {
             const active =
               href === "/transactions"
                 ? wideRegister
-                : href === "/more/import-bill"
+                : href === "/planned"
+                  ? pathname === "/planned" ||
+                    pathname.startsWith("/planned/") ||
+                    pathname.startsWith("/more/schedules")
+                  : href === "/more/import-bill"
                   ? pathname.startsWith("/more/import-bill")
                   : href === "/more/import"
                     ? pathname === "/more/import" ||
@@ -339,6 +371,7 @@ export function AppChrome({
             className={`flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all duration-150 active:scale-[0.98] ${
               pathname.startsWith("/more") &&
               !pathname.startsWith("/more/import-bill") &&
+              !pathname.startsWith("/more/schedules") &&
               pathname !== "/more/import" &&
               !pathname.startsWith("/more/import/")
                 ? "bg-accent-muted text-accent"
@@ -450,5 +483,6 @@ export function AppChrome({
         </ul>
       </nav>
     </div>
+    </PendingActionsProvider>
   );
 }

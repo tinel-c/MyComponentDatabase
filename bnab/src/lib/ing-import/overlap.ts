@@ -47,10 +47,11 @@ export function isBillImportPendingNotes(notes: string | null | undefined): bool
 export function isPendingBillImportTxn(params: {
   notes: string | null | undefined;
   importFingerprint: string | null | undefined;
+  isPendingBill?: boolean | null;
 }): boolean {
-  return (
-    !params.importFingerprint && isBillImportPendingNotes(params.notes)
-  );
+  if (params.importFingerprint) return false;
+  if (params.isPendingBill === true) return true;
+  return isBillImportPendingNotes(params.notes);
 }
 
 /**

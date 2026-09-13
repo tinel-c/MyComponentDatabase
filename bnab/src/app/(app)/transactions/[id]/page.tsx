@@ -9,7 +9,11 @@ import {
   ensureYngsbCategories,
   seedDefaultReceiptRules,
 } from "@/lib/starter-categories";
-import { cardClass } from "@/components/forms/field-classes";
+import {
+  buttonCompactClass,
+  cardClass,
+} from "@/components/forms/field-classes";
+import { makePlannedFromTransaction } from "../actions";
 
 export default async function EditTransactionPage({
   params,
@@ -28,6 +32,7 @@ export default async function EditTransactionPage({
       category: true,
       account: true,
       children: { include: { category: true }, orderBy: { createdAt: "asc" } },
+      scheduledTransaction: { select: { id: true, nextDate: true } },
     },
   });
   if (!txn) notFound();
@@ -64,6 +69,8 @@ export default async function EditTransactionPage({
     : isTransfer
       ? "other account"
       : null;
+  const canMakePlanned =
+    !isTransfer && !txn.scheduledTransactionId && txn.amount !== 0;
 
   return (
     <div className="space-y-3">
@@ -81,6 +88,9 @@ export default async function EditTransactionPage({
           {formatMoney(txn.amount, budget.currency)}
           {isSplit ? " · split" : ""}
           {isTransfer ? " · transfer" : ""}
+          {txn.scheduledTransaction
+            ? ` · planned (next ${txn.scheduledTransaction.nextDate})`
+            : ""}
         </p>
       </div>
 
@@ -114,6 +124,15 @@ export default async function EditTransactionPage({
           isInflow: c.amount > 0,
         }))}
       />
+
+      {canMakePlanned ? (
+        <form action={makePlannedFromTransaction}>
+          <input type="hidden" name="transactionId" value={txn.id} />
+          <button type="submit" className={buttonCompactClass}>
+            Make planned payment
+          </button>
+        </form>
+      ) : null}
 
       {!isTransfer && txn.amount < 0 ? (
         <ReceiptUploadPanel

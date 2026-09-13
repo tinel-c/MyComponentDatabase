@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Agent architecture memory:** `docs/adr/` + `.cursor/rules/bnab-architecture.mdc` + expanded `AGENTS.md`
+- **Import vocabulary** + planned payments docs; `/planned` nav; Assign from planned; Make planned payment; ING planned match + import history item detail
+- **Cursor infinite scroll** on Transactions, Account register, and Imported bills (no `?page=`)
+- **Pending actions rail** + tagged plan/activity cache helpers (`cache-tags.ts`)
+- **Schema:** `Transaction.isPendingBill`, `scheduledTransactionId`; `ScheduledTransaction` billingUrl/importRule; `ImportBatchItem` enrichment fields
 - **ING transfer mappings:** import rules can target another account; confirm creates a linked transfer pair (statement keeps CSV sign, other account gets the opposite)
 - **Collapsible Account activity rail (desktop):** defaults to a narrow icon + counts strip; expand for full labels; preference in `localStorage`
 - **ING unmatched rules:** saving a mapping immediately clears every unmatched preview row whose memo contains the substring anywhere (case-insensitive), then refreshes preview

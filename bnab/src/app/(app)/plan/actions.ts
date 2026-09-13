@@ -5,6 +5,77 @@ import { z } from "zod";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { parseMoneyInput } from "@/lib/money";
+import { plannedMonthTotal } from "@/lib/planned-payments";
+
+/**
+ * For the viewed month, raise Assigned to at least |plannedMonthTotal|
+ * for each active non-income planned payment with a category.
+ * Returns how many categories were updated.
+ */
+export async function assignFromPlanned(formData: FormData): Promise<{
+  ok: boolean;
+  count: number;
+}> {
+  const { budget } = await requireBudgetAccess();
+  const month = String(formData.get("month") ?? "");
+  if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, count: 0 };
+
+  const schedules = await prisma.scheduledTransaction.findMany({
+    where: {
+      budgetId: budget.id,
+      active: true,
+      categoryId: { not: null },
+    },
+    select: {
+      id: true,
+      amount: true,
+      recurrence: true,
+      nextDate: true,
+      weekday: true,
+      categoryId: true,
+      category: { select: { isIncome: true } },
+    },
+  });
+
+  const byCategory = new Map<string, number>();
+  for (const s of schedules) {
+    if (!s.categoryId || !s.category || s.category.isIncome) continue;
+    const total = plannedMonthTotal({
+      amount: s.amount,
+      recurrence: s.recurrence,
+      nextDate: s.nextDate,
+      month,
+      weekday: s.weekday,
+    });
+    const abs = Math.abs(total);
+    if (abs === 0) continue;
+    byCategory.set(s.categoryId, (byCategory.get(s.categoryId) ?? 0) + abs);
+  }
+
+  let count = 0;
+  for (const [categoryId, plannedAbs] of byCategory) {
+    const existing = await prisma.monthlyCategoryBudget.findUnique({
+      where: { categoryId_month: { categoryId, month } },
+    });
+    const current = existing?.assigned ?? 0;
+    const next = Math.max(current, plannedAbs);
+    if (next === current) continue;
+    await prisma.monthlyCategoryBudget.upsert({
+      where: { categoryId_month: { categoryId, month } },
+      create: { categoryId, month, assigned: next },
+      update: { assigned: next },
+    });
+    count++;
+  }
+
+  revalidatePath("/plan");
+  return { ok: true, count };
+}
+
+/** Form-action wrapper (void return for `<form action>`). */
+export async function assignFromPlannedAction(formData: FormData) {
+  await assignFromPlanned(formData);
+}
 
 export async function assignToCategory(formData: FormData) {
   const { budget } = await requireBudgetAccess();

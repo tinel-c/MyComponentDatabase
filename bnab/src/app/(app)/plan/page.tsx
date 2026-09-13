@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, PiggyBank, Wallet } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
-import { loadPlanMonth } from "@/lib/plan-data";
+import { loadPlanMonthCached } from "@/lib/cache-tags";
 import { addMonths, currentMonth, formatMoney, monthLabel } from "@/lib/money";
 import { PlanSummaryBanner } from "@/components/plan/PlanSummaryBanner";
 import { CategoryIcon } from "@/components/plan/CategoryIcon";
 import { PlanCategoryList } from "@/components/plan/PlanCategoryList";
 import {
+  buttonCompactClass,
   cardClass,
   moneyClass,
 } from "@/components/forms/field-classes";
 import { accountTypeMeta, groupAccent } from "@/lib/ui-accents";
+import { assignFromPlannedAction } from "./actions";
 
 export default async function PlanPage({
   searchParams,
@@ -30,7 +32,7 @@ export default async function PlanPage({
     incomeByAccount,
     spendingByAccountByGroup,
     toSavingsByAccount,
-  } = await loadPlanMonth(budget.id, month);
+  } = await loadPlanMonthCached(budget.id, month);
   const prev = addMonths(month, -1);
   const next = addMonths(month, 1);
 
@@ -82,9 +84,17 @@ export default async function PlanPage({
         >
           <ChevronLeft className="size-5" />
         </Link>
-        <h1 className="text-center text-xl font-semibold tracking-tight text-fg">
-          {monthLabel(month)}
-        </h1>
+        <div className="flex flex-col items-center gap-1.5">
+          <h1 className="text-center text-xl font-semibold tracking-tight text-fg">
+            {monthLabel(month)}
+          </h1>
+          <form action={assignFromPlannedAction}>
+            <input type="hidden" name="month" value={month} />
+            <button type="submit" className={buttonCompactClass}>
+              Assign from planned
+            </button>
+          </form>
+        </div>
         <Link
           href={`/plan?month=${next}`}
           className="rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"

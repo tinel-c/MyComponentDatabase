@@ -56,10 +56,21 @@ export async function createSchedule(formData: FormData) {
   const categoryId = String(formData.get("categoryId") ?? "") || null;
   const payeeName = String(formData.get("payee") ?? "").trim();
   const notes = String(formData.get("notes") ?? "") || null;
+  const billingUrlRaw = String(formData.get("billingUrl") ?? "").trim();
+  const billingUrl =
+    billingUrlRaw && /^https?:\/\//i.test(billingUrlRaw) ? billingUrlRaw : null;
+  const importRuleId = String(formData.get("importRuleId") ?? "") || null;
   const inflow = formData.get("inflow") === "1";
 
   if (!accountId || amount === null || amount === 0) {
     return;
+  }
+
+  if (importRuleId) {
+    const rule = await prisma.importCategoryRule.findFirst({
+      where: { id: importRuleId, budgetId: budget.id },
+    });
+    if (!rule) return;
   }
 
   let payeeId: string | null = null;
@@ -72,6 +83,9 @@ export async function createSchedule(formData: FormData) {
     payeeId = p.id;
   }
 
+  const dayOfMonth = Number(nextDate.slice(8, 10)) || null;
+  const weekday = new Date(nextDate + "T12:00:00").getDay();
+
   await prisma.scheduledTransaction.create({
     data: {
       budgetId: budget.id,
@@ -82,10 +96,16 @@ export async function createSchedule(formData: FormData) {
       notes,
       nextDate,
       recurrence,
+      billingUrl,
+      importRuleId,
+      dayOfMonth: recurrence === "MONTHLY" || recurrence === "YEARLY" ? dayOfMonth : null,
+      weekday:
+        recurrence === "WEEKLY" || recurrence === "BIWEEKLY" ? weekday : null,
     },
   });
 
   revalidatePath("/more/schedules");
+  revalidatePath("/planned");
   return;
 }
 
@@ -106,6 +126,7 @@ export async function enterScheduled(formData: FormData) {
       categoryId: sched.categoryId,
       notes: sched.notes,
       cleared: true,
+      scheduledTransactionId: sched.id,
     },
   });
 
@@ -119,6 +140,7 @@ export async function enterScheduled(formData: FormData) {
   });
 
   revalidatePath("/more/schedules");
+  revalidatePath("/planned");
   revalidatePath("/plan");
   revalidatePath("/accounts");
   return;

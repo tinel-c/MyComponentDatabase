@@ -1,0 +1,17 @@
+---
+description: BNAB architecture memory — consult ADRs before features; record decisions after.
+alwaysApply: true
+---
+
+# BNAB architecture memory
+
+When working under `bnab/`:
+
+1. **Before** implementing a feature that changes data loading, caching, import, bills, planned payments, list UX, or envelope math, read:
+   - [`bnab/docs/adr/README.md`](bnab/docs/adr/README.md)
+   - Any ADRs listed there that match the area
+   - [`bnab/docs/import-vocabulary.md`](bnab/docs/import-vocabulary.md) for user-facing terms
+2. **Do not** invent synonyms for Import rule / Receipt rule / Planned payment / Bill scan.
+3. **After** shipping an architecture decision, add or update an ADR under `bnab/docs/adr/` and the index in the **same milestone commit**.
+4. Prefer existing helpers: `loadPlanMonth`, `budget-engine`, `cache-tags`, `InfiniteList`, theme tokens, `field-classes`.
+5. After each **major milestone**, commit and push to GitHub (no secrets, no `_diag_*` junk).

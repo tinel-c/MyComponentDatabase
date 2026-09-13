@@ -17,6 +17,112 @@ import { classifyIngRowAgainstLedger, planIngConfirmAction } from "@/lib/ing-imp
 import { createDbSnapshot } from "@/lib/ing-import/snapshot";
 import { resolveImportRuleMode } from "@/lib/ing-import/rule-mode";
 import { tryAutoLinkPendingScanToTransaction } from "@/lib/receipt-ai";
+import {
+  advancePlannedDate,
+  findUniquePlannedMatch,
+  type PlannedCandidate,
+} from "@/lib/planned-payments";
+
+type PlannedScheduleCandidate = PlannedCandidate & { recurrence: string };
+
+type BatchItemRow = {
+  batchId: string;
+  action: string;
+  transactionId?: string | null;
+  fingerprint: string;
+  memoPreview: string;
+  importRuleId?: string | null;
+  scheduledTransactionId?: string | null;
+  classification?: string | null;
+};
+
+/** IdentifiedAs codes from docs/import-vocabulary.md */
+function importItemClassification(params: {
+  action: string;
+  plannedId: string | null;
+  ignored: boolean;
+  transferAccountId: string | null;
+  categoryId: string | null;
+  matchedRuleId: string | null;
+}): string {
+  if (params.action === "skipped_duplicate") return "duplicate";
+  if (params.plannedId) return "planned_match";
+  if (params.action === "linked_manual") return "linked_existing";
+  if (params.ignored) return "rule_ignore";
+  if (params.transferAccountId && params.categoryId) return "rule_hybrid";
+  if (params.transferAccountId) return "rule_transfer";
+  if (params.matchedRuleId && params.categoryId) return "rule_category";
+  if (
+    (params.action === "created" || params.action === "created_transfer_twin") &&
+    !params.categoryId
+  ) {
+    return "unmatched";
+  }
+  return "new";
+}
+
+async function tryMatchAndSatisfyPlanned(opts: {
+  accountId: string;
+  amount: number;
+  date: string;
+  transactionId: string;
+  candidates: PlannedScheduleCandidate[];
+}): Promise<string | null> {
+  if (opts.amount >= 0) return null;
+  const matchId = findUniquePlannedMatch(
+    {
+      accountId: opts.accountId,
+      amount: opts.amount,
+      date: opts.date,
+    },
+    opts.candidates,
+  );
+  if (!matchId) return null;
+
+  const sched = opts.candidates.find((c) => c.id === matchId);
+  if (!sched) return null;
+
+  await prisma.transaction.update({
+    where: { id: opts.transactionId },
+    data: { scheduledTransactionId: matchId },
+  });
+
+  const nextDate = advancePlannedDate(sched.nextDate, sched.recurrence);
+  const active = sched.recurrence === "ONCE" ? false : true;
+  await prisma.scheduledTransaction.update({
+    where: { id: matchId },
+    data: { nextDate, active },
+  });
+  sched.nextDate = nextDate;
+  sched.active = active;
+  return matchId;
+}
+
+function pushBatchItem(
+  items: BatchItemRow[],
+  base: BatchItemRow,
+  row: {
+    ignored: boolean;
+    transferAccountId: string | null;
+    categoryId: string | null;
+    matchedRuleId: string | null;
+  },
+  plannedId: string | null = null,
+) {
+  items.push({
+    ...base,
+    importRuleId: row.matchedRuleId,
+    scheduledTransactionId: plannedId,
+    classification: importItemClassification({
+      action: base.action,
+      plannedId,
+      ignored: row.ignored,
+      transferAccountId: row.transferAccountId,
+      categoryId: row.categoryId,
+      matchedRuleId: row.matchedRuleId,
+    }),
+  });
+}
 
 export type PreviewRow = AppliedRow & {
   categoryName: string | null;
@@ -242,17 +348,39 @@ export async function confirmIngImport(formData: FormData): Promise<
       : [];
   const payeeIdByName = new Map(existingPayees.map((p) => [p.name, p.id]));
 
-  const batchItems: {
-    batchId: string;
-    action: string;
-    transactionId?: string | null;
-    fingerprint: string;
-    memoPreview: string;
-  }[] = [];
+  const scheduleRows = await prisma.scheduledTransaction.findMany({
+    where: { budgetId: budget.id, accountId, active: true },
+    select: {
+      id: true,
+      accountId: true,
+      amount: true,
+      nextDate: true,
+      active: true,
+      recurrence: true,
+    },
+  });
+  const plannedCandidates: PlannedScheduleCandidate[] = scheduleRows.map(
+    (s) => ({
+      id: s.id,
+      accountId: s.accountId,
+      amount: s.amount,
+      nextDate: s.nextDate,
+      active: s.active,
+      recurrence: s.recurrence,
+    }),
+  );
+
+  const batchItems: BatchItemRow[] = [];
   const outflowIdsForReceiptLink: string[] = [];
 
   for (const row of applied) {
     const memoPreview = row.memo.slice(0, 160);
+    const rowMeta = {
+      ignored: row.ignored,
+      transferAccountId: row.transferAccountId,
+      categoryId: row.categoryId,
+      matchedRuleId: row.matchedRuleId,
+    };
 
     const existingId = existingByFp.get(row.fingerprint) ?? null;
     const decision = decisionByFp.get(row.fingerprint);
@@ -265,24 +393,32 @@ export async function confirmIngImport(formData: FormData): Promise<
 
     if (plan.kind === "skip_duplicate") {
       skipped++;
-      batchItems.push({
-        batchId: batch.id,
-        action: "skipped_duplicate",
-        transactionId: existingId,
-        fingerprint: row.fingerprint,
-        memoPreview,
-      });
+      pushBatchItem(
+        batchItems,
+        {
+          batchId: batch.id,
+          action: "skipped_duplicate",
+          transactionId: existingId,
+          fingerprint: row.fingerprint,
+          memoPreview,
+        },
+        rowMeta,
+      );
       continue;
     }
 
     if (plan.kind === "skip_user") {
       skipped++;
-      batchItems.push({
-        batchId: batch.id,
-        action: "skipped_duplicate",
-        fingerprint: row.fingerprint,
-        memoPreview,
-      });
+      pushBatchItem(
+        batchItems,
+        {
+          batchId: batch.id,
+          action: "skipped_duplicate",
+          fingerprint: row.fingerprint,
+          memoPreview,
+        },
+        rowMeta,
+      );
       continue;
     }
 
@@ -310,13 +446,25 @@ export async function confirmIngImport(formData: FormData): Promise<
       linked++;
       if (row.ignored) ignored++;
       if (row.amount < 0) outflowIdsForReceiptLink.push(plan.manualMatchId);
-      batchItems.push({
-        batchId: batch.id,
-        action: "linked_manual",
+      const plannedId = await tryMatchAndSatisfyPlanned({
+        accountId,
+        amount: row.amount,
+        date: row.date,
         transactionId: plan.manualMatchId,
-        fingerprint: row.fingerprint,
-        memoPreview,
+        candidates: plannedCandidates,
       });
+      pushBatchItem(
+        batchItems,
+        {
+          batchId: batch.id,
+          action: "linked_manual",
+          transactionId: plan.manualMatchId,
+          fingerprint: row.fingerprint,
+          memoPreview,
+        },
+        rowMeta,
+        plannedId,
+      );
       continue;
     }
 
@@ -357,12 +505,16 @@ export async function confirmIngImport(formData: FormData): Promise<
       });
       if (!to || to.id === accountId) {
         skipped++;
-        batchItems.push({
-          batchId: batch.id,
-          action: "skipped_duplicate",
-          fingerprint: row.fingerprint,
-          memoPreview,
-        });
+        pushBatchItem(
+          batchItems,
+          {
+            batchId: batch.id,
+            action: "skipped_duplicate",
+            fingerprint: row.fingerprint,
+            memoPreview,
+          },
+          rowMeta,
+        );
         continue;
       }
 
@@ -401,20 +553,36 @@ export async function confirmIngImport(formData: FormData): Promise<
       });
       existingByFp.set(row.fingerprint, txn.id);
       created++;
-      batchItems.push({
-        batchId: batch.id,
-        action: "created",
+      const plannedId = await tryMatchAndSatisfyPlanned({
+        accountId,
+        amount: row.amount,
+        date: row.date,
         transactionId: txn.id,
-        fingerprint: row.fingerprint,
-        memoPreview,
+        candidates: plannedCandidates,
       });
-      batchItems.push({
-        batchId: batch.id,
-        action: "created_transfer_twin",
-        transactionId: twin.id,
-        fingerprint: row.fingerprint,
-        memoPreview,
-      });
+      pushBatchItem(
+        batchItems,
+        {
+          batchId: batch.id,
+          action: "created",
+          transactionId: txn.id,
+          fingerprint: row.fingerprint,
+          memoPreview,
+        },
+        rowMeta,
+        plannedId,
+      );
+      pushBatchItem(
+        batchItems,
+        {
+          batchId: batch.id,
+          action: "created_transfer_twin",
+          transactionId: twin.id,
+          fingerprint: row.fingerprint,
+          memoPreview,
+        },
+        rowMeta,
+      );
       continue;
     }
 
@@ -436,13 +604,25 @@ export async function confirmIngImport(formData: FormData): Promise<
     created++;
     if (row.ignored) ignored++;
     if (row.amount < 0) outflowIdsForReceiptLink.push(txn.id);
-    batchItems.push({
-      batchId: batch.id,
-      action: "created",
+    const plannedId = await tryMatchAndSatisfyPlanned({
+      accountId,
+      amount: row.amount,
+      date: row.date,
       transactionId: txn.id,
-      fingerprint: row.fingerprint,
-      memoPreview,
+      candidates: plannedCandidates,
     });
+    pushBatchItem(
+      batchItems,
+      {
+        batchId: batch.id,
+        action: "created",
+        transactionId: txn.id,
+        fingerprint: row.fingerprint,
+        memoPreview,
+      },
+      rowMeta,
+      plannedId,
+    );
   }
 
   for (const txnId of outflowIdsForReceiptLink) {
@@ -459,6 +639,7 @@ export async function confirmIngImport(formData: FormData): Promise<
           transactionId: txnId,
           fingerprint: linkedScan,
           memoPreview: "Auto-linked pending bill scan",
+          classification: "linked_existing",
         });
       }
     } catch {

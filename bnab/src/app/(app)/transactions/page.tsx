@@ -1,10 +1,13 @@
-import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 import { ArrowLeftRight, Search, X } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { findFirstMatchingImportRule } from "@/lib/ing-import";
 import { formatMoney, monthLabel } from "@/lib/money";
+import {
+  buildTransactionsWhere,
+  fetchTransactionsRegisterChunk,
+  type TransactionsListFilters,
+} from "@/lib/transactions-register-chunk";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -15,24 +18,12 @@ import {
   sectionSubheadingClass,
 } from "@/components/forms/field-classes";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { TransactionsRegister } from "@/components/transactions/TransactionsRegister";
+import { TransactionsInfiniteRegister } from "@/components/transactions/TransactionsInfiniteRegister";
 
-const PAGE_SIZE = 50;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type Flow = "income" | "spending";
 type Dir = "in" | "out";
-
-function ruleHref(
-  base: "/more/import-rules" | "/more/receipt-rules",
-  rule: { id: string; matchText: string },
-) {
-  const params = new URLSearchParams({
-    rule: rule.id,
-    q: rule.matchText,
-  });
-  return `${base}?${params.toString()}`;
-}
 
 export default async function TransactionsPage({
   searchParams,
@@ -49,7 +40,6 @@ export default async function TransactionsPage({
     dir?: string;
     from?: string;
     to?: string;
-    page?: string;
   }>;
 }) {
   const { budget } = await requireBudgetAccess();
@@ -73,17 +63,33 @@ export default async function TransactionsPage({
   const flowActivityView = Boolean(month && flow);
   const activityView =
     categoryActivityView || groupActivityView || flowActivityView;
-  const pageNum = Math.max(1, Number(sp.page ?? "1") || 1);
-  const skip = (pageNum - 1) * PAGE_SIZE;
+
+  const filters: TransactionsListFilters = {
+    ...(q ? { q } : {}),
+    ...(memo ? { memo } : {}),
+    ...(payee ? { payee } : {}),
+    ...(accountId ? { accountId } : {}),
+    ...(categoryId ? { categoryId } : {}),
+    ...(groupId ? { groupId } : {}),
+    ...(month ? { month } : {}),
+    ...(flow ? { flow } : {}),
+    ...(dir ? { dir } : {}),
+    ...(from ? { from } : {}),
+    ...(to ? { to } : {}),
+  };
+
+  const where = buildTransactionsWhere(budget.id, filters);
 
   const [
     accounts,
     groups,
     payees,
-    importRules,
     filterCategory,
     filterGroup,
     filterAccount,
+    chunk,
+    count,
+    activitySum,
   ] = await Promise.all([
     prisma.financeAccount.findMany({
       where: { budgetId: budget.id },
@@ -106,18 +112,6 @@ export default async function TransactionsPage({
       take: 500,
       select: { name: true },
     }),
-    prisma.importCategoryRule.findMany({
-      where: { budgetId: budget.id },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        matchText: true,
-        categoryId: true,
-        transferAccountId: true,
-        ignore: true,
-        sortOrder: true,
-      },
-    }),
     categoryId
       ? prisma.category.findFirst({
           where: { id: categoryId, group: { budgetId: budget.id } },
@@ -136,90 +130,9 @@ export default async function TransactionsPage({
           select: { id: true, name: true },
         })
       : Promise.resolve(null),
-  ]);
-
-  const dateFilter: Prisma.StringFilter | undefined =
-    from || to
-      ? {
-          ...(from ? { gte: from } : {}),
-          ...(to ? { lte: to } : {}),
-        }
-      : undefined;
-
-  const where: Prisma.TransactionWhereInput = activityView
-    ? {
-        isParent: false,
-        transferTwinId: null,
-        date: { gte: `${month}-01`, lte: `${month}-31` },
-        account: {
-          budgetId: budget.id,
-          onBudget: true,
-          ...(accountId ? { id: accountId } : {}),
-        },
-        ...(categoryId
-          ? { categoryId }
-          : groupId
-            ? { category: { groupId } }
-            : flow === "income"
-              ? {
-                  OR: [
-                    { category: { isIncome: true } },
-                    { categoryId: null },
-                    { isStartingBalance: true },
-                  ],
-                }
-              : flow === "spending"
-                ? { category: { isIncome: false } }
-                : {}),
-      }
-    : {
-        isChild: false,
-        account: {
-          budgetId: budget.id,
-          ...(accountId ? { id: accountId } : {}),
-        },
-        ...(categoryId ? { categoryId } : {}),
-        ...(payee ? { payee: { name: { contains: payee } } } : {}),
-        ...(memo ? { notes: { contains: memo } } : {}),
-        ...(dir === "in"
-          ? { amount: { gt: 0 } }
-          : dir === "out"
-            ? { amount: { lt: 0 } }
-            : {}),
-        ...(dateFilter ? { date: dateFilter } : {}),
-        ...(q
-          ? {
-              OR: [
-                { notes: { contains: q } },
-                { payee: { name: { contains: q } } },
-                { category: { name: { contains: q } } },
-                { account: { name: { contains: q } } },
-              ],
-            }
-          : {}),
-      };
-
-  const [transactions, count, activitySum] = await Promise.all([
-    prisma.transaction.findMany({
+    fetchTransactionsRegisterChunk({
+      budgetId: budget.id,
       where,
-      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-      skip,
-      take: PAGE_SIZE,
-      select: {
-        id: true,
-        accountId: true,
-        date: true,
-        amount: true,
-        categoryId: true,
-        notes: true,
-        cleared: true,
-        isParent: true,
-        isChild: true,
-        transferTwinId: true,
-        payee: { select: { name: true } },
-        category: { select: { name: true } },
-        account: { select: { name: true } },
-      },
     }),
     prisma.transaction.count({ where }),
     activityView
@@ -230,161 +143,7 @@ export default async function TransactionsPage({
       : Promise.resolve(null),
   ]);
 
-  const twinIds = transactions
-    .map((t) => t.transferTwinId)
-    .filter((id): id is string => Boolean(id));
-  const txnIds = transactions.map((t) => t.id);
-  const parentIds = transactions.filter((t) => t.isParent).map((t) => t.id);
-
-  const [twins, receiptLines, children, linkedScans] = await Promise.all([
-    twinIds.length > 0
-      ? prisma.transaction.findMany({
-          where: { id: { in: twinIds } },
-          select: { id: true, account: { select: { name: true } } },
-        })
-      : Promise.resolve([]),
-    txnIds.length > 0
-      ? prisma.receiptScanLine.findMany({
-          where: {
-            matchedRuleId: { not: null },
-            scan: { transactionId: { in: txnIds } },
-          },
-          select: {
-            matchedRuleId: true,
-            matchedRule: { select: { id: true, matchText: true } },
-            scan: { select: { transactionId: true } },
-          },
-        })
-      : Promise.resolve([]),
-    parentIds.length > 0
-      ? prisma.transaction.findMany({
-          where: { parentId: { in: parentIds } },
-          select: {
-            id: true,
-            parentId: true,
-            amount: true,
-            notes: true,
-            category: { select: { name: true } },
-          },
-          orderBy: { createdAt: "asc" },
-        })
-      : Promise.resolve([]),
-    txnIds.length > 0
-      ? prisma.receiptScan.findMany({
-          where: { transactionId: { in: txnIds } },
-          select: { id: true, transactionId: true, rawJson: true },
-        })
-      : Promise.resolve([]),
-  ]);
-  const twinById = new Map(twins.map((t) => [t.id, t]));
-  const childrenByParent = new Map<string, typeof children>();
-  for (const c of children) {
-    if (!c.parentId) continue;
-    const list = childrenByParent.get(c.parentId) ?? [];
-    list.push(c);
-    childrenByParent.set(c.parentId, list);
-  }
-  const scanByTxn = new Map(
-    linkedScans
-      .filter((s) => s.transactionId)
-      .map((s) => [s.transactionId as string, s]),
-  );
-
-  function merchantFromRaw(rawJson: string | null): string | null {
-    if (!rawJson) return null;
-    try {
-      const obj = JSON.parse(rawJson) as { merchant?: unknown };
-      return typeof obj.merchant === "string" && obj.merchant.trim()
-        ? obj.merchant.trim()
-        : null;
-    } catch {
-      return null;
-    }
-  }
-
-  const receiptRulesByTxn = new Map<
-    string,
-    { id: string; matchText: string }[]
-  >();
-  for (const line of receiptLines) {
-    const txnId = line.scan.transactionId;
-    const rule = line.matchedRule;
-    if (!txnId || !rule) continue;
-    const list = receiptRulesByTxn.get(txnId) ?? [];
-    if (!list.some((r) => r.id === rule.id)) {
-      list.push({ id: rule.id, matchText: rule.matchText });
-      receiptRulesByTxn.set(txnId, list);
-    }
-  }
-
-  const hasMore = skip + transactions.length < count;
-  const remaining = Math.max(0, count - skip - transactions.length);
-  const qs = new URLSearchParams();
-  if (q) qs.set("q", q);
-  if (memo) qs.set("memo", memo);
-  if (payee) qs.set("payee", payee);
-  if (accountId) qs.set("accountId", accountId);
-  if (categoryId) qs.set("categoryId", categoryId);
-  if (groupId) qs.set("groupId", groupId);
-  if (month) qs.set("month", month);
-  if (flow) qs.set("flow", flow);
-  if (dir) qs.set("dir", dir);
-  if (from) qs.set("from", from);
-  if (to) qs.set("to", to);
-
-  const rows = transactions.map((t) => {
-    const twin = t.transferTwinId ? twinById.get(t.transferTwinId) : null;
-    const isTransfer = Boolean(t.transferTwinId);
-    const notes = t.notes ?? "";
-    const importMatch =
-      notes.trim().length > 0
-        ? findFirstMatchingImportRule(notes, importRules, t.accountId)
-        : null;
-    const receiptMatches = receiptRulesByTxn.get(t.id) ?? [];
-    const kids = childrenByParent.get(t.id) ?? [];
-    const scan = scanByTxn.get(t.id);
-    const billGroup =
-      kids.length > 0
-        ? {
-            merchant: merchantFromRaw(scan?.rawJson ?? null),
-            scanId: scan?.id ?? null,
-            splits: kids.map((c) => ({
-              id: c.id,
-              categoryName: c.category?.name ?? "—",
-              amountDisplay: (Math.abs(c.amount) / 100).toFixed(2),
-              notes: c.notes,
-            })),
-          }
-        : null;
-    return {
-      id: t.id,
-      accountId: t.accountId,
-      accountName: t.account.name,
-      date: t.date,
-      payee: t.payee?.name ?? "",
-      categoryId: t.categoryId ?? "",
-      notes,
-      cleared: t.cleared,
-      absAmount: (Math.abs(t.amount) / 100).toFixed(2),
-      isInflow: t.amount > 0,
-      isSplit: t.isParent || t.isChild,
-      isTransfer,
-      transferLabel: twin?.account.name ?? null,
-      matchedImportRule: importMatch
-        ? {
-            id: importMatch.id,
-            matchText: importMatch.matchText,
-            href: ruleHref("/more/import-rules", importMatch),
-          }
-        : null,
-      matchedReceiptRules: receiptMatches.map((r) => ({
-        ...r,
-        href: ruleHref("/more/receipt-rules", r),
-      })),
-      billGroup,
-    };
-  });
-
+  const rows = chunk.items;
   const sumCents = activitySum?._sum.amount ?? 0;
   const registerFiltered = Boolean(
     q || memo || payee || accountId || categoryId || dir || from || to,
@@ -402,6 +161,13 @@ export default async function TransactionsPage({
     parts.push(monthLabel(month));
     return parts.join(" · ");
   })();
+
+  const sheetGroups = groups.map((g) => ({
+    id: g.id,
+    name: g.name,
+    isIncome: g.isIncome,
+    categories: g.categories.map((c) => ({ id: c.id, name: c.name })),
+  }));
 
   return (
     <div className="space-y-4">
@@ -556,7 +322,7 @@ export default async function TransactionsPage({
         </form>
       )}
 
-      {transactions.length === 0 ? (
+      {rows.length === 0 ? (
         <div className={cardClass}>
           <EmptyState
             icon={ArrowLeftRight}
@@ -574,35 +340,16 @@ export default async function TransactionsPage({
           />
         </div>
       ) : (
-        <TransactionsRegister
-          rows={rows}
-          groups={groups.map((g) => ({
-            id: g.id,
-            name: g.name,
-            isIncome: g.isIncome,
-            categories: g.categories.map((c) => ({ id: c.id, name: c.name })),
-          }))}
+        <TransactionsInfiniteRegister
+          initialRows={rows}
+          initialCursor={chunk.nextCursor}
+          hasMore={chunk.hasMore}
+          filters={filters}
+          groups={sheetGroups}
           payees={payees.map((p) => p.name)}
           currency={budget.currency}
         />
       )}
-
-      {hasMore ? (
-        <Link
-          href={`/transactions?${qs.toString()}${qs.toString() ? "&" : ""}page=${pageNum + 1}`}
-          className={`${buttonSecondaryClass} w-full`}
-        >
-          Next page · {remaining} remaining
-        </Link>
-      ) : null}
-      {pageNum > 1 ? (
-        <Link
-          href={`/transactions?${qs.toString()}${qs.toString() ? "&" : ""}page=${pageNum - 1}`}
-          className={`${buttonSecondaryClass} w-full`}
-        >
-          Previous page
-        </Link>
-      ) : null}
     </div>
   );
 }

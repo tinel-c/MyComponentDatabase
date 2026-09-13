@@ -15,7 +15,10 @@ export async function findPendingBillImportParentIds(
       accountId: { in: accountIds },
       isChild: false,
       importFingerprint: null,
-      notes: { contains: "Bill import" },
+      OR: [
+        { isPendingBill: true },
+        { notes: { contains: "Bill import" } },
+      ],
     },
     select: { id: true },
   });

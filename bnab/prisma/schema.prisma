@@ -215,32 +215,36 @@ model Payee {
 }
 
 model Transaction {
-  id                String        @id @default(cuid())
-  accountId         String
-  date              String
-  amount            Int
-  payeeId           String?
-  categoryId        String?
-  notes             String?
-  cleared           Boolean       @default(false)
-  reconciled        Boolean       @default(false)
-  isParent          Boolean       @default(false)
-  isChild           Boolean       @default(false)
-  parentId          String?
-  transferTwinId    String?
-  isStartingBalance Boolean       @default(false)
-  importFingerprint String?
-  importContentHash String?
-  importBatchId     String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  account           FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  payee             Payee?        @relation(fields: [payeeId], references: [id], onDelete: SetNull)
-  category          Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  parent            Transaction?  @relation("SplitChildren", fields: [parentId], references: [id], onDelete: Cascade)
-  children          Transaction[] @relation("SplitChildren")
-  importBatch       ImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
-  receiptScans      ReceiptScan[]
+  id                     String        @id @default(cuid())
+  accountId              String
+  date                   String
+  amount                 Int
+  payeeId                String?
+  categoryId             String?
+  notes                  String?
+  cleared                Boolean       @default(false)
+  reconciled             Boolean       @default(false)
+  isParent               Boolean       @default(false)
+  isChild                Boolean       @default(false)
+  parentId               String?
+  transferTwinId         String?
+  isStartingBalance      Boolean       @default(false)
+  /** Opt-in pending bill ledger row; excluded from RTA/balances until linked. */
+  isPendingBill          Boolean       @default(false)
+  importFingerprint      String?
+  importContentHash      String?
+  importBatchId          String?
+  scheduledTransactionId String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  account                FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  payee                  Payee?        @relation(fields: [payeeId], references: [id], onDelete: SetNull)
+  category               Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  parent                 Transaction?  @relation("SplitChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children               Transaction[] @relation("SplitChildren")
+  importBatch            ImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  scheduledTransaction   ScheduledTransaction? @relation(fields: [scheduledTransactionId], references: [id], onDelete: SetNull)
+  receiptScans           ReceiptScan[]
 
   @@unique([accountId, importFingerprint])
   @@index([accountId, date])
@@ -248,6 +252,8 @@ model Transaction {
   @@index([parentId])
   @@index([transferTwinId])
   @@index([importBatchId])
+  @@index([scheduledTransactionId])
+  @@index([isPendingBill])
 }
 
 /** Substring → category / ignore / transfer mapping for bank imports (ING HomeBank). */
@@ -265,6 +271,7 @@ model ImportCategoryRule {
   budget             Budget          @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   category           Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   transferAccount    FinanceAccount? @relation("ImportTransferAccount", fields: [transferAccountId], references: [id], onDelete: SetNull)
+  schedules          ScheduledTransaction[]
 
   @@index([budgetId, sortOrder])
   @@index([transferAccountId])
@@ -341,16 +348,24 @@ model ReceiptScanLine {
 }
 
 model ImportBatchItem {
-  id            String      @id @default(cuid())
-  batchId       String
-  action        String
-  transactionId String?
-  fingerprint   String
-  memoPreview   String?
-  batch         ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  id                     String      @id @default(cuid())
+  batchId                String
+  action                 String
+  transactionId          String?
+  fingerprint            String
+  memoPreview            String?
+  /** Import rule that matched the memo (canonical Rule hit). */
+  importRuleId           String?
+  /** Planned payment matched/satisfied for this row. */
+  scheduledTransactionId String?
+  /** Canonical IdentifiedAs code from import-vocabulary.md. */
+  classification         String?
+  batch                  ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   @@index([batchId])
   @@index([fingerprint])
+  @@index([importRuleId])
+  @@index([scheduledTransactionId])
 }
 
 model ScheduledTransaction {
@@ -365,12 +380,23 @@ model ScheduledTransaction {
   recurrence     Recurrence @default(MONTHLY)
   transferToId   String?
   active         Boolean    @default(true)
+  /** Optional HTTPS link to billing portal. */
+  billingUrl     String?
+  /** Optional linked Import rule. */
+  importRuleId   String?
+  /** Day of month for monthly/yearly (1–31); null = use nextDate day. */
+  dayOfMonth     Int?
+  /** Weekday 0=Sun…6=Sat for weekly; null = use nextDate weekday. */
+  weekday        Int?
   budget         Budget     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
   account        FinanceAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
   payee          Payee?         @relation(fields: [payeeId], references: [id], onDelete: SetNull)
   category       Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  importRule     ImportCategoryRule? @relation(fields: [importRuleId], references: [id], onDelete: SetNull)
+  occurrences    Transaction[]
 
   @@index([budgetId, nextDate])
+  @@index([importRuleId])
 }
 
 model MonthMeta {

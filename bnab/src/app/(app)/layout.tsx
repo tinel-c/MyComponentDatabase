@@ -1,8 +1,7 @@
 import { Suspense } from "react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { AppChrome } from "@/components/layout/AppChrome";
-import { prisma } from "@/lib/prisma";
-import { loadAccountActivitySummaries } from "@/lib/account-activity-summary";
+import { loadAccountActivityCached } from "@/lib/cache-tags";
 
 export default async function AppLayout({
   children,
@@ -10,7 +9,7 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const { budget } = await requireBudgetAccess();
-  const accountActivity = await loadAccountActivitySummaries(prisma, budget.id);
+  const accountActivity = await loadAccountActivityCached(budget.id);
   return (
     <Suspense
       fallback={

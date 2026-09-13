@@ -9,6 +9,11 @@ YNAB-style **zero-based envelope budgeting** for a two-person household, optimiz
 | [features.md](./features.md) | Feature checklist (shipped vs deferred) |
 | [envelope-math.md](./envelope-math.md) | Ready to Assign, Available, CC payments, import ignores |
 | [data-model.md](./data-model.md) | Prisma models, amounts, import batches, invariants |
+| [import-vocabulary.md](./import-vocabulary.md) | Canonical import / planned / bill terms |
+| [planned-payments.md](./planned-payments.md) | Recurring planned payments |
+| [lists.md](./lists.md) | Cursor infinite scroll contract |
+| [performance.md](./performance.md) | Cache tags and hotspots |
+| [adr/README.md](./adr/README.md) | Architecture decision records (agent memory) |
 | [deploy.md](./deploy.md) | DNS, nginx, PM2, secrets, **PC build → live upload** |
 | [changelog.md](./changelog.md) | Release notes |
 
@@ -67,13 +72,14 @@ Put real ING CSV exports only under **`bnab/ING/`** (gitignored). Never commit s
 
 | Route | Purpose |
 |-------|---------|
-| `/plan` | Month envelopes, RTA, assign, quick cover/release |
-| `/accounts`, `/accounts/[id]` | Balances, register, adjust-to-statement, delete txn |
-| `/transactions` | Excel-style global register |
+| `/plan` | Month envelopes, RTA, assign, quick cover/release, assign from planned |
+| `/accounts`, `/accounts/[id]` | Balances, register (infinite scroll), adjust-to-statement |
+| `/transactions` | Excel-style global register (infinite scroll) |
+| `/planned` | Planned payments (recurring ledger) |
 | `/reflect` | Review spend, budget gaps, plan next month |
-| `/more/import` | ING CSV preview + confirm (ignored → ledger; transfer rules → twin pair; unmatched rules clear siblings on save) |
-| `/more/import-rules` | Memo → category / ignore / transfer account (substring anywhere) |
-| `/more/import-history` | Batches, revert, snapshots |
+| `/more/import` | ING CSV preview + confirm |
+| `/more/import-rules` | Memo → category / ignore / transfer |
+| `/more/import-history` | Batches, item detail, revert, snapshots |
 | `/more/data` | Admin: DB export / import / selective erase |
 | `/more/categories`, `/payees`, `/schedules`, `/team` | CRUD & household |
 

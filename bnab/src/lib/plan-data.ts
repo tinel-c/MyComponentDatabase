@@ -85,6 +85,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
         isStartingBalance: true,
         notes: true,
         importFingerprint: true,
+        isPendingBill: true,
         parentId: true,
       },
     }),
@@ -102,7 +103,10 @@ export async function loadPlanMonth(budgetId: string, month: string) {
         date: { lte: dateTo },
         isChild: false,
         importFingerprint: null,
-        notes: { contains: "Bill import" },
+        OR: [
+          { isPendingBill: true },
+          { notes: { contains: "Bill import" } },
+        ],
       },
       select: { id: true },
     }),
@@ -119,7 +123,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     if (
       !t.isChild &&
       !t.importFingerprint &&
-      t.notes?.toLowerCase().includes("bill import")
+      (t.isPendingBill || t.notes?.toLowerCase().includes("bill import"))
     ) {
       pendingParentIds.add(t.id);
     }

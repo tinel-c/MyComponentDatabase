@@ -5,6 +5,7 @@ import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/money";
 import { accountTypeMeta } from "@/lib/ui-accents";
+import { fetchAccountRegisterChunk } from "@/lib/account-register-chunk";
 import {
   buttonCompactClass,
   buttonPrimaryClass,
@@ -22,34 +23,25 @@ import {
   excludePendingBillImportsWhere,
   findPendingBillImportParentIds,
 } from "@/lib/ing-import/pending-bill-balance";
-import { ClearToggle } from "@/components/accounts/ClearToggle";
 import { AdjustBalanceForm } from "@/components/accounts/AdjustBalanceForm";
-import { DeleteTransactionButton } from "@/components/transactions/DeleteTransactionButton";
+import { AccountTransactionsInfiniteList } from "@/components/accounts/AccountTransactionsInfiniteList";
 import { EmptyState } from "@/components/ui/EmptyState";
-
-const PAGE_SIZE = 40;
 
 export default async function AccountDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string }>;
 }) {
   const { budget } = await requireBudgetAccess();
   const { id } = await params;
-  const sp = await searchParams;
 
   const account = await prisma.financeAccount.findFirst({
     where: { id, budgetId: budget.id },
   });
   if (!account) notFound();
 
-  const pageNum = Math.max(1, Number(sp.page ?? "1") || 1);
-  const skip = (pageNum - 1) * PAGE_SIZE;
-
   const pendingIds = await findPendingBillImportParentIds(prisma, [id]);
-  const [sumAgg, transactions, count, balanceAdjustments] = await Promise.all([
+  const [sumAgg, chunk, count, balanceAdjustments] = await Promise.all([
     prisma.transaction.aggregate({
       where: {
         accountId: id,
@@ -58,13 +50,7 @@ export default async function AccountDetailPage({
       },
       _sum: { amount: true },
     }),
-    prisma.transaction.findMany({
-      where: { accountId: id, isChild: false },
-      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
-      include: { payee: true, category: true },
-      skip,
-      take: PAGE_SIZE,
-    }),
+    fetchAccountRegisterChunk(id),
     prisma.transaction.count({ where: { accountId: id, isChild: false } }),
     prisma.transaction.findMany({
       where: {
@@ -83,9 +69,6 @@ export default async function AccountDetailPage({
   ]);
 
   const balance = sumAgg._sum.amount ?? 0;
-  const hasMore = skip + transactions.length < count;
-  const remaining = Math.max(0, count - skip - transactions.length);
-  const page = transactions;
   const meta = accountTypeMeta(account.type);
   const Icon = meta.icon;
 
@@ -225,78 +208,23 @@ export default async function AccountDetailPage({
 
       <p className="text-xs text-fg-subtle">{count} transactions · tap a row to edit</p>
 
-      <ul className={`${cardCompactClass} divide-y divide-rim-subtle/60`}>
-        {page.length === 0 ? (
-          <li>
-            <EmptyState
-              icon={ListX}
-              title="No transactions yet"
-              description="Use Add to record spending or income."
-            />
-          </li>
-        ) : (
-          page.map((t) => (
-            <li key={t.id}>
-              <div className="flex items-center gap-3 px-3 py-2.5">
-                <ClearToggle id={t.id} cleared={t.cleared} />
-                <Link
-                  href={`/transactions/${t.id}`}
-                  prefetch
-                  className="flex min-w-0 flex-1 items-center gap-3 py-1"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-fg">
-                      {t.transferTwinId
-                        ? "Transfer"
-                        : t.payee?.name ??
-                          t.notes ??
-                          (t.isStartingBalance ? "Starting balance" : "Transaction")}
-                    </p>
-                    <p className="text-xs text-fg-subtle">
-                      {t.date}
-                      {t.category ? ` · ${t.category.name}` : ""}
-                      {t.payee?.name === "Balance Adjustment"
-                        ? " · adjustment"
-                        : ""}
-                      {t.isParent ? " · split" : ""}
-                      {t.reconciled ? " · reconciled" : ""}
-                    </p>
-                  </div>
-                  <p
-                    className={`tabular-nums font-medium ${
-                      t.amount < 0 ? "text-fg" : "text-ok"
-                    }`}
-                  >
-                    {formatMoney(t.amount, budget.currency)}
-                  </p>
-                </Link>
-                <DeleteTransactionButton
-                  id={t.id}
-                  returnTo={`/accounts/${account.id}`}
-                  compact
-                />
-              </div>
-            </li>
-          ))
-        )}
-      </ul>
-
-      {hasMore ? (
-        <Link
-          href={`/accounts/${id}?page=${pageNum + 1}`}
-          className={`${buttonCompactClass} w-full`}
-        >
-          Next page · {remaining} remaining
-        </Link>
-      ) : null}
-      {pageNum > 1 ? (
-        <Link
-          href={`/accounts/${id}?page=${pageNum - 1}`}
-          className={`${buttonCompactClass} w-full`}
-        >
-          Previous page
-        </Link>
-      ) : null}
+      {chunk.items.length === 0 ? (
+        <div className={cardCompactClass}>
+          <EmptyState
+            icon={ListX}
+            title="No transactions yet"
+            description="Use Add to record spending or income."
+          />
+        </div>
+      ) : (
+        <AccountTransactionsInfiniteList
+          accountId={account.id}
+          currency={budget.currency}
+          initialItems={chunk.items}
+          initialCursor={chunk.nextCursor}
+          hasMore={chunk.hasMore}
+        />
+      )}
     </div>
   );
 }

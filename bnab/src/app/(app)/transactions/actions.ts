@@ -397,3 +397,52 @@ export async function reconcileAccount(formData: FormData) {
   revalidatePath(`/accounts/${accountId}`);
   return;
 }
+
+/**
+ * Create a MONTHLY planned payment from a ledger txn and link it.
+ * Advances nextDate one month since this occurrence is already paid.
+ */
+export async function makePlannedFromTransaction(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const transactionId = String(formData.get("transactionId") ?? "");
+  if (!transactionId) return;
+
+  const txn = await prisma.transaction.findFirst({
+    where: {
+      id: transactionId,
+      account: { budgetId: budget.id },
+      isChild: false,
+    },
+  });
+  if (!txn || txn.transferTwinId || txn.scheduledTransactionId) return;
+  if (txn.amount === 0) return;
+
+  const { advancePlannedDate } = await import("@/lib/planned-payments");
+  const nextDate = advancePlannedDate(txn.date, "MONTHLY");
+  const dayOfMonth = Number(txn.date.slice(8, 10)) || null;
+
+  const sched = await prisma.scheduledTransaction.create({
+    data: {
+      budgetId: budget.id,
+      accountId: txn.accountId,
+      payeeId: txn.payeeId,
+      categoryId: txn.categoryId,
+      amount: txn.amount,
+      notes: txn.notes,
+      nextDate,
+      recurrence: "MONTHLY",
+      dayOfMonth,
+    },
+  });
+
+  await prisma.transaction.update({
+    where: { id: txn.id },
+    data: { scheduledTransactionId: sched.id },
+  });
+
+  revalidatePath(`/transactions/${txn.id}`);
+  revalidatePath("/transactions");
+  revalidatePath("/more/schedules");
+  revalidatePath("/planned");
+  revalidatePath("/plan");
+}
