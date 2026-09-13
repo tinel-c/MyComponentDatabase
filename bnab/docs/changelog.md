@@ -1,5 +1,19 @@
 # BNAB changelog
 
+## 1.3.2 — 2026-09-13
+
+Faster PC/CI deploy upload via lean `.next` pack.
+
+### Highlights
+
+- Pack excludes Turbopack `.next/cache` and `.next/dev` (~400 MB → ~10–40 MB)
+- Local promote uploads the tarball with OpenSSH **scp** + MB/s timing (CI already used scp)
+- Docs: `deploy.md`, `AGENT_DEPLOY.md`
+
+### Docs
+
+Lean pack / upload speed notes in deploy playbooks.
+
 ## 1.3.1 — 2026-09-13
 
 Plan desktop Income / Savings cards share one visual contract.
