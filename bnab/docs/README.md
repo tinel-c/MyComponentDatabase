@@ -14,6 +14,7 @@ YNAB-style **zero-based envelope budgeting** for a two-person household, optimiz
 | [lists.md](./lists.md) | Cursor infinite scroll + `content-visibility` rows |
 | [performance.md](./performance.md) | Cache tags, engine tip, Cache Components phase 2 |
 | [receipt-agent.md](./receipt-agent.md) | Gemini bill scans, batch queue, AI audit |
+| [salt-edge-open-banking.md](./salt-edge-open-banking.md) | Salt Edge × ING long-term plan, dashboard config, phases |
 | [adr/README.md](./adr/README.md) | Architecture decision records (agent memory) |
 | [deploy.md](./deploy.md) | DNS, nginx, PM2, secrets, SSO, **PC build → live upload** |
 | [android-twa.md](./android-twa.md) | Trusted Web Activity / Play wrap for bnab.bogza.ro |
@@ -80,6 +81,7 @@ Put real ING CSV exports only under **`bnab/ING/`** (gitignored). Never commit s
 | `/planned` | Planned payments (due badge on desktop nav) |
 | `/reflect` | Review spend, budget gaps, plan next month (shares plan pack) |
 | `/more/import` | ING CSV preview + confirm |
+| `/more/bank-connections` | Salt Edge bank link / sync (Partners AIS) |
 | `/more/import-bill` | Bill photo / multi-bill queue (Reflect-first) |
 | `/more/bills` | Imported bills + AI audit (infinite) |
 | `/more/import-rules` | Memo → category / ignore / transfer (+ linked planned) |
@@ -93,4 +95,4 @@ Put real ING CSV exports only under **`bnab/ING/`** (gitignored). Never commit s
 
 ## Version
 
-See [`package.json`](../package.json) and [changelog.md](./changelog.md). Current: **1.2.0**.
+See [`package.json`](../package.json) and [changelog.md](./changelog.md). Current: **1.3.0**.

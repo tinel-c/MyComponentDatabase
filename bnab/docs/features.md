@@ -109,9 +109,22 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 
 ---
 
+### Bank sync (Salt Edge Partners AIS)
+
+See [salt-edge-open-banking.md](./salt-edge-open-banking.md) and ADR [0011](./adr/0011-salt-edge-partners-ais.md).
+
+- [x] Durable docs + ADR + env placeholders (Phase 0)
+- [x] Connection models, Partners **API v6** client, signing, callbacks, bank-connections UI (Phase 1)
+- [x] AIS → import-pipeline normalize + preview/confirm; Fake OAuth + reconnect validated locally (Phase 1 exit)
+- [ ] Salt Edge Partner **LIVE** upgrade + real ING Romania end-to-end (Phase 2 exit — external validation)
+- [x] Enrichment suggestion helper + RO provider allowlist (Phase 3 scaffold)
+- [ ] Multi-bank production use beyond ING (Phase 3 exit)
+- [ ] Payment Initiation — **blocked** by Phase 4 decision gate
+
+---
+
 ## Deferred
 
-- [ ] Bank sync / Open Banking / Plaid
 - [ ] Multi-currency budgets / FX
 - [x] Cross-site SSO cookie domain (`.bogza.ro` via `AUTH_COOKIE_DOMAIN`; see deploy.md) — enable with part-db when ready
 - [x] Android TWA docs + assetlinks template (`docs/android-twa.md`)

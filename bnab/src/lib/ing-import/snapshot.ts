@@ -17,15 +17,33 @@ export function snapshotsDir(): string {
 
 export function resolveDatabasePath(): string | null {
   const url = process.env.DATABASE_URL ?? "";
-  if (url.startsWith("file:")) {
-    let p = url.slice("file:".length);
-    if (p.startsWith("./") || p.startsWith(".\\")) {
+  if (!url.startsWith("file:")) return null;
+
+  let p = url.slice("file:".length);
+  // Strip optional leading // (file:///C:/... or file://localhost/...)
+  if (p.startsWith("//")) {
+    p = p.replace(/^\/\/\/?/, "");
+    // Windows: file:///C:/path → C:/path; file://localhost/C:/ → still odd — keep simple
+    if (/^[A-Za-z]:/.test(p) || p.startsWith("/")) {
+      // absolute-ish
+    } else {
       p = path.resolve(process.cwd(), p);
     }
-    // Prisma often uses file:./dev.db or absolute
-    return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
+  } else if (p.startsWith("./") || p.startsWith(".\\") || !path.isAbsolute(p)) {
+    p = path.resolve(process.cwd(), p);
   }
-  return null;
+
+  if (existsSync(p)) return p;
+
+  // Prisma resolves relative SQLite paths against the schema directory (`prisma/`),
+  // so `file:./dev.db` often means `prisma/dev.db`, not `<cwd>/dev.db`.
+  const schemaRelative = path.resolve(process.cwd(), "prisma", path.basename(p));
+  if (existsSync(schemaRelative)) return schemaRelative;
+
+  const prismaDev = path.resolve(process.cwd(), "prisma", "dev.db");
+  if (existsSync(prismaDev)) return prismaDev;
+
+  return existsSync(p) ? p : null;
 }
 
 export function createDbSnapshot(batchId: string): {

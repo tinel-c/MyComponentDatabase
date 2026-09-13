@@ -33,13 +33,23 @@ Same shapes as part-db: `User`, `Account` (OAuth), `Session`, `VerificationToken
 | Model | Purpose |
 |-------|---------|
 | `ImportCategoryRule` | Budget-scoped memo `matchText` → **category**, **ignore**, or **transfer** (`transferAccountId`). Match is **substring anywhere** in notes/memo (case-insensitive). Ignore still **creates** ledger rows; budget math uses `excludeFromRta`. Transfer creates a `transferTwinId` pair (statement account keeps CSV sign; other account gets the opposite). May own linked **planned payments** via `schedules`. |
-| `ImportBatch` | One CSV confirm run (account, filename, counts, optional snapshot path) |
+| `ImportBatch` | One CSV or Salt Edge confirm run (account, `sourceLabel`, counts, optional snapshot path) |
 | `ImportBatchItem` | Per-row outcome (`action`) plus enrichment: `importRuleId`, `scheduledTransactionId`, `classification` (see [import-vocabulary.md](./import-vocabulary.md)) |
 | `Transaction.importFingerprint` | Dedupe key per account (`@@unique([accountId, importFingerprint])`) |
 | `Transaction.importContentHash` | Content hash for change detection |
+| `Transaction.providerTransactionId` | Salt Edge (or other AIS) transaction id; unique per account when set |
 | `Transaction.importBatchId` | Link to batch for revert |
 | `Transaction.isPendingBill` | Opt-in pending bill ledger; excluded from RTA/balances until linked |
 | `Transaction.scheduledTransactionId` | Link to satisfied planned payment |
+
+## Salt Edge bank sync
+
+| Model | Purpose |
+|-------|---------|
+| `BankProviderConnection` | Partners lead/customer + connection id, provider code, consent/status, last sync |
+| `BankAccountLink` | External account id ↔ optional `FinanceAccount`; cached name/balance |
+
+See [salt-edge-open-banking.md](./salt-edge-open-banking.md).
 
 Snapshots of `bnab.db` before import live under `bnab/data/snapshots/` (gitignored) or `/opt/bnab/shared/snapshots` in production.
 

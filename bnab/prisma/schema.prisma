@@ -113,6 +113,7 @@ model Budget {
   receiptRules ReceiptCategoryRule[]
   receiptScans ReceiptScan[]
   wishItems   WishItem[]
+  bankConnections BankProviderConnection[]
 }
 
 model BudgetMember {
@@ -144,6 +145,7 @@ model FinanceAccount {
   transactions     Transaction[]
   schedules        ScheduledTransaction[]
   importTransferRules ImportCategoryRule[] @relation("ImportTransferAccount")
+  bankAccountLinks BankAccountLink[]
 
   @@index([budgetId])
 }
@@ -240,6 +242,8 @@ model Transaction {
   isPendingBill          Boolean       @default(false)
   importFingerprint      String?
   importContentHash      String?
+  /** Salt Edge (or other AIS) transaction id; unique per account when set. */
+  providerTransactionId  String?
   importBatchId          String?
   scheduledTransactionId String?
   createdAt              DateTime      @default(now())
@@ -254,6 +258,7 @@ model Transaction {
   receiptScans           ReceiptScan[]
 
   @@unique([accountId, importFingerprint])
+  @@unique([accountId, providerTransactionId])
   @@index([accountId, date])
   @@index([categoryId, date])
   @@index([parentId])
@@ -448,4 +453,49 @@ model WishItem {
   budget      Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
   @@index([budgetId, sortOrder])
+}
+
+/** Salt Edge Partners connection (AIS). See docs/salt-edge-open-banking.md / ADR 0011. */
+model BankProviderConnection {
+  id              String   @id @default(cuid())
+  budgetId        String
+  /** Salt Edge lead / customer id. */
+  leadId          String
+  /** Salt Edge connection id (set after successful connect). */
+  connectionId    String?
+  providerCode    String?
+  providerName    String?
+  status          String   @default("pending")
+  consentExpiresAt DateTime?
+  lastSyncedAt    DateTime?
+  lastError       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  accountLinks    BankAccountLink[]
+
+  @@unique([budgetId, connectionId])
+  @@index([budgetId])
+  @@index([leadId])
+  @@index([connectionId])
+}
+
+/** Maps a Salt Edge account to a BNAB FinanceAccount. */
+model BankAccountLink {
+  id                 String   @id @default(cuid())
+  connectionId       String
+  externalAccountId  String
+  financeAccountId   String?
+  name               String?
+  nature             String?
+  currency           String?
+  balanceMinor       Int?
+  lastBalanceAt      DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  connection         BankProviderConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  financeAccount     FinanceAccount? @relation(fields: [financeAccountId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, externalAccountId])
+  @@index([financeAccountId])
 }

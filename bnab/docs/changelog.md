@@ -1,5 +1,22 @@
 # BNAB changelog
 
+## 1.3.0 — 2026-09-13
+
+Salt Edge Partners AIS scaffold for ING Romania bank sync (API **v6**; Pending Fake OAuth validated).
+
+### Highlights
+
+- Durable reference: `docs/salt-edge-open-banking.md` + ADR **0011** (Partners AIS via **Open Banking Gateway v6**, import-pipeline adapter, PIS gate)
+- Models: `BankProviderConnection`, `BankAccountLink`, `Transaction.providerTransactionId`
+- v6 client (`/customers`, `/connections/connect|reconnect|refresh`), HTTPS callbacks, `/more/bank-connections`
+- AIS normalize → Import rules preview/confirm (`sourceLabel=saltedge`); SQLite snapshot path fix for `prisma/dev.db`
+- Enrichment suggestions; RO provider hints; `SALTEDGE_PIS_ENABLED` gate
+- **P1 validated locally:** Fake OAuth, map/sync, reconnect consent (refresh cooldown from Salt Edge)
+
+### Docs
+
+Salt Edge dashboard checklist, deploy env secrets, features phased checklist.
+
 ## 1.2.6 — 2026-09-13
 
 Plan quick-assign reliability and Income/Savings layout; cache invalidation races closed.

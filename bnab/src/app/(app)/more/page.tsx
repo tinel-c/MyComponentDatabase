@@ -31,6 +31,7 @@ import {
   Sparkles,
   Landmark,
   Sprout,
+  Link2,
 } from "lucide-react";
 
 type LinkItem = {
@@ -118,6 +119,12 @@ const sections: { title: string; items: LinkItem[] }[] = [
         label: "ING import",
         desc: "Import HomeBank ING CSV",
         icon: FileSpreadsheet,
+      },
+      {
+        href: "/more/bank-connections",
+        label: "Bank connections",
+        desc: "Salt Edge AIS sync (ING / open banking)",
+        icon: Link2,
       },
       {
         href: "/more/import-rules",

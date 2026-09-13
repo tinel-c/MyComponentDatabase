@@ -14,6 +14,7 @@ BNAB agent memory. **Before implementing a feature that changes how subsystems i
 | [0008](./0008-cache-components-phase2.md) | Cache Components phase 2 | Proposed (blocked) |
 | [0009](./0009-budget-preference-cookie.md) | Multi-budget preference cookie | Accepted |
 | [0010](./0010-durable-engine-month-tips.md) | Durable engine month tips | Accepted |
+| [0011](./0011-salt-edge-partners-ais.md) | Salt Edge Partners AIS for bank sync | Proposed |
 
 ## Template
 

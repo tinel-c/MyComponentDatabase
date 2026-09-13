@@ -46,9 +46,18 @@ ADMIN_EMAIL="you@example.com"
 GEMINI_API_KEY="…"          # Google AI — receipt bill detailing
 # GEMINI_MODEL="gemini-3.6-flash"
 # BNAB_RECEIPT_DIR="/opt/bnab/shared/receipts"
+
+# Salt Edge Partners AIS — see docs/salt-edge-open-banking.md
+# SALTEDGE_APP_ID="…"
+# SALTEDGE_SECRET="…"
+# SALTEDGE_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\n…\n-----END RSA PRIVATE KEY-----"
+# Or file on the host (prefer for long PEMs):
+# SALTEDGE_PRIVATE_KEY_PATH="/opt/bnab/shared/saltedge-private.pem"
+# SALTEDGE_RETURN_TO="https://bnab.bogza.ro/more/bank-connections"
+# SALTEDGE_PIS_ENABLED="false"
 ```
 
-You can copy Google client ID/secret from `/opt/warehouse/shared/.env`. By default use a **separate** `AUTH_SECRET` and `AUTH_URL` for BNAB (sessions stay host-scoped). Add `GEMINI_API_KEY` for bill detailing (see [receipt-agent.md](./receipt-agent.md)).
+You can copy Google client ID/secret from `/opt/warehouse/shared/.env`. By default use a **separate** `AUTH_SECRET` and `AUTH_URL` for BNAB (sessions stay host-scoped). Add `GEMINI_API_KEY` for bill detailing (see [receipt-agent.md](./receipt-agent.md)). Add Salt Edge keys only after creating a Partners Service API key; configure dashboard callbacks to `https://bnab.bogza.ro/api/saltedge/callbacks/*` (no redirects).
 
 ### Cross-site SSO (`.bogza.ro`)
 
