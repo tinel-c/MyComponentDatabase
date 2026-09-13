@@ -83,6 +83,11 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Spending by category / payee (pie + bars)
 - [x] Income vs Expense monthly matrix
 - [x] Net Worth over time
+- [x] **KPI strip** (Income / Expense / Net cash flow / Net worth Δ) for the selected span
+- [x] **Overview | Trends** tabs — Trends = month-over-month stacked spend by category group or category
+- [x] Focus-month chips (URL `month`) + account / span filters
+- [x] Receipt-detailed spending rows → register (`hasReceipt=1`) / parent txn links
+- [x] Trends legend / bar click → filtered `/transactions`
 
 ### Tools
 

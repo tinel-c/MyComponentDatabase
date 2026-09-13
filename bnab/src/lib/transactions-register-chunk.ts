@@ -40,6 +40,11 @@ export type TransactionsListFilters = {
   to?: string;
   /** Linked planned payment id (`Transaction.scheduledTransactionId`). */
   planned?: string;
+  /**
+   * When true, only transactions with a linked ReceiptScan (or children of
+   * such parents). Used by Reflect receipt-detailed drill-down.
+   */
+  hasReceipt?: boolean;
 };
 
 function ruleHref(
@@ -82,6 +87,7 @@ export function buildTransactionsWhere(
     from,
     to,
     planned,
+    hasReceipt,
   } = filters;
 
   const categoryActivityView = Boolean(categoryId && month);
@@ -97,6 +103,15 @@ export function buildTransactionsWhere(
           ...(to ? { lte: to } : {}),
         }
       : undefined;
+
+  const receiptClause: Prisma.TransactionWhereInput | undefined = hasReceipt
+    ? {
+        OR: [
+          { receiptScans: { some: {} } },
+          { parent: { receiptScans: { some: {} } } },
+        ],
+      }
+    : undefined;
 
   if (activityView) {
     return {
@@ -124,6 +139,39 @@ export function buildTransactionsWhere(
             : flow === "spending"
               ? { category: { isIncome: false } }
               : {}),
+      ...(receiptClause ? receiptClause : {}),
+    };
+  }
+
+  // Receipt + category: show parents that have a scan and match category on
+  // parent or any child (receipt splits often put category on children).
+  if (hasReceipt && categoryId) {
+    return {
+      isChild: false,
+      account: {
+        budgetId,
+        ...(accountId ? { id: accountId } : {}),
+      },
+      receiptScans: { some: {} },
+      OR: [{ categoryId }, { children: { some: { categoryId } } }],
+      ...(planned ? { scheduledTransactionId: planned } : {}),
+      ...(dateFilter ? { date: dateFilter } : {}),
+      ...(payee ? { payee: { name: { contains: payee } } } : {}),
+      ...(memo ? { notes: { contains: memo } } : {}),
+      ...(q
+        ? {
+            AND: [
+              {
+                OR: [
+                  { notes: { contains: q } },
+                  { payee: { name: { contains: q } } },
+                  { category: { name: { contains: q } } },
+                  { account: { name: { contains: q } } },
+                ],
+              },
+            ],
+          }
+        : {}),
     };
   }
 
@@ -143,6 +191,7 @@ export function buildTransactionsWhere(
         ? { amount: { lt: 0 } }
         : {}),
     ...(dateFilter ? { date: dateFilter } : {}),
+    ...(receiptClause ? receiptClause : {}),
     ...(q
       ? {
           OR: [

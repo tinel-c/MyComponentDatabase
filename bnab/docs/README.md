@@ -95,4 +95,4 @@ Put real ING CSV exports only under **`bnab/ING/`** (gitignored). Never commit s
 
 ## Version
 
-See [`package.json`](../package.json) and [changelog.md](./changelog.md). Current: **1.3.2**.
+See [`package.json`](../package.json) and [changelog.md](./changelog.md). Current: **1.3.3**.

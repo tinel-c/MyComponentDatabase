@@ -6,6 +6,7 @@ import {
   buildBudgetVsActualRows,
   buildReflectOpportunities,
 } from "@/lib/reflect-insights";
+import { buildSpendTrendSeries } from "@/lib/reflect-trends";
 import {
   cardCompactClass,
   chipClass,
@@ -16,6 +17,7 @@ import {
   pageStackClass,
 } from "@/components/forms/field-classes";
 import { ReflectChartsLazy as ReflectCharts } from "@/components/reflect/ReflectChartsLazy";
+import { ReflectTrendsLazy as ReflectTrends } from "@/components/reflect/ReflectTrendsLazy";
 import { ReflectInsightsPanel } from "@/components/reflect/ReflectInsightsPanel";
 import { ReflectBudgetVsActual } from "@/components/reflect/ReflectBudgetVsActual";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -29,6 +31,8 @@ type Overlay = {
   amount: number;
   href?: string;
 };
+
+type ReflectView = "overview" | "trends";
 
 function pushTop(
   map: Map<string, Overlay[]>,
@@ -46,12 +50,29 @@ function reflectHref(opts: {
   months: number;
   month: string;
   accountId?: string;
+  view?: ReflectView;
 }) {
   const sp = new URLSearchParams();
   sp.set("months", String(opts.months));
   sp.set("month", opts.month);
   if (opts.accountId) sp.set("accountId", opts.accountId);
+  if (opts.view && opts.view !== "overview") sp.set("view", opts.view);
   return `/reflect?${sp.toString()}`;
+}
+
+function receiptRegisterHref(opts: {
+  from: string;
+  to: string;
+  categoryId?: string;
+  accountId?: string;
+}) {
+  const sp = new URLSearchParams();
+  sp.set("hasReceipt", "1");
+  sp.set("from", opts.from);
+  sp.set("to", opts.to);
+  if (opts.categoryId) sp.set("categoryId", opts.categoryId);
+  if (opts.accountId) sp.set("accountId", opts.accountId);
+  return `/transactions?${sp.toString()}`;
 }
 
 /**
@@ -132,7 +153,12 @@ function netWorthByMonth(
 export default async function ReflectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ months?: string; month?: string; accountId?: string }>;
+  searchParams: Promise<{
+    months?: string;
+    month?: string;
+    accountId?: string;
+    view?: string;
+  }>;
 }) {
   const { budget } = await requireBudgetAccess();
   const sp = await searchParams;
@@ -148,10 +174,8 @@ export default async function ReflectPage({
         ? addMonths(end, -1)
         : end;
   const nextMonth = addMonths(focusMonth, 1);
+  const view: ReflectView = sp.view === "trends" ? "trends" : "overview";
 
-  // Envelope/BvA from tagged plan pack (ADR 0001). Charts: span-bounded
-  // ledger only. Net worth: lean opening groupBy + in-span deltas (no full
-  // history). Receipt overlays stay separate lean queries.
   const [
     transactions,
     openingBalances,
@@ -227,7 +251,7 @@ export default async function ReflectPage({
         matchedRule: {
           select: {
             ignore: true,
-            category: { select: { name: true } },
+            category: { select: { id: true, name: true } },
           },
         },
         scan: {
@@ -277,17 +301,28 @@ export default async function ReflectPage({
       id: c.id,
       name: c.name,
       isIncome: c.isIncome,
+      groupId: g.id,
       group: { name: g.name },
     })),
   );
 
   const catById = new Map(categories.map((c) => [c.id, c]));
+  const catIdByName = new Map(
+    categories.map((c) => [c.name.toLowerCase(), c.id]),
+  );
   const months: string[] = [];
   for (let i = 0; i < span; i++) months.push(addMonths(start, i));
 
   const catMeta = categories.map((c) => ({
     id: c.id,
     name: c.name,
+    groupName: c.group.name,
+    isIncome: c.isIncome,
+  }));
+  const trendCats = categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    groupId: c.groupId,
     groupName: c.group.name,
     isIncome: c.isIncome,
   }));
@@ -387,6 +422,13 @@ export default async function ReflectPage({
     expenseItems: expenseItemsByMonth.get(m) ?? [],
   }));
 
+  const totalIncomeCents = [...incomeByMonth.values()].reduce((s, v) => s + v, 0);
+  const totalExpenseCents = [...expenseByMonth.values()].reduce(
+    (s, v) => s + v,
+    0,
+  );
+  const netCashCents = totalIncomeCents - totalExpenseCents;
+
   const netWorthAccounts = accountId
     ? accounts.filter((a) => a.id === accountId)
     : accounts;
@@ -402,14 +444,42 @@ export default async function ReflectPage({
     netWorthSpan,
     months,
   );
+  const nwStart = netWorth[0]?.net ?? 0;
+  const nwEnd = netWorth[netWorth.length - 1]?.net ?? 0;
+  const nwDeltaCents = Math.round((nwEnd - nwStart) * 100);
   const totalSpend = spendingData.reduce((s, x) => s + x.value, 0);
 
+  const trendTxns = transactions.map((t) => ({
+    date: t.date,
+    amount: t.amount,
+    categoryId: t.categoryId,
+    transferTwinId: t.transferTwinId,
+    accountOnBudget: t.account.onBudget,
+    accountId: t.account.id,
+  }));
+  const trendsByCategory = buildSpendTrendSeries({
+    txns: trendTxns,
+    categories: trendCats,
+    months,
+    mode: "category",
+    accountId,
+  });
+  const trendsByGroup = buildSpendTrendSeries({
+    txns: trendTxns,
+    categories: trendCats,
+    months,
+    mode: "group",
+    accountId,
+  });
+
   const receiptByCat = new Map<string, number>();
+  const receiptCatIdByName = new Map<string, string | undefined>();
   const receiptItemsByCat = new Map<string, Overlay[]>();
   const topReceiptItems: {
     description: string;
     amountCents: number;
     category: string;
+    href: string;
   }[] = [];
   for (const line of receiptLines) {
     if (line.matchedRule?.ignore) continue;
@@ -446,19 +516,27 @@ export default async function ReflectPage({
       line.matchedRule?.category?.name ||
       line.categoryHint ||
       "Unknown";
+    const resolvedCatId =
+      line.matchedRule?.category?.id ||
+      (cat !== "Unknown" ? catIdByName.get(cat.toLowerCase()) : undefined);
+    if (!receiptCatIdByName.has(cat)) {
+      receiptCatIdByName.set(cat, resolvedCatId);
+    }
     receiptByCat.set(cat, (receiptByCat.get(cat) ?? 0) + line.amountCents);
+    const lineHref = line.scan.transactionId
+      ? `/transactions/${line.scan.transactionId}`
+      : "/more/bills";
     pushTop(receiptItemsByCat, cat, {
       id: line.id,
       label: line.description,
       amount: line.amountCents / 100,
-      href: line.scan.transactionId
-        ? `/transactions/${line.scan.transactionId}`
-        : "/more/bills",
+      href: lineHref,
     });
     topReceiptItems.push({
       description: line.description,
       amountCents: line.amountCents,
       category: cat,
+      href: lineHref,
     });
   }
   topReceiptItems.sort((a, b) => b.amountCents - a.amountCents);
@@ -466,6 +544,13 @@ export default async function ReflectPage({
     .map(([name, value]) => ({
       name,
       value,
+      categoryId: receiptCatIdByName.get(name),
+      href: receiptRegisterHref({
+        from: rangeFrom,
+        to: rangeTo,
+        categoryId: receiptCatIdByName.get(name),
+        accountId,
+      }),
       items: receiptItemsByCat.get(name) ?? [],
     }))
     .sort((a, b) => b.value - a.value);
@@ -488,7 +573,12 @@ export default async function ReflectPage({
   const spanLinks = [3, 6, 12].map((n) => (
     <Link
       key={n}
-      href={reflectHref({ months: n, month: focusMonth, accountId })}
+      href={reflectHref({
+        months: n,
+        month: focusMonth,
+        accountId,
+        view,
+      })}
       className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
         span === n
           ? "bg-accent-muted text-accent"
@@ -499,10 +589,22 @@ export default async function ReflectPage({
     </Link>
   ));
 
+  const focusChips = months.map((m) => (
+    <Link
+      key={m}
+      href={reflectHref({ months: span, month: m, accountId, view })}
+      className={m === focusMonth ? chipClass : chipMutedClass}
+      scroll={false}
+      aria-current={m === focusMonth ? "page" : undefined}
+    >
+      {monthLabel(m)}
+    </Link>
+  ));
+
   const accountChips = [
     <Link
       key="all"
-      href={reflectHref({ months: span, month: focusMonth })}
+      href={reflectHref({ months: span, month: focusMonth, view })}
       className={!accountId ? chipClass : chipMutedClass}
       scroll={false}
       aria-current={!accountId ? "page" : undefined}
@@ -518,6 +620,7 @@ export default async function ReflectPage({
             months: span,
             month: focusMonth,
             accountId: a.id,
+            view,
           })}
           className={accountId === a.id ? chipClass : chipMutedClass}
           scroll={false}
@@ -528,11 +631,48 @@ export default async function ReflectPage({
       )),
   ];
 
+  const viewTabs = (
+    <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Reflect view">
+      <Link
+        href={reflectHref({
+          months: span,
+          month: focusMonth,
+          accountId,
+          view: "overview",
+        })}
+        className={view === "overview" ? chipClass : chipMutedClass}
+        scroll={false}
+        role="tab"
+        aria-selected={view === "overview"}
+      >
+        Overview
+      </Link>
+      <Link
+        href={reflectHref({
+          months: span,
+          month: focusMonth,
+          accountId,
+          view: "trends",
+        })}
+        className={view === "trends" ? chipClass : chipMutedClass}
+        scroll={false}
+        role="tab"
+        aria-selected={view === "trends"}
+      >
+        Trends
+      </Link>
+    </div>
+  );
+
   const hasAnyData =
     spendingData.length > 0 ||
     incomeExpense.some((r) => r.income > 0 || r.expense > 0) ||
     receiptCatRows.length > 0 ||
-    opportunitiesWithReceipt.length > 0;
+    opportunitiesWithReceipt.length > 0 ||
+    trendsByCategory.series.length > 0;
+
+  const moneyLinkClass =
+    "tabular-nums underline-offset-2 hover:underline text-fg";
 
   return (
     <div className={pageStackClass}>
@@ -556,202 +696,295 @@ export default async function ReflectPage({
       <div
         className="flex flex-wrap gap-1.5"
         role="navigation"
+        aria-label="Focus month"
+      >
+        {focusChips}
+      </div>
+
+      <div
+        className="flex flex-wrap gap-1.5"
+        role="navigation"
         aria-label="Account filter"
       >
         {accountChips}
       </div>
 
+      {viewTabs}
+
       {hasAnyData ? (
-        <>
-          <ReflectInsightsPanel
-            opportunities={opportunitiesWithReceipt}
-            nextMonth={nextMonth}
-            focusMonth={focusMonth}
-            currency={budget.currency}
-          />
-          <ReflectBudgetVsActual
-            rows={bvaRows}
-            nextMonth={nextMonth}
-            currency={budget.currency}
-          />
-        </>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: "Income",
+              cents: totalIncomeCents,
+              className: "text-ok",
+            },
+            {
+              label: "Expense",
+              cents: totalExpenseCents,
+              className: "text-fg",
+            },
+            {
+              label: "Net cash flow",
+              cents: netCashCents,
+              className: netCashCents >= 0 ? "text-ok" : "text-danger",
+            },
+            {
+              label: "Net worth Δ",
+              cents: nwDeltaCents,
+              className: nwDeltaCents >= 0 ? "text-ok" : "text-danger",
+            },
+          ].map((kpi) => (
+            <div key={kpi.label} className={`${cardCompactClass} p-3`}>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-fg-subtle">
+                {kpi.label}
+              </p>
+              <p className={`mt-1 text-lg font-semibold tabular-nums ${kpi.className}`}>
+                {formatMoney(kpi.cents, budget.currency)}
+              </p>
+              <p className="mt-0.5 text-[11px] text-fg-subtle">
+                Last {span} months
+              </p>
+            </div>
+          ))}
+        </div>
       ) : null}
 
-      {!hasAnyData ? (
-        <EmptyState
-          icon={BarChart3}
-          title="Nothing to reflect on yet"
-          description="Import a statement or add transactions — charts will appear here."
-          action={
-            <Link
-              href="/more/import"
-              className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-fg"
-            >
-              Import ING
-            </Link>
-          }
-        />
-      ) : (
-        <ReflectCharts
-          currency={budget.currency}
-          spending={spendingData.map((d) => ({
-            name: d.name,
-            value: d.value / 100,
-            items: d.items,
-          }))}
-          payees={payeeData.map((d) => ({
-            name: d.name,
-            value: d.value / 100,
-            items: d.items,
-          }))}
-          incomeExpense={incomeExpense}
-          netWorth={netWorth}
-          receiptSpending={receiptCatRows.slice(0, 12).map((d) => ({
-            name: d.name,
-            value: d.value / 100,
-            items: d.items,
-          }))}
-        />
-      )}
-
-      {receiptCatRows.length > 0 ? (
-        <section className={`${cardCompactClass} p-3`}>
-          <h2 className="text-sm font-semibold text-fg">
-            Receipt-detailed spending
-          </h2>
-          <p className="mt-1 text-sm text-fg-muted">
-            From Gemini bill scans in this range (line items, not bank memos).
-          </p>
-          <ul className="mt-3 divide-y divide-rim-subtle md:hidden">
-            {receiptCatRows.slice(0, 12).map((row) => (
-              <li
-                key={row.name}
-                className="flex justify-between gap-3 py-2 text-sm"
+      {view === "trends" ? (
+        hasAnyData ? (
+          <ReflectTrends
+            currency={budget.currency}
+            byCategory={trendsByCategory}
+            byGroup={trendsByGroup}
+            accountId={accountId}
+          />
+        ) : (
+          <EmptyState
+            icon={BarChart3}
+            title="Nothing to reflect on yet"
+            description="Import a statement or add transactions — trends will appear here."
+            action={
+              <Link
+                href="/more/import"
+                className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-fg"
               >
-                <span className="text-fg">{row.name}</span>
-                <span className="tabular-nums text-fg">
-                  {formatMoney(row.value, budget.currency)}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 hidden overflow-x-auto md:block">
-            <table className={tableClass}>
-              <thead>
-                <tr>
-                  <th className={thClass}>Category</th>
-                  <th className={`${thClass} text-right`}>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
+                Import ING
+              </Link>
+            }
+          />
+        )
+      ) : (
+        <>
+          {hasAnyData ? (
+            <>
+              <ReflectInsightsPanel
+                opportunities={opportunitiesWithReceipt}
+                nextMonth={nextMonth}
+                focusMonth={focusMonth}
+                currency={budget.currency}
+              />
+              <ReflectBudgetVsActual
+                rows={bvaRows}
+                nextMonth={nextMonth}
+                currency={budget.currency}
+              />
+            </>
+          ) : null}
+
+          {!hasAnyData ? (
+            <EmptyState
+              icon={BarChart3}
+              title="Nothing to reflect on yet"
+              description="Import a statement or add transactions — charts will appear here."
+              action={
+                <Link
+                  href="/more/import"
+                  className="inline-flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-medium text-accent-fg"
+                >
+                  Import ING
+                </Link>
+              }
+            />
+          ) : (
+            <ReflectCharts
+              currency={budget.currency}
+              spending={spendingData.map((d) => ({
+                name: d.name,
+                value: d.value / 100,
+                items: d.items,
+              }))}
+              payees={payeeData.map((d) => ({
+                name: d.name,
+                value: d.value / 100,
+                items: d.items,
+              }))}
+              incomeExpense={incomeExpense}
+              netWorth={netWorth}
+              receiptSpending={receiptCatRows.slice(0, 12).map((d) => ({
+                name: d.name,
+                value: d.value / 100,
+                items: d.items,
+              }))}
+            />
+          )}
+
+          {receiptCatRows.length > 0 ? (
+            <section className={`${cardCompactClass} p-3`}>
+              <h2 className="text-sm font-semibold text-fg">
+                Receipt-detailed spending
+              </h2>
+              <p className="mt-1 text-sm text-fg-muted">
+                From Gemini bill scans in this range (line items, not bank memos).
+                Tap a row to open the transactions behind it.
+              </p>
+              <ul className="mt-3 divide-y divide-rim-subtle md:hidden">
                 {receiptCatRows.slice(0, 12).map((row) => (
-                  <tr key={row.name} className="border-t border-rim-subtle">
-                    <td className={tdClass}>{row.name}</td>
-                    <td className={`${tdClass} text-right tabular-nums`}>
-                      {formatMoney(row.value, budget.currency)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {topReceiptItems.length > 0 ? (
-            <div className="mt-4">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-                Top line items
-              </h3>
-              <ul className="mt-2 space-y-1 text-sm text-fg-muted">
-                {topReceiptItems.slice(0, 8).map((item, i) => (
-                  <li
-                    key={`${item.description}-${i}`}
-                    className="flex justify-between gap-2"
-                  >
-                    <span className="min-w-0 truncate">
-                      {item.description}
-                      <span className="text-fg-subtle"> · {item.category}</span>
-                    </span>
-                    <span className="shrink-0 tabular-nums">
-                      {formatMoney(item.amountCents, budget.currency)}
-                    </span>
+                  <li key={row.name} className="py-2 text-sm">
+                    <Link
+                      href={row.href}
+                      className="flex justify-between gap-3 underline-offset-2 hover:underline"
+                    >
+                      <span className="text-fg">{row.name}</span>
+                      <span className={moneyLinkClass}>
+                        {formatMoney(row.value, budget.currency)}
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>
-            </div>
+              <div className="mt-3 hidden overflow-x-auto md:block">
+                <table className={tableClass}>
+                  <thead>
+                    <tr>
+                      <th className={thClass}>Category</th>
+                      <th className={`${thClass} text-right`}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receiptCatRows.slice(0, 12).map((row) => (
+                      <tr key={row.name} className="border-t border-rim-subtle">
+                        <td className={tdClass}>
+                          <Link
+                            href={row.href}
+                            className="underline-offset-2 hover:underline"
+                          >
+                            {row.name}
+                          </Link>
+                        </td>
+                        <td className={`${tdClass} text-right`}>
+                          <Link href={row.href} className={moneyLinkClass}>
+                            {formatMoney(row.value, budget.currency)}
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {topReceiptItems.length > 0 ? (
+                <div className="mt-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+                    Top line items
+                  </h3>
+                  <ul className="mt-2 space-y-1 text-sm text-fg-muted">
+                    {topReceiptItems.slice(0, 8).map((item, i) => (
+                      <li key={`${item.description}-${i}`}>
+                        <Link
+                          href={item.href}
+                          className="flex justify-between gap-2 underline-offset-2 hover:underline"
+                        >
+                          <span className="min-w-0 truncate text-fg">
+                            {item.description}
+                            <span className="text-fg-subtle">
+                              {" "}
+                              · {item.category}
+                            </span>
+                          </span>
+                          <span className={`shrink-0 ${moneyLinkClass}`}>
+                            {formatMoney(item.amountCents, budget.currency)}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </section>
           ) : null}
-        </section>
-      ) : null}
 
-      {hasAnyData ? (
-        <details className={`${cardCompactClass} p-3`}>
-          <summary className="cursor-pointer text-sm font-semibold text-fg">
-            Income vs Expense table
-          </summary>
-          <ul className="mt-3 divide-y divide-rim-subtle md:hidden">
-            {incomeExpense.map((row) => (
-              <li key={row.month} className="space-y-1 py-3 text-sm">
-                <div className="font-medium text-fg">{row.month}</div>
-                <div className="flex justify-between text-fg-muted">
-                  <span>Income</span>
-                  <span className="tabular-nums text-ok">
-                    {formatMoney(Math.round(row.income * 100), budget.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-fg-muted">
-                  <span>Expense</span>
-                  <span className="tabular-nums">
-                    {formatMoney(Math.round(row.expense * 100), budget.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between font-medium">
-                  <span>Net</span>
-                  <span
-                    className={`tabular-nums ${
-                      row.net >= 0 ? "text-ok" : "text-danger"
-                    }`}
-                  >
-                    {formatMoney(Math.round(row.net * 100), budget.currency)}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 hidden overflow-x-auto md:block">
-            <table className={tableClass}>
-              <thead>
-                <tr>
-                  <th className={thClass}>Month</th>
-                  <th className={thClass}>Income</th>
-                  <th className={thClass}>Expense</th>
-                  <th className={thClass}>Net</th>
-                </tr>
-              </thead>
-              <tbody>
+          {hasAnyData ? (
+            <details className={`${cardCompactClass} p-3`}>
+              <summary className="cursor-pointer text-sm font-semibold text-fg">
+                Income vs Expense table
+              </summary>
+              <ul className="mt-3 divide-y divide-rim-subtle md:hidden">
                 {incomeExpense.map((row) => (
-                  <tr key={row.month} className="border-t border-rim-subtle">
-                    <td className={tdClass}>{row.month}</td>
-                    <td className={`${tdClass} tabular-nums text-ok`}>
-                      {formatMoney(Math.round(row.income * 100), budget.currency)}
-                    </td>
-                    <td className={`${tdClass} tabular-nums`}>
-                      {formatMoney(
-                        Math.round(row.expense * 100),
-                        budget.currency,
-                      )}
-                    </td>
-                    <td
-                      className={`${tdClass} tabular-nums font-medium ${
-                        row.net >= 0 ? "text-ok" : "text-danger"
-                      }`}
-                    >
-                      {formatMoney(Math.round(row.net * 100), budget.currency)}
-                    </td>
-                  </tr>
+                  <li key={row.month} className="space-y-1 py-3 text-sm">
+                    <div className="font-medium text-fg">{row.month}</div>
+                    <div className="flex justify-between text-fg-muted">
+                      <span>Income</span>
+                      <span className="tabular-nums text-ok">
+                        {formatMoney(Math.round(row.income * 100), budget.currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-fg-muted">
+                      <span>Expense</span>
+                      <span className="tabular-nums">
+                        {formatMoney(Math.round(row.expense * 100), budget.currency)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between font-medium">
+                      <span>Net</span>
+                      <span
+                        className={`tabular-nums ${
+                          row.net >= 0 ? "text-ok" : "text-danger"
+                        }`}
+                      >
+                        {formatMoney(Math.round(row.net * 100), budget.currency)}
+                      </span>
+                    </div>
+                  </li>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      ) : null}
+              </ul>
+              <div className="mt-3 hidden overflow-x-auto md:block">
+                <table className={tableClass}>
+                  <thead>
+                    <tr>
+                      <th className={thClass}>Month</th>
+                      <th className={thClass}>Income</th>
+                      <th className={thClass}>Expense</th>
+                      <th className={thClass}>Net</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {incomeExpense.map((row) => (
+                      <tr key={row.month} className="border-t border-rim-subtle">
+                        <td className={tdClass}>{row.month}</td>
+                        <td className={`${tdClass} tabular-nums text-ok`}>
+                          {formatMoney(Math.round(row.income * 100), budget.currency)}
+                        </td>
+                        <td className={`${tdClass} tabular-nums`}>
+                          {formatMoney(
+                            Math.round(row.expense * 100),
+                            budget.currency,
+                          )}
+                        </td>
+                        <td
+                          className={`${tdClass} tabular-nums font-medium ${
+                            row.net >= 0 ? "text-ok" : "text-danger"
+                          }`}
+                        >
+                          {formatMoney(Math.round(row.net * 100), budget.currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

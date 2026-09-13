@@ -40,6 +40,7 @@ export default async function TransactionsPage({
     from?: string;
     to?: string;
     planned?: string;
+    hasReceipt?: string;
   }>;
 }) {
   const { budget } = await requireBudgetAccess();
@@ -59,6 +60,8 @@ export default async function TransactionsPage({
   const from = sp.from && ISO_DATE.test(sp.from) ? sp.from : undefined;
   const to = sp.to && ISO_DATE.test(sp.to) ? sp.to : undefined;
   const planned = (sp.planned ?? "").trim() || undefined;
+  const hasReceipt =
+    sp.hasReceipt === "1" || sp.hasReceipt === "true" ? true : undefined;
   const categoryActivityView = Boolean(categoryId && month);
   const groupActivityView = Boolean(groupId && month);
   const flowActivityView = Boolean(month && flow);
@@ -78,6 +81,7 @@ export default async function TransactionsPage({
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
     ...(planned ? { planned } : {}),
+    ...(hasReceipt ? { hasReceipt: true } : {}),
   };
 
   const [
@@ -159,7 +163,8 @@ export default async function TransactionsPage({
       dir ||
       from ||
       to ||
-      planned,
+      planned ||
+      hasReceipt,
   );
   const filtered = Boolean(registerFiltered || activityView);
 
@@ -263,6 +268,31 @@ export default async function TransactionsPage({
               Clear filter
             </Link>
           </div>
+        </div>
+      ) : hasReceipt ? (
+        <div
+          className={`${cardClass} flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between`}
+        >
+          <div>
+            <p className="text-sm font-medium text-fg">
+              Receipt-detailed
+              {filterCategory ? ` · ${filterCategory.name}` : ""}
+              {from || to
+                ? ` · ${from ?? "…"} → ${to ?? "…"}`
+                : ""}
+            </p>
+            <p className="mt-1 text-sm text-fg-muted">
+              {count} transaction{count === 1 ? "" : "s"} with a linked bill
+              scan
+            </p>
+          </div>
+          <Link
+            href="/transactions"
+            className={`${buttonSecondaryClass} inline-flex items-center gap-2`}
+          >
+            <X className="size-4" />
+            Clear filter
+          </Link>
         </div>
       ) : (
         <form

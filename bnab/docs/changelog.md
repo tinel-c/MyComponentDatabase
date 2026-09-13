@@ -1,5 +1,19 @@
 # BNAB changelog
 
+## 1.3.3 — 2026-09-13
+
+Reflect analysis layer: Trends view, KPIs, and receipt drill-down.
+
+### Highlights
+
+- Reflect **Overview | Trends** tabs; Trends stacks spend by category group or category with totals / avg / %
+- Shared **KPI strip** (Income, Expense, Net cash flow, Net worth Δ) + focus-month chips
+- Receipt-detailed rows link to register with **`hasReceipt=1`**; top line items open the parent txn
+
+### Docs
+
+`features.md`, `lists.md` Reflect / register params.
+
 ## 1.3.2 — 2026-09-13
 
 Faster PC/CI deploy upload via lean `.next` pack.

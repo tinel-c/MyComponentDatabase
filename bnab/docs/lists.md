@@ -41,9 +41,9 @@ Prefer shareable query params + Clear; changing filters resets the infinite curs
 |------|--------|
 | `/accounts` | `q`, `type`, `onBudget`, `closed` |
 | `/accounts/[id]` | `q`, `categoryId`, `dir`, `from`, `to`, `cleared`, `planned` |
-| `/transactions` | `q`, `memo`, `payee`, `accountId`, `categoryId`, `dir`, `from`, `to`, `planned` (linked schedule id), … |
+| `/transactions` | `q`, `memo`, `payee`, `accountId`, `categoryId`, `groupId`, `dir`, `from`, `to`, `planned` (linked schedule id), `hasReceipt=1` (parents with a linked bill scan; with `categoryId` matches parent or child category), … |
 | `/plan` | `month`, `empty`, `focus` (`overspent` \| `underfunded`); focus chips live in the month header |
-| `/reflect` | `months`, `month`, `accountId` |
+| `/reflect` | `months`, `month` (focus), `accountId`, `view` (`overview` \| `trends`) |
 | `/planned` | `id` (highlight sheet row); sheet edits via Save |
 | `/more/bills` | `status`, `q` |
 | `/more/import-history` | `batch`, `q`, `rule`, `planned`, `action` |
