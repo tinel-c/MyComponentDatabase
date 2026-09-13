@@ -1,5 +1,18 @@
 # BNAB changelog
 
+## 1.2.1 — 2026-09-13
+
+UX polish for Plan filters and transactions register planned actions.
+
+### Highlights
+
+- **Plan focus chips** (All / Overspent / Underfunded / Show empty) moved under the month title so they no longer take a full row between the summary banner and category lists; horizontal scroll on narrow screens
+- **Transactions register Actions** column: **Make planned** when eligible, **Edit planned** (→ `/planned?id=…`) when already linked, plus Delete — desktop sheet and mobile cards
+
+### Docs
+
+`features.md`, `planned-payments.md`, `lists.md` synced.
+
 ## 1.2.0 — 2026-09-13
 
 Deferred follow-ups: Planned vs Scheduled kind, complete page filters, Wish Farm / loans / Fresh Start, multi-budget switcher.

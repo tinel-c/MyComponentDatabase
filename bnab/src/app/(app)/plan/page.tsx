@@ -103,19 +103,56 @@ export default async function PlanPage({
       <div className="flex items-center justify-between gap-2">
         <Link
           href={planHref({ month: prev, empty: showEmpty, focus })}
-          className="rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
+          className="shrink-0 rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
           aria-label="Previous month"
         >
           <ChevronLeft className="size-5" />
         </Link>
-        <div className="flex flex-col items-center gap-1.5">
+        <div className="min-w-0 flex-1 flex flex-col items-center gap-1">
           <h1 className="text-center text-xl font-semibold tracking-tight text-fg">
             {monthLabel(month)}
           </h1>
+          <nav
+            className="flex max-w-full flex-nowrap justify-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            aria-label="Plan focus"
+          >
+            <Link
+              href={planHref({ month, empty: showEmpty, focus: null })}
+              className={`shrink-0 ${!focus ? chipClass : chipMutedClass}`}
+              scroll={false}
+              aria-current={!focus ? "page" : undefined}
+            >
+              All
+            </Link>
+            <Link
+              href={planHref({ month, empty: showEmpty, focus: "overspent" })}
+              className={`shrink-0 ${focus === "overspent" ? chipClass : chipMutedClass}`}
+              scroll={false}
+              aria-current={focus === "overspent" ? "page" : undefined}
+            >
+              Overspent
+            </Link>
+            <Link
+              href={planHref({ month, empty: showEmpty, focus: "underfunded" })}
+              className={`shrink-0 ${focus === "underfunded" ? chipClass : chipMutedClass}`}
+              scroll={false}
+              aria-current={focus === "underfunded" ? "page" : undefined}
+            >
+              Underfunded
+            </Link>
+            <Link
+              href={planHref({ month, empty: !showEmpty, focus })}
+              className={`shrink-0 ${showEmpty ? chipClass : chipMutedClass}`}
+              scroll={false}
+              aria-current={showEmpty ? "page" : undefined}
+            >
+              {showEmpty ? "Hide empty" : "Show empty"}
+            </Link>
+          </nav>
         </div>
         <Link
           href={planHref({ month: next, empty: showEmpty, focus })}
-          className="rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
+          className="shrink-0 rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
           aria-label="Next month"
         >
           <ChevronRight className="size-5" />
@@ -135,41 +172,6 @@ export default async function PlanPage({
         spent={spentMagnitude}
         month={month}
       />
-
-      <div className="flex flex-wrap justify-center gap-2" role="navigation" aria-label="Plan focus">
-        <Link
-          href={planHref({ month, empty: showEmpty, focus: null })}
-          className={!focus ? chipClass : chipMutedClass}
-          scroll={false}
-          aria-current={!focus ? "page" : undefined}
-        >
-          All
-        </Link>
-        <Link
-          href={planHref({ month, empty: showEmpty, focus: "overspent" })}
-          className={focus === "overspent" ? chipClass : chipMutedClass}
-          scroll={false}
-          aria-current={focus === "overspent" ? "page" : undefined}
-        >
-          Overspent
-        </Link>
-        <Link
-          href={planHref({ month, empty: showEmpty, focus: "underfunded" })}
-          className={focus === "underfunded" ? chipClass : chipMutedClass}
-          scroll={false}
-          aria-current={focus === "underfunded" ? "page" : undefined}
-        >
-          Underfunded
-        </Link>
-        <Link
-          href={planHref({ month, empty: !showEmpty, focus })}
-          className={showEmpty ? chipClass : chipMutedClass}
-          scroll={false}
-          aria-current={showEmpty ? "page" : undefined}
-        >
-          {showEmpty ? "Hide empty" : "Show empty"}
-        </Link>
-      </div>
 
       {/* Income categories + Accounts (desktop); Categories assign stays below */}
       <div className="space-y-3">

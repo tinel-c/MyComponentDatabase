@@ -56,6 +56,8 @@ When `autoEnter=true` and `nextDate ≤ today`, app layout runs catch-up (≤20 
 | `/more/schedules` | **SCHEDULED** list; Enter + autoEnter checkbox |
 | `/more/import-rules` | Each rule lists linked planned payments |
 | Transaction detail | **Make planned payment** (monthly `PLANNED` + link) |
+| Transactions register | **Actions**: Make planned (eligible) or **Edit planned** → `/planned?id=` when linked |
+| Account register | Planned column + Make planned |
 
 ## Helpers
 

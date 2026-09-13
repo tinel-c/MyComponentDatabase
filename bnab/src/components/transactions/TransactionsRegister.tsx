@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { updateTransaction } from "@/app/(app)/transactions/actions";
+import {
+  makePlannedFromTransaction,
+  updateTransaction,
+} from "@/app/(app)/transactions/actions";
 import { DeleteTransactionButton } from "@/components/transactions/DeleteTransactionButton";
 import type { SheetCategoryGroup } from "@/components/transactions/sheet-types";
 import {
@@ -13,7 +16,10 @@ import {
   sheetMoneyInput,
   sheetTableClass,
 } from "@/components/transactions/sheet-styles";
-import { cardClass } from "@/components/forms/field-classes";
+import {
+  buttonCompactClass,
+  cardClass,
+} from "@/components/forms/field-classes";
 
 export type MatchedRuleLink = {
   id: string;
@@ -35,6 +41,7 @@ export type RegisterRow = {
   isSplit: boolean;
   isTransfer: boolean;
   transferLabel: string | null;
+  scheduledTransactionId: string | null;
   matchedImportRule?: MatchedRuleLink | null;
   matchedReceiptRules?: MatchedRuleLink[];
   billGroup?: {
@@ -48,6 +55,39 @@ export type RegisterRow = {
     }[];
   } | null;
 };
+
+function PlannedRowAction({ row }: { row: RegisterRow }) {
+  if (row.scheduledTransactionId) {
+    return (
+      <Link
+        href={`/planned?id=${encodeURIComponent(row.scheduledTransactionId)}`}
+        className={`${buttonCompactClass} !h-7 !px-1.5 !py-0 text-[10px]`}
+        title="Edit planned payment"
+        onClick={(e) => e.stopPropagation()}
+      >
+        Edit planned
+      </Link>
+    );
+  }
+  const canMake =
+    !row.isTransfer &&
+    !row.isSplit &&
+    row.absAmount !== "0" &&
+    row.absAmount !== "0.00";
+  if (!canMake) return null;
+  return (
+    <form action={makePlannedFromTransaction}>
+      <input type="hidden" name="transactionId" value={row.id} />
+      <button
+        type="submit"
+        className={`${buttonCompactClass} !h-7 !px-1.5 !py-0 text-[10px]`}
+        title="Make planned payment"
+      >
+        Make planned
+      </button>
+    </form>
+  );
+}
 
 function MappingLinks({
   importRule,
@@ -345,7 +385,8 @@ function RegisterRowCells({
         ) : null}
       </td>
       <td className={`${sheetCell} px-1 text-center`}>
-        <div className="flex justify-center">
+        <div className="flex items-center justify-center gap-1">
+          <PlannedRowAction row={row} />
           <DeleteTransactionButton id={row.id} returnTo="stay" compact />
         </div>
       </td>
@@ -490,7 +531,8 @@ export function TransactionsRegister({
                 importRule={row.matchedImportRule}
                 receiptRules={row.matchedReceiptRules}
               />
-              <div className="mt-2 flex items-center justify-end">
+              <div className="mt-2 flex items-center justify-end gap-1">
+                <PlannedRowAction row={row} />
                 <DeleteTransactionButton id={row.id} returnTo="stay" compact />
               </div>
             </li>
@@ -509,7 +551,7 @@ export function TransactionsRegister({
             <col className="min-w-[7rem]" />
             <col className="w-[5.5rem]" />
             <col className="w-[5.5rem]" />
-            <col className="w-11" />
+            <col className="w-[7.5rem]" />
           </colgroup>
           <thead>
             <tr>
@@ -525,7 +567,7 @@ export function TransactionsRegister({
               <th className={`${sheetHeaderCell} hidden sm:table-cell`}>Memo</th>
               <th className={`${sheetHeaderCell} text-right`}>Out</th>
               <th className={`${sheetHeaderCell} text-right`}>In</th>
-              <th className={`${sheetHeaderCell} text-center`}>Del</th>
+              <th className={`${sheetHeaderCell} text-center`}>Actions</th>
             </tr>
           </thead>
           <tbody>

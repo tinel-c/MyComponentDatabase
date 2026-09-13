@@ -45,6 +45,7 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
   - Desktop: full width, two-column category groups
   - Mobile: single-row categories (Activity + Available), hide Assigned / Income / Move money
   - Mobile: hide empty categories (0/0/0) with “show empty” toggle
+- [x] **Plan focus filters** (`All` / Overspent / Underfunded / empty) in the month header band (not a separate row under the banner)
 
 ### Transactions
 
@@ -55,6 +56,7 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Scheduled / recurring + enter now
 - [x] **Planned payments** (`/planned`): billing URL, import-rule link, due nav badge, ING + manual match, Make planned payment, Assign from planned
 - [x] Search / filter + Excel-style register (**infinite scroll**)
+- [x] **Register Actions** — Make planned / Edit planned + Delete (desktop + mobile)
 - [x] Mobile quick-add / sheet editor
 - [x] **Delete transaction** (account list, register, edit sheet) with confirm
 - [x] **ING CSV import**

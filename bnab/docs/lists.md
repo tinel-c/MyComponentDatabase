@@ -42,7 +42,7 @@ Prefer shareable query params + Clear; changing filters resets the infinite curs
 | `/accounts` | `q`, `type`, `onBudget`, `closed` |
 | `/accounts/[id]` | `q`, `categoryId`, `dir`, `from`, `to`, `cleared`, `planned` |
 | `/transactions` | `q`, `memo`, `payee`, `accountId`, `categoryId`, `dir`, `from`, `to`, … |
-| `/plan` | `month`, `empty`, `focus` (`overspent` \| `underfunded`) |
+| `/plan` | `month`, `empty`, `focus` (`overspent` \| `underfunded`); focus chips live in the month header |
 | `/reflect` | `months`, `month`, `accountId` |
 | `/planned` | `id`, (+ search when present) |
 | `/more/bills` | `status`, `q` |

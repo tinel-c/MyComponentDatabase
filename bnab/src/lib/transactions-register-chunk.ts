@@ -166,6 +166,7 @@ export async function fetchTransactionsRegisterChunk(opts: {
         isParent: true,
         isChild: true,
         transferTwinId: true,
+        scheduledTransactionId: true,
         payee: { select: { name: true } },
         category: { select: { name: true } },
         account: { select: { name: true } },
@@ -299,6 +300,7 @@ export async function fetchTransactionsRegisterChunk(opts: {
       isSplit: t.isParent || t.isChild,
       isTransfer,
       transferLabel: twin?.account.name ?? null,
+      scheduledTransactionId: t.scheduledTransactionId ?? null,
       matchedImportRule: importMatch
         ? {
             id: importMatch.id,
