@@ -125,7 +125,7 @@ export function PlannedPaymentsSheet({
               <th className={denseThClass}>In</th>
               <th className={denseThClass}>Payee</th>
               <th className={denseThClass}>Category</th>
-              <th className={denseThClass}>Next</th>
+              <th className={denseThClass}>Due</th>
               <th className={denseThClass}>Recurrence</th>
               <th className={denseThClass}>Notes</th>
               <th className={denseThClass}>Billing URL</th>

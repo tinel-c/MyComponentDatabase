@@ -36,7 +36,7 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Income section + **Accounts · remaining** (desktop)
 - [x] Move money between categories (desktop)
 - [x] Cover overspending / release available / assign all RTA (**Quick** +, −, =) with **PlanWorkspace** AJAX (no full page refresh)
-- [x] **Assign from planned** for the viewed month
+- [x] **Assign from planned** for the viewed month (YEARLY = amount ÷ 12 sinking fund)
 - [x] Monthly carryover of Available
 - [x] Targets: monthly spending, needed by date, weekly, savings balance
 - [x] Category icons by name/group
@@ -54,7 +54,7 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Split transactions
 - [x] Cleared / uncleared
 - [x] Scheduled / recurring + enter now
-- [x] **Planned payments** (`/planned`): Excel sheet editor, **Executed** (current-month hits), billing URL, import-rule link, due nav badge, Hits → filtered transactions, ING + manual match, Make planned payment, Assign from planned
+- [x] **Planned payments** (`/planned`): pay vs assign summary, Excel sheet, **Executed**, Due date, Hits → filtered transactions, ING + manual match, Make planned, Assign from planned
 - [x] Search / filter + Excel-style register (**infinite scroll**); filter `?planned=` for linked planned payment
 - [x] **Register Actions** — Make planned / Edit planned + Delete (desktop + mobile)
 - [x] Register mapping links: Import · / Receipt · / **Planned ·** when linked

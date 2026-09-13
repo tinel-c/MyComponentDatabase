@@ -1,7 +1,16 @@
 import Link from "next/link";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { todayISO } from "@/lib/money";
+import {
+  currentMonth,
+  formatMoney,
+  monthLabel,
+  todayISO,
+} from "@/lib/money";
+import {
+  plannedCashDueInMonth,
+  plannedMonthlyAssign,
+} from "@/lib/planned-payments";
 import {
   buttonPrimaryClass,
   cardCompactClass,
@@ -9,9 +18,7 @@ import {
   labelClass,
   pageStackClass,
 } from "@/components/forms/field-classes";
-import {
-  createSchedule,
-} from "@/app/(app)/more/actions";
+import { createSchedule } from "@/app/(app)/more/actions";
 import {
   PlannedPaymentsSheet,
   type PlannedSheetRow,
@@ -26,34 +33,87 @@ export default async function PlannedPage({
   const sp = await searchParams;
   const highlightId = sp.id ?? null;
   const today = todayISO();
+  const month = currentMonth();
 
-  const [schedules, accounts, groups, importRules] = await Promise.all([
-    prisma.scheduledTransaction.findMany({
-      where: { budgetId: budget.id, kind: "PLANNED" },
-      orderBy: [{ active: "desc" }, { nextDate: "asc" }],
-      include: {
-        account: true,
-        payee: true,
-        category: true,
-        importRule: { select: { id: true, matchText: true } },
-        _count: { select: { occurrences: true } },
-      },
-    }),
-    prisma.financeAccount.findMany({
-      where: { budgetId: budget.id, closed: false },
-      orderBy: { sortOrder: "asc" },
-    }),
-    prisma.categoryGroup.findMany({
-      where: { budgetId: budget.id },
-      orderBy: { sortOrder: "asc" },
-      include: { categories: { orderBy: { sortOrder: "asc" } } },
-    }),
-    prisma.importCategoryRule.findMany({
-      where: { budgetId: budget.id },
-      orderBy: { sortOrder: "asc" },
-      select: { id: true, matchText: true },
-    }),
-  ]);
+  const [schedules, accounts, groups, importRules, executed] =
+    await Promise.all([
+      prisma.scheduledTransaction.findMany({
+        where: { budgetId: budget.id, kind: "PLANNED" },
+        orderBy: [{ active: "desc" }, { nextDate: "asc" }],
+        include: {
+          account: true,
+          payee: true,
+          category: true,
+          importRule: { select: { id: true, matchText: true } },
+          _count: { select: { occurrences: true } },
+        },
+      }),
+      prisma.financeAccount.findMany({
+        where: { budgetId: budget.id, closed: false },
+        orderBy: { sortOrder: "asc" },
+      }),
+      prisma.categoryGroup.findMany({
+        where: { budgetId: budget.id },
+        orderBy: { sortOrder: "asc" },
+        include: { categories: { orderBy: { sortOrder: "asc" } } },
+      }),
+      prisma.importCategoryRule.findMany({
+        where: { budgetId: budget.id },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, matchText: true },
+      }),
+      prisma.transaction.findMany({
+        where: {
+          isChild: false,
+          scheduledTransactionId: { not: null },
+          date: { gte: `${month}-01`, lte: `${month}-31` },
+          account: { budgetId: budget.id },
+          scheduledTransaction: { kind: "PLANNED" },
+        },
+        orderBy: [{ date: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+          date: true,
+          amount: true,
+          notes: true,
+          payee: { select: { name: true } },
+          account: { select: { name: true } },
+          category: { select: { name: true } },
+          scheduledTransactionId: true,
+          scheduledTransaction: {
+            select: {
+              id: true,
+              notes: true,
+              payee: { select: { name: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+  const activeOutflows = schedules.filter((s) => s.active && s.amount < 0);
+  let payThisMonth = 0;
+  let assignThisMonth = 0;
+  for (const s of activeOutflows) {
+    payThisMonth += Math.abs(
+      plannedCashDueInMonth({
+        amount: s.amount,
+        recurrence: s.recurrence,
+        nextDate: s.nextDate,
+        month,
+        weekday: s.weekday,
+      }),
+    );
+    assignThisMonth += Math.abs(
+      plannedMonthlyAssign({
+        amount: s.amount,
+        recurrence: s.recurrence,
+        nextDate: s.nextDate,
+        month,
+        weekday: s.weekday,
+      }),
+    );
+  }
 
   const sheetRows: PlannedSheetRow[] = schedules.map((s) => {
     const status: PlannedSheetRow["status"] = !s.active
@@ -93,6 +153,119 @@ export default async function PlannedPage({
           </Link>
         </p>
       </div>
+
+      <section className={`${cardCompactClass} space-y-3 p-3`}>
+        <div>
+          <h2 className="text-sm font-semibold text-fg">
+            How sinking-fund planning works
+          </h2>
+          <p className="mt-1 text-sm text-fg-muted">
+            Each month, assign (set aside) a slice of large bills into their
+            category — for a yearly 12 000 bill that is{" "}
+            <span className="tabular-nums text-fg">1 000</span> every month —
+            ideally parked in savings until Due. When the Due date arrives, pay
+            the full bill from that saved envelope. Use{" "}
+            <Link
+              href={`/plan?month=${encodeURIComponent(month)}`}
+              className="text-accent hover:underline"
+            >
+              Assign from planned
+            </Link>{" "}
+            on Plan to raise Assigned to at least this month&apos;s assign total.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-rim-subtle bg-overlay/40 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">
+              Pay this month · {monthLabel(month)}
+            </p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-fg">
+              {formatMoney(-payThisMonth, budget.currency)}
+            </p>
+            <p className="mt-0.5 text-xs text-fg-subtle">
+              Cash due when Due falls in this month (full yearly amount).
+            </p>
+          </div>
+          <div className="rounded-xl border border-rim-subtle bg-overlay/40 px-3 py-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">
+              Assign this month · {monthLabel(month)}
+            </p>
+            <p className="mt-1 text-xl font-semibold tabular-nums text-fg">
+              {formatMoney(-assignThisMonth, budget.currency)}
+            </p>
+            <p className="mt-0.5 text-xs text-fg-subtle">
+              Envelope funding (yearly bills = amount ÷ 12).
+            </p>
+          </div>
+        </div>
+        {payThisMonth > assignThisMonth ? (
+          <p className="text-xs text-fg-muted">
+            Pay exceeds monthly assign — draw from money already saved in the
+            envelope.
+          </p>
+        ) : null}
+      </section>
+
+      <section className={cardCompactClass}>
+        <h2 className="border-b border-rim-subtle px-3 py-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+          Executed · {monthLabel(month)} ({executed.length})
+        </h2>
+        <ul className="divide-y divide-rim-subtle">
+          {executed.length === 0 ? (
+            <li className="px-3 py-4 text-center text-sm text-fg-muted">
+              No planned payments matched this month yet
+            </li>
+          ) : (
+            executed.map((t) => {
+              const plannedLabel =
+                t.scheduledTransaction?.payee?.name ??
+                t.scheduledTransaction?.notes?.slice(0, 40) ??
+                "Planned";
+              const txnLabel =
+                t.payee?.name ?? t.notes?.slice(0, 40) ?? plannedLabel;
+              return (
+                <li
+                  key={t.id}
+                  className="flex flex-col gap-1 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-fg">
+                      <Link
+                        href={`/transactions/${t.id}`}
+                        className="hover:text-accent hover:underline"
+                      >
+                        {txnLabel}
+                      </Link>
+                    </p>
+                    <p className="text-xs text-fg-subtle">
+                      {t.date} · {t.account.name}
+                      {t.category ? ` · ${t.category.name}` : ""}
+                      {t.scheduledTransactionId ? (
+                        <>
+                          {" · "}
+                          <Link
+                            href={`/planned?id=${encodeURIComponent(t.scheduledTransactionId)}`}
+                            className="text-accent hover:underline"
+                          >
+                            Planned · {plannedLabel}
+                          </Link>
+                        </>
+                      ) : null}
+                    </p>
+                  </div>
+                  <p
+                    className={`shrink-0 tabular-nums text-sm font-medium ${
+                      t.amount > 0 ? "text-ok" : "text-fg"
+                    }`}
+                  >
+                    {formatMoney(t.amount, budget.currency)}
+                  </p>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      </section>
 
       <PlannedPaymentsSheet
         rows={sheetRows}
@@ -152,7 +325,7 @@ export default async function PlannedPage({
           </select>
         </label>
         <label className={labelClass}>
-          Next date
+          Due date
           <input
             name="nextDate"
             type="date"

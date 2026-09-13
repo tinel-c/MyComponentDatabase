@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   findUniquePlannedMatch,
+  plannedCashDueInMonth,
+  plannedMonthlyAssign,
   plannedMonthTotal,
   weekdayOccurrencesInMonth,
 } from "./planned-payments";
@@ -55,10 +57,10 @@ describe("findUniquePlannedMatch", () => {
   });
 });
 
-describe("plannedMonthTotal", () => {
+describe("plannedCashDueInMonth", () => {
   it("monthly returns amount", () => {
     assert.equal(
-      plannedMonthTotal({
+      plannedCashDueInMonth({
         amount: -1000,
         recurrence: "MONTHLY",
         nextDate: "2026-09-01",
@@ -72,7 +74,7 @@ describe("plannedMonthTotal", () => {
     const wed = 3;
     assert.equal(weekdayOccurrencesInMonth("2026-09", wed), 5);
     assert.equal(
-      plannedMonthTotal({
+      plannedCashDueInMonth({
         amount: -100,
         recurrence: "WEEKLY",
         nextDate: "2026-09-02",
@@ -81,5 +83,73 @@ describe("plannedMonthTotal", () => {
       }),
       -500,
     );
+  });
+
+  it("yearly full amount only in due month", () => {
+    assert.equal(
+      plannedCashDueInMonth({
+        amount: -1_200_000,
+        recurrence: "YEARLY",
+        nextDate: "2026-09-15",
+        month: "2026-09",
+      }),
+      -1_200_000,
+    );
+    assert.equal(
+      plannedCashDueInMonth({
+        amount: -1_200_000,
+        recurrence: "YEARLY",
+        nextDate: "2026-09-15",
+        month: "2026-03",
+      }),
+      0,
+    );
+  });
+});
+
+describe("plannedMonthlyAssign", () => {
+  it("yearly spreads as round(amount/12) every month", () => {
+    assert.equal(
+      plannedMonthlyAssign({
+        amount: -1_200_000,
+        recurrence: "YEARLY",
+        nextDate: "2026-09-15",
+        month: "2026-03",
+      }),
+      -100_000,
+    );
+    assert.equal(
+      plannedMonthlyAssign({
+        amount: -1_200_000,
+        recurrence: "YEARLY",
+        nextDate: "2026-09-15",
+        month: "2026-09",
+      }),
+      -100_000,
+    );
+  });
+
+  it("monthly equals cash due", () => {
+    assert.equal(
+      plannedMonthlyAssign({
+        amount: -5000,
+        recurrence: "MONTHLY",
+        nextDate: "2026-09-01",
+        month: "2026-09",
+      }),
+      -5000,
+    );
+  });
+});
+
+describe("plannedMonthTotal alias", () => {
+  it("matches plannedCashDueInMonth", () => {
+    const params = {
+      amount: -1_200_000,
+      recurrence: "YEARLY" as const,
+      nextDate: "2026-09-15",
+      month: "2026-09",
+    };
+    assert.equal(plannedMonthTotal(params), plannedCashDueInMonth(params));
   });
 });

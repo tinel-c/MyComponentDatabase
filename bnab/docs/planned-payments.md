@@ -21,7 +21,7 @@ Existing rows migrate as `PLANNED`. `autoEnter` applies only to `SCHEDULED`.
 | autoEnter | Opt-in catch-up for `SCHEDULED` (default false) |
 | amount, account, category, payee | Template fields |
 | recurrence | Weekly / Monthly / Yearly (+ Once / Biweekly) |
-| nextDate | Next due |
+| nextDate | **Due date** for the next payment |
 | dayOfMonth / weekday | Anchors for monthly/weekly |
 | billingUrl | Optional HTTPS portal (PLANNED) |
 | importRuleId | Optional link to an **Import rule** (PLANNED) |
@@ -39,20 +39,31 @@ Unique match within ±2 bani and ±3 days on the same account. Advances `nextDat
 
 Ambiguous matches are left unlinked — resolve later from `/planned`.
 
+## Pay vs assign (sinking fund)
+
+| Concept | Helper | YEARLY example (12 000) |
+|---------|--------|-------------------------|
+| **Pay this month** | `plannedCashDueInMonth` | Full **12 000** only in the Due month |
+| **Assign this month** | `plannedMonthlyAssign` | **1 000** (`round(amount/12)`) every month |
+
+MONTHLY / WEEKLY / BIWEEKLY: pay and assign use the same occurrence math. ONCE: full amount only in the Due month for both.
+
+Idea: assign monthly into the category (savings), then pay the full bill when Due arrives.
+
 ## Auto-enter (SCHEDULED)
 
 When `autoEnter=true` and `nextDate ≤ today`, app layout runs catch-up (≤20 per request via `scheduled-auto-enter.ts`): create ledger txn (skip if one already exists for that schedule+date), advance `nextDate`. Manual **Enter** remains available.
 
 ## Plan
 
-**Assign from planned** sets `assigned = max(current, plannedMonthTotal)` per spending category for the viewed month — **PLANNED** only (occurrence math in `plan/actions`).
+**Assign from planned** sets `assigned = max(current, |plannedMonthlyAssign|)` per spending category for the viewed month — **PLANNED** only (`plan/actions`).
 
 ## UI
 
 | Surface | Behavior |
 |---------|----------|
 | Desktop nav **Planned** | `/planned`; badge = active **PLANNED** with `nextDate ≤ today` |
-| `/planned` | Excel-style sheet: edit fields + Save; status Due/Upcoming/Inactive; **Hits** count → `/transactions?planned=`; **Executed** list = linked txns in the current month (above the sheet) |
+| `/planned` | Summary (pay vs assign + process blurb); **Executed** (current-month hits); Excel sheet (**Due** column); Hits → `/transactions?planned=` |
 | `/more/schedules` | **SCHEDULED** list; Enter + autoEnter checkbox |
 | `/more/import-rules` | Each rule lists linked planned payments |
 | Transaction detail | **Make planned payment** (monthly `PLANNED` + link) |
@@ -61,7 +72,7 @@ When `autoEnter=true` and `nextDate ≤ today`, app layout runs catch-up (≤20 
 
 ## Helpers
 
-- `bnab/src/lib/planned-payments.ts` — match + advance date
+- `bnab/src/lib/planned-payments.ts` — match, advance date, pay/assign month totals
 - `bnab/src/lib/scheduled-auto-enter.ts` — SCHEDULED catch-up
 - `updatePlannedPayment` in `more/actions.ts` — sheet Save
 - Tests: `planned-payments.test.ts`

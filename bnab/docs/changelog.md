@@ -1,5 +1,19 @@
 # BNAB changelog
 
+## 1.2.3 — 2026-09-13
+
+Pay vs assign sinking-fund summary on Planned payments.
+
+### Highlights
+
+- **Pay vs assign summary** on `/planned`: sinking-fund blurb; Pay this month (cash due) vs Assign this month (YEARLY ÷ 12)
+- **Assign from planned** uses `plannedMonthlyAssign` (yearly spreads monthly)
+- Sheet / create form date labeled **Due**; Executed list restored above the sheet
+
+### Docs
+
+`planned-payments.md`, `features.md` synced.
+
 ## 1.2.2 — 2026-09-13
 
 Planned payment sheet editor, register hit links, and current-month Executed list.

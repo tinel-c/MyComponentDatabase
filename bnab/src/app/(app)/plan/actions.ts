@@ -6,11 +6,12 @@ import { requireBudgetAccess } from "@/lib/authz";
 import { invalidateBudgetCaches } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { parseMoneyInput } from "@/lib/money";
-import { plannedMonthTotal } from "@/lib/planned-payments";
+import { plannedMonthlyAssign } from "@/lib/planned-payments";
 
 /**
- * For the viewed month, raise Assigned to at least |plannedMonthTotal|
+ * For the viewed month, raise Assigned to at least |plannedMonthlyAssign|
  * for each active non-income planned payment with a category.
+ * YEARLY uses sinking-fund /12 so envelopes fund every month.
  * Returns how many categories were updated.
  */
 export async function assignFromPlanned(formData: FormData): Promise<{
@@ -42,7 +43,7 @@ export async function assignFromPlanned(formData: FormData): Promise<{
   const byCategory = new Map<string, number>();
   for (const s of schedules) {
     if (!s.categoryId || !s.category || s.category.isIncome) continue;
-    const total = plannedMonthTotal({
+    const total = plannedMonthlyAssign({
       amount: s.amount,
       recurrence: s.recurrence,
       nextDate: s.nextDate,

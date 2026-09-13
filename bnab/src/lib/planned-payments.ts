@@ -1,5 +1,6 @@
 /**
  * Planned payment matching: amount ±2 bani, date ±3 days, unique confident match.
+ * Pay (cash due) vs Assign (sinking-fund) month totals.
  */
 
 export const PLANNED_AMOUNT_TOLERANCE_BANI = 2;
@@ -17,6 +18,14 @@ export type TxnForPlannedMatch = {
   accountId: string;
   amount: number;
   date: string;
+};
+
+export type PlannedMonthParams = {
+  amount: number;
+  recurrence: string;
+  nextDate: string;
+  month: string;
+  weekday?: number | null;
 };
 
 function daysBetween(a: string, b: string): number {
@@ -53,41 +62,65 @@ export function weekdayOccurrencesInMonth(month: string, weekday: number): numbe
   return n;
 }
 
-/** Planned amount to assign for a schedule in a viewed month. */
-export function plannedMonthTotal(params: {
-  amount: number;
-  recurrence: string;
-  nextDate: string;
-  month: string;
-  weekday?: number | null;
-}): number {
+function weeklyCashDue(params: PlannedMonthParams): number {
   const abs = Math.abs(params.amount);
   const sign = params.amount < 0 ? -1 : 1;
-  const [y, m] = params.month.split("-").map(Number);
+  const wd =
+    params.weekday ?? new Date(params.nextDate + "T12:00:00").getDay();
+  const occ = weekdayOccurrencesInMonth(params.month, wd);
+  const step = params.recurrence === "BIWEEKLY" ? 2 : 1;
+  const count =
+    params.recurrence === "BIWEEKLY" ? Math.ceil(occ / step) : occ;
+  return sign * abs * count;
+}
+
+/**
+ * Cash payment event in `month` (ledger outflow when Due falls in month).
+ * YEARLY/ONCE: full amount only when nextDate is in that month.
+ */
+export function plannedCashDueInMonth(params: PlannedMonthParams): number {
+  const abs = Math.abs(params.amount);
+  const sign = params.amount < 0 ? -1 : 1;
   switch (params.recurrence) {
     case "WEEKLY":
-    case "BIWEEKLY": {
-      const wd =
-        params.weekday ??
-        new Date(params.nextDate + "T12:00:00").getDay();
-      const occ = weekdayOccurrencesInMonth(params.month, wd);
-      const step = params.recurrence === "BIWEEKLY" ? 2 : 1;
-      // Approximate biweekly as half the weekly occurrences (ceil).
-      const count =
-        params.recurrence === "BIWEEKLY" ? Math.ceil(occ / step) : occ;
-      return sign * abs * count;
-    }
+    case "BIWEEKLY":
+      return weeklyCashDue(params);
     case "YEARLY": {
       const nd = params.nextDate.slice(5, 7);
       return nd === params.month.slice(5, 7) ? sign * abs : 0;
     }
-    case "ONCE": {
+    case "ONCE":
       return params.nextDate.startsWith(params.month) ? sign * abs : 0;
-    }
     case "MONTHLY":
     default:
       return sign * abs;
   }
+}
+
+/**
+ * Sinking-fund assign for `month`: set aside toward the next payment.
+ * YEARLY spreads as round(|amount| / 12) every month; ONCE only in due month.
+ */
+export function plannedMonthlyAssign(params: PlannedMonthParams): number {
+  const abs = Math.abs(params.amount);
+  const sign = params.amount < 0 ? -1 : 1;
+  switch (params.recurrence) {
+    case "WEEKLY":
+    case "BIWEEKLY":
+      return weeklyCashDue(params);
+    case "YEARLY":
+      return sign * Math.round(abs / 12);
+    case "ONCE":
+      return params.nextDate.startsWith(params.month) ? sign * abs : 0;
+    case "MONTHLY":
+    default:
+      return sign * abs;
+  }
+}
+
+/** @deprecated Prefer plannedCashDueInMonth — alias for call-site migration. */
+export function plannedMonthTotal(params: PlannedMonthParams): number {
+  return plannedCashDueInMonth(params);
 }
 
 export function advancePlannedDate(
