@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, useState, useTransition } from "react";
 import type { AccountRegisterItem } from "@/lib/account-register-chunk";
 import type { AccountRegisterFilters } from "@/lib/account-register-chunk";
 import { loadMoreAccountTransactions } from "@/app/(app)/accounts/[id]/load-more";
@@ -14,6 +14,57 @@ import {
   cardCompactClass,
 } from "@/components/forms/field-classes";
 import { formatMoney } from "@/lib/money";
+
+function AccountPlannedAction({
+  item,
+  onLinked,
+}: {
+  item: AccountRegisterItem;
+  onLinked: (scheduledTransactionId: string, label: string) => void;
+}) {
+  const [pending, start] = useTransition();
+  const linkedId = item.scheduledTransactionId;
+
+  if (linkedId) {
+    return (
+      <Link
+        href={`/planned?id=${encodeURIComponent(linkedId)}`}
+        className="text-accent hover:underline"
+      >
+        {item.plannedLabel ?? "Planned"}
+      </Link>
+    );
+  }
+
+  const canMakePlanned =
+    !item.transferTwinId && !item.isParent && item.amount !== 0;
+  if (!canMakePlanned) {
+    return <span className="text-fg-subtle">—</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      className={`${buttonCompactClass} !px-1.5 !py-0.5 text-[10px]`}
+      onClick={() => {
+        const fd = new FormData();
+        fd.set("transactionId", item.id);
+        start(async () => {
+          const res = await makePlannedFromTransaction(fd);
+          if (res.ok && res.scheduledTransactionId) {
+            onLinked(
+              res.scheduledTransactionId,
+              res.label ?? item.payeeName ?? "Planned",
+            );
+          }
+        });
+      }}
+    >
+      {pending ? "…" : "Make planned"}
+    </button>
+  );
+}
 
 export function AccountTransactionsInfiniteList({
   accountId,
@@ -30,6 +81,10 @@ export function AccountTransactionsInfiniteList({
   hasMore: boolean;
   filters?: AccountRegisterFilters;
 }) {
+  const [optimisticPlanned, setOptimisticPlanned] = useState<
+    Record<string, { id: string; label: string }>
+  >({});
+
   const loadMore = useCallback(
     (cursor: string) =>
       loadMoreAccountTransactions(accountId, cursor, filters),
@@ -45,16 +100,23 @@ export function AccountTransactionsInfiniteList({
       endLabel="End of account register"
       renderList={(items) => (
         <ul className={`${cardCompactClass} divide-y divide-rim-subtle/60`}>
-          {items.map((t) => {
-            const canMakePlanned =
-              !t.scheduledTransactionId &&
-              !t.transferTwinId &&
-              !t.isParent &&
-              t.amount !== 0;
+          {items.map((raw) => {
+            const o = optimisticPlanned[raw.id];
+            const t: AccountRegisterItem =
+              o && !raw.scheduledTransactionId
+                ? {
+                    ...raw,
+                    scheduledTransactionId: o.id,
+                    plannedLabel: o.label,
+                  }
+                : raw;
             return (
               <li
                 key={t.id}
-                style={{ contentVisibility: "auto", containIntrinsicSize: "56px" }}
+                style={{
+                  contentVisibility: "auto",
+                  containIntrinsicSize: "56px",
+                }}
               >
                 <div className="flex items-center gap-3 px-3 py-2.5">
                   <ClearToggle id={t.id} cleared={t.cleared} />
@@ -92,26 +154,15 @@ export function AccountTransactionsInfiniteList({
                     </p>
                   </Link>
                   <div className="shrink-0 text-right text-[11px]">
-                    {t.scheduledTransactionId ? (
-                      <Link
-                        href={`/planned?id=${t.scheduledTransactionId}`}
-                        className="text-accent hover:underline"
-                      >
-                        {t.plannedLabel ?? "Planned"}
-                      </Link>
-                    ) : canMakePlanned ? (
-                      <form action={makePlannedFromTransaction}>
-                        <input type="hidden" name="id" value={t.id} />
-                        <button
-                          type="submit"
-                          className={`${buttonCompactClass} !px-1.5 !py-0.5 text-[10px]`}
-                        >
-                          Make planned
-                        </button>
-                      </form>
-                    ) : (
-                      <span className="text-fg-subtle">—</span>
-                    )}
+                    <AccountPlannedAction
+                      item={t}
+                      onLinked={(schedId, label) => {
+                        setOptimisticPlanned((prev) => ({
+                          ...prev,
+                          [t.id]: { id: schedId, label },
+                        }));
+                      }}
+                    />
                   </div>
                   <DeleteTransactionButton
                     id={t.id}

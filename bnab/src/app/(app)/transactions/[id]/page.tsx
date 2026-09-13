@@ -13,7 +13,7 @@ import {
   buttonCompactClass,
   cardClass,
 } from "@/components/forms/field-classes";
-import { makePlannedFromTransaction } from "../actions";
+import { makePlannedFromTransactionAction } from "../actions";
 
 export default async function EditTransactionPage({
   params,
@@ -126,7 +126,7 @@ export default async function EditTransactionPage({
       />
 
       {canMakePlanned ? (
-        <form action={makePlannedFromTransaction}>
+        <form action={makePlannedFromTransactionAction}>
           <input type="hidden" name="transactionId" value={txn.id} />
           <button type="submit" className={buttonCompactClass}>
             Make planned payment

@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { updatePlannedPayment } from "@/app/(app)/more/actions";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import {
+  enterPlannedPaymentFromCash,
+  updatePlannedPayment,
+} from "@/app/(app)/more/actions";
 import {
   buttonCompactClass,
   cardCompactClass,
@@ -19,7 +22,6 @@ export type PlannedSheetCategoryGroup = {
   name: string;
   categories: { id: string; name: string }[];
 };
-export type PlannedSheetImportRule = { id: string; matchText: string };
 
 export type PlannedSheetRow = {
   id: string;
@@ -32,7 +34,6 @@ export type PlannedSheetRow = {
   nextDate: string;
   recurrence: string;
   billingUrl: string;
-  importRuleId: string;
   active: boolean;
   occurrenceCount: number;
   status: "due" | "upcoming" | "inactive";
@@ -44,14 +45,15 @@ export function PlannedPaymentsSheet({
   rows,
   accounts,
   groups,
-  importRules,
   highlightId,
+  cashAccountName,
 }: {
   rows: PlannedSheetRow[];
   accounts: PlannedSheetAccount[];
   groups: PlannedSheetCategoryGroup[];
-  importRules: PlannedSheetImportRule[];
   highlightId?: string | null;
+  /** Open CASH account name for Pay button; null if none. */
+  cashAccountName: string | null;
 }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
@@ -75,15 +77,54 @@ export function PlannedPaymentsSheet({
         row.recurrence,
         accounts.find((a) => a.id === row.accountId)?.name ?? "",
         groups
-          .flatMap((g) => g.categories)
+          .flatMap((g) => g.categories.map((c) => ({ ...c, groupName: g.name })))
           .find((c) => c.id === row.categoryId)?.name ?? "",
-        importRules.find((r) => r.id === row.importRuleId)?.matchText ?? "",
+        groups.find((g) =>
+          g.categories.some((c) => c.id === row.categoryId),
+        )?.name ?? "",
       ]
         .join(" ")
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [rows, query, status, accounts, groups, importRules]);
+  }, [rows, query, status, accounts, groups]);
+
+  const grouped = useMemo(() => {
+    const catToGroup = new Map<string, { id: string; name: string }>();
+    for (const g of groups) {
+      for (const c of g.categories) {
+        catToGroup.set(c.id, { id: g.id, name: g.name });
+      }
+    }
+    const byGroup = new Map<string, { name: string; rows: PlannedSheetRow[] }>();
+    for (const g of groups) {
+      byGroup.set(g.id, { name: g.name, rows: [] });
+    }
+    const uncategorized: PlannedSheetRow[] = [];
+    for (const row of filtered) {
+      const g = row.categoryId ? catToGroup.get(row.categoryId) : undefined;
+      if (!g) {
+        uncategorized.push(row);
+        continue;
+      }
+      const bucket = byGroup.get(g.id);
+      if (bucket) bucket.rows.push(row);
+      else uncategorized.push(row);
+    }
+    const sections = [...byGroup.entries()]
+      .filter(([, v]) => v.rows.length > 0)
+      .map(([id, v]) => ({ id, name: v.name, rows: v.rows }));
+    if (uncategorized.length > 0) {
+      sections.push({
+        id: "__none__",
+        name: "Uncategorized",
+        rows: uncategorized,
+      });
+    }
+    return sections;
+  }, [filtered, groups]);
+
+  const colSpan = 13;
 
   return (
     <div className="space-y-3">
@@ -111,12 +152,15 @@ export function PlannedPaymentsSheet({
           </select>
           <p className="w-full text-xs text-fg-subtle sm:ml-auto sm:w-auto">
             {filtered.length}/{rows.length}
+            {cashAccountName
+              ? ` · Pay uses ${cashAccountName}`
+              : " · No cash account for Pay"}
           </p>
         </div>
       </div>
 
       <div className={`${cardCompactClass} overflow-x-auto`}>
-        <table className="w-full min-w-[64rem] border-collapse text-sm">
+        <table className="w-full min-w-[60rem] border-collapse text-sm">
           <thead>
             <tr>
               <th className={denseThClass}>Status</th>
@@ -129,7 +173,6 @@ export function PlannedPaymentsSheet({
               <th className={denseThClass}>Recurrence</th>
               <th className={denseThClass}>Notes</th>
               <th className={denseThClass}>Billing URL</th>
-              <th className={denseThClass}>Import rule</th>
               <th className={denseThClass}>Active</th>
               <th className={denseThClass}>Hits</th>
               <th className={denseThClass}> </th>
@@ -139,209 +182,225 @@ export function PlannedPaymentsSheet({
             {filtered.length === 0 ? (
               <tr>
                 <td
-                  colSpan={14}
+                  colSpan={colSpan}
                   className={`${denseTdClass} py-6 text-center text-fg-muted`}
                 >
                   No planned payments match this filter.
                 </td>
               </tr>
             ) : (
-              filtered.map((row) => {
-                const formId = `planned-row-${row.id}`;
-                const highlighted = highlightId === row.id;
-                return (
-                  <tr
-                    key={row.id}
-                    id={`planned-${row.id}`}
-                    className={
-                      highlighted
-                        ? "bg-accent-muted/50"
-                        : row.status === "due"
-                          ? "bg-danger-muted/20"
-                          : undefined
-                    }
-                  >
-                    <td className={denseTdClass}>
-                      <span
-                        className={
-                          row.status === "due"
-                            ? chipClass
-                            : row.status === "inactive"
-                              ? chipMutedClass
-                              : chipMutedClass
-                        }
-                      >
-                        {row.status === "due"
-                          ? "Due"
-                          : row.status === "upcoming"
-                            ? "Upcoming"
-                            : "Inactive"}
+              grouped.map((section) => (
+                <Fragment key={section.id}>
+                  <tr className="bg-overlay/60">
+                    <td
+                      colSpan={colSpan}
+                      className={`${denseTdClass} py-1.5 text-[10px] font-semibold uppercase tracking-wide text-fg-subtle`}
+                    >
+                      {section.name}
+                      <span className="ml-2 font-normal tabular-nums">
+                        ({section.rows.length})
                       </span>
                     </td>
-                    <td className={denseTdClass}>
-                      <form id={formId} action={updatePlannedPayment} className="hidden">
-                        <input type="hidden" name="id" value={row.id} />
-                      </form>
-                      <select
-                        form={formId}
-                        name="accountId"
-                        defaultValue={row.accountId}
-                        className={inputCompactClass}
-                        required
+                  </tr>
+                  {section.rows.map((row) => {
+                    const formId = `planned-row-${row.id}`;
+                    const highlighted = highlightId === row.id;
+                    const canPayCash =
+                      row.status === "due" && Boolean(cashAccountName);
+                    return (
+                      <tr
+                        key={row.id}
+                        id={`planned-${row.id}`}
+                        className={
+                          highlighted
+                            ? "bg-accent-muted/50"
+                            : row.status === "due"
+                              ? "bg-danger-muted/20"
+                              : undefined
+                        }
                       >
-                        {accounts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className={denseTdClass}>
-                      <input
-                        form={formId}
-                        name="amount"
-                        defaultValue={row.amountAbs}
-                        inputMode="decimal"
-                        className={`${inputCompactClass} w-20 text-right font-mono`}
-                        required
-                      />
-                    </td>
-                    <td className={`${denseTdClass} text-center`}>
-                      <input
-                        form={formId}
-                        type="checkbox"
-                        name="inflow"
-                        value="1"
-                        defaultChecked={row.isInflow}
-                        className="size-4"
-                        aria-label="Inflow"
-                      />
-                    </td>
-                    <td className={denseTdClass}>
-                      <input
-                        form={formId}
-                        name="payee"
-                        defaultValue={row.payeeName}
-                        className={`${inputCompactClass} min-w-[7rem]`}
-                        autoComplete="off"
-                      />
-                    </td>
-                    <td className={denseTdClass}>
-                      <select
-                        form={formId}
-                        name="categoryId"
-                        defaultValue={row.categoryId}
-                        className={inputCompactClass}
-                      >
-                        <option value="">None</option>
-                        {groups.map((g) => (
-                          <optgroup key={g.id} label={g.name}>
-                            {g.categories.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}
+                        <td className={denseTdClass}>
+                          <span
+                            className={
+                              row.status === "due" ? chipClass : chipMutedClass
+                            }
+                          >
+                            {row.status === "due"
+                              ? "Due"
+                              : row.status === "upcoming"
+                                ? "Upcoming"
+                                : "Inactive"}
+                          </span>
+                        </td>
+                        <td className={denseTdClass}>
+                          <form
+                            id={formId}
+                            action={updatePlannedPayment}
+                            className="hidden"
+                          >
+                            <input type="hidden" name="id" value={row.id} />
+                          </form>
+                          <select
+                            form={formId}
+                            name="accountId"
+                            defaultValue={row.accountId}
+                            className={inputCompactClass}
+                            required
+                          >
+                            {accounts.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name}
                               </option>
                             ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </td>
-                    <td className={denseTdClass}>
-                      <input
-                        form={formId}
-                        type="date"
-                        name="nextDate"
-                        defaultValue={row.nextDate}
-                        className={inputCompactClass}
-                        required
-                      />
-                    </td>
-                    <td className={denseTdClass}>
-                      <select
-                        form={formId}
-                        name="recurrence"
-                        defaultValue={row.recurrence}
-                        className={inputCompactClass}
-                      >
-                        <option value="WEEKLY">Weekly</option>
-                        <option value="BIWEEKLY">Biweekly</option>
-                        <option value="MONTHLY">Monthly</option>
-                        <option value="YEARLY">Yearly</option>
-                        <option value="ONCE">Once</option>
-                      </select>
-                    </td>
-                    <td className={denseTdClass}>
-                      <input
-                        form={formId}
-                        name="notes"
-                        defaultValue={row.notes}
-                        className={`${inputCompactClass} min-w-[7rem]`}
-                        autoComplete="off"
-                      />
-                    </td>
-                    <td className={denseTdClass}>
-                      <input
-                        form={formId}
-                        name="billingUrl"
-                        type="url"
-                        defaultValue={row.billingUrl}
-                        placeholder="https://"
-                        className={`${inputCompactClass} min-w-[8rem]`}
-                        autoComplete="off"
-                      />
-                    </td>
-                    <td className={denseTdClass}>
-                      <select
-                        form={formId}
-                        name="importRuleId"
-                        defaultValue={row.importRuleId}
-                        className={inputCompactClass}
-                      >
-                        <option value="">None</option>
-                        {importRules.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.matchText}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className={`${denseTdClass} text-center`}>
-                      <input
-                        form={formId}
-                        type="checkbox"
-                        name="active"
-                        value="1"
-                        defaultChecked={row.active}
-                        className="size-4"
-                        aria-label="Active"
-                      />
-                    </td>
-                    <td className={denseTdClass}>
-                      {row.occurrenceCount > 0 ? (
-                        <Link
-                          href={`/transactions?planned=${encodeURIComponent(row.id)}`}
-                          className="whitespace-nowrap text-accent hover:underline"
-                        >
-                          {row.occurrenceCount} txn
-                          {row.occurrenceCount === 1 ? "" : "s"}
-                        </Link>
-                      ) : (
-                        <span className="whitespace-nowrap text-fg-subtle">
-                          0 txns
-                        </span>
-                      )}
-                    </td>
-                    <td className={denseTdClass}>
-                      <button
-                        type="submit"
-                        form={formId}
-                        className={buttonCompactClass}
-                      >
-                        Save
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
+                          </select>
+                        </td>
+                        <td className={denseTdClass}>
+                          <input
+                            form={formId}
+                            name="amount"
+                            defaultValue={row.amountAbs}
+                            inputMode="decimal"
+                            className={`${inputCompactClass} w-20 text-right font-mono`}
+                            required
+                          />
+                        </td>
+                        <td className={`${denseTdClass} text-center`}>
+                          <input
+                            form={formId}
+                            type="checkbox"
+                            name="inflow"
+                            value="1"
+                            defaultChecked={row.isInflow}
+                            className="size-4"
+                            aria-label="Inflow"
+                          />
+                        </td>
+                        <td className={denseTdClass}>
+                          <input
+                            form={formId}
+                            name="payee"
+                            defaultValue={row.payeeName}
+                            className={`${inputCompactClass} min-w-[7rem]`}
+                            autoComplete="off"
+                          />
+                        </td>
+                        <td className={denseTdClass}>
+                          <select
+                            form={formId}
+                            name="categoryId"
+                            defaultValue={row.categoryId}
+                            className={inputCompactClass}
+                          >
+                            <option value="">None</option>
+                            {groups.map((g) => (
+                              <optgroup key={g.id} label={g.name}>
+                                {g.categories.map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </td>
+                        <td className={denseTdClass}>
+                          <input
+                            form={formId}
+                            type="date"
+                            name="nextDate"
+                            defaultValue={row.nextDate}
+                            className={inputCompactClass}
+                            required
+                          />
+                        </td>
+                        <td className={denseTdClass}>
+                          <select
+                            form={formId}
+                            name="recurrence"
+                            defaultValue={row.recurrence}
+                            className={inputCompactClass}
+                          >
+                            <option value="WEEKLY">Weekly</option>
+                            <option value="BIWEEKLY">Biweekly</option>
+                            <option value="MONTHLY">Monthly</option>
+                            <option value="YEARLY">Yearly</option>
+                            <option value="ONCE">Once</option>
+                          </select>
+                        </td>
+                        <td className={denseTdClass}>
+                          <input
+                            form={formId}
+                            name="notes"
+                            defaultValue={row.notes}
+                            className={`${inputCompactClass} min-w-[7rem]`}
+                            autoComplete="off"
+                          />
+                        </td>
+                        <td className={denseTdClass}>
+                          <input
+                            form={formId}
+                            name="billingUrl"
+                            type="url"
+                            defaultValue={row.billingUrl}
+                            placeholder="https://"
+                            className={`${inputCompactClass} min-w-[8rem]`}
+                            autoComplete="off"
+                          />
+                        </td>
+                        <td className={`${denseTdClass} text-center`}>
+                          <input
+                            form={formId}
+                            type="checkbox"
+                            name="active"
+                            value="1"
+                            defaultChecked={row.active}
+                            className="size-4"
+                            aria-label="Active"
+                          />
+                        </td>
+                        <td className={denseTdClass}>
+                          {row.occurrenceCount > 0 ? (
+                            <Link
+                              href={`/transactions?planned=${encodeURIComponent(row.id)}`}
+                              className="whitespace-nowrap text-accent hover:underline"
+                            >
+                              {row.occurrenceCount} txn
+                              {row.occurrenceCount === 1 ? "" : "s"}
+                            </Link>
+                          ) : (
+                            <span className="whitespace-nowrap text-fg-subtle">
+                              0 txns
+                            </span>
+                          )}
+                        </td>
+                        <td className={denseTdClass}>
+                          <div className="flex flex-wrap items-center justify-end gap-1">
+                            {canPayCash ? (
+                              <form action={enterPlannedPaymentFromCash}>
+                                <input type="hidden" name="id" value={row.id} />
+                                <button
+                                  type="submit"
+                                  className={buttonCompactClass}
+                                  title={`Create transaction on ${cashAccountName}`}
+                                >
+                                  Pay cash
+                                </button>
+                              </form>
+                            ) : null}
+                            <button
+                              type="submit"
+                              form={formId}
+                              className={buttonCompactClass}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              ))
             )}
           </tbody>
         </table>

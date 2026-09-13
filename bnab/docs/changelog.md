@@ -1,5 +1,20 @@
 # BNAB changelog
 
+## 1.2.4 — 2026-09-13
+
+Planned sheet Pay cash, category grouping, and register Make planned scroll fix.
+
+### Highlights
+
+- Remove Import rule from Planned payments sheet / create form
+- **Pay cash** on due/overdue planned rows: cleared Cash-account ledger txn, link, advance Due
+- Planned sheet rows grouped by **category group** (Uncategorized last)
+- Make planned on registers keeps scroll / infinite pages (optimistic update; no `/transactions` revalidate)
+
+### Docs
+
+`planned-payments.md`, `features.md` synced.
+
 ## 1.2.3 — 2026-09-13
 
 Pay vs assign sinking-fund summary on Planned payments.

@@ -35,8 +35,7 @@ export default async function PlannedPage({
   const today = todayISO();
   const month = currentMonth();
 
-  const [schedules, accounts, groups, importRules, executed] =
-    await Promise.all([
+  const [schedules, accounts, groups, executed] = await Promise.all([
       prisma.scheduledTransaction.findMany({
         where: { budgetId: budget.id, kind: "PLANNED" },
         orderBy: [{ active: "desc" }, { nextDate: "asc" }],
@@ -44,7 +43,6 @@ export default async function PlannedPage({
           account: true,
           payee: true,
           category: true,
-          importRule: { select: { id: true, matchText: true } },
           _count: { select: { occurrences: true } },
         },
       }),
@@ -56,11 +54,6 @@ export default async function PlannedPage({
         where: { budgetId: budget.id },
         orderBy: { sortOrder: "asc" },
         include: { categories: { orderBy: { sortOrder: "asc" } } },
-      }),
-      prisma.importCategoryRule.findMany({
-        where: { budgetId: budget.id },
-        orderBy: { sortOrder: "asc" },
-        select: { id: true, matchText: true },
       }),
       prisma.transaction.findMany({
         where: {
@@ -91,6 +84,8 @@ export default async function PlannedPage({
       }),
     ]);
 
+  const cashAccount =
+    accounts.find((a) => a.type === "CASH") ?? null;
   const activeOutflows = schedules.filter((s) => s.active && s.amount < 0);
   let payThisMonth = 0;
   let assignThisMonth = 0;
@@ -132,7 +127,6 @@ export default async function PlannedPage({
       nextDate: s.nextDate,
       recurrence: s.recurrence,
       billingUrl: s.billingUrl ?? "",
-      importRuleId: s.importRuleId ?? "",
       active: s.active,
       occurrenceCount: s._count.occurrences,
       status,
@@ -275,8 +269,8 @@ export default async function PlannedPage({
           name: g.name,
           categories: g.categories.map((c) => ({ id: c.id, name: c.name })),
         }))}
-        importRules={importRules}
         highlightId={highlightId}
+        cashAccountName={cashAccount?.name ?? null}
       />
 
       <form
@@ -351,17 +345,6 @@ export default async function PlannedPage({
             placeholder="https://"
             className={inputClass}
           />
-        </label>
-        <label className={`${labelClass} lg:col-span-2`}>
-          Link import rule (optional)
-          <select name="importRuleId" className={inputClass} defaultValue="">
-            <option value="">None</option>
-            {importRules.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.matchText}
-              </option>
-            ))}
-          </select>
         </label>
         <button
           type="submit"

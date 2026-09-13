@@ -54,9 +54,9 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Split transactions
 - [x] Cleared / uncleared
 - [x] Scheduled / recurring + enter now
-- [x] **Planned payments** (`/planned`): pay vs assign summary, Excel sheet, **Executed**, Due date, Hits → filtered transactions, ING + manual match, Make planned, Assign from planned
+- [x] **Planned payments** (`/planned`): pay vs assign summary, sheet by category group, **Pay cash**, **Executed**, Due date, Hits → filtered transactions, ING + manual match, Make planned, Assign from planned
 - [x] Search / filter + Excel-style register (**infinite scroll**); filter `?planned=` for linked planned payment
-- [x] **Register Actions** — Make planned / Edit planned + Delete (desktop + mobile)
+- [x] **Register Actions** — Make planned / Edit planned + Delete (desktop + mobile; Make planned preserves list position)
 - [x] Register mapping links: Import · / Receipt · / **Planned ·** when linked
 - [x] Mobile quick-add / sheet editor
 - [x] **Delete transaction** (account list, register, edit sheet) with confirm

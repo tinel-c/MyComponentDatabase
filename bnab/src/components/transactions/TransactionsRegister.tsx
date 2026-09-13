@@ -57,11 +57,20 @@ export type RegisterRow = {
   } | null;
 };
 
-function PlannedRowAction({ row }: { row: RegisterRow }) {
-  if (row.scheduledTransactionId) {
+function PlannedRowAction({
+  row,
+  onLinked,
+}: {
+  row: RegisterRow;
+  onLinked?: (scheduledTransactionId: string, label: string) => void;
+}) {
+  const [pending, start] = useTransition();
+  const linkedId = row.scheduledTransactionId;
+
+  if (linkedId) {
     return (
       <Link
-        href={`/planned?id=${encodeURIComponent(row.scheduledTransactionId)}`}
+        href={`/planned?id=${encodeURIComponent(linkedId)}`}
         className={`${buttonCompactClass} !h-7 !px-1.5 !py-0 text-[10px]`}
         title="Edit planned payment"
         onClick={(e) => e.stopPropagation()}
@@ -77,16 +86,28 @@ function PlannedRowAction({ row }: { row: RegisterRow }) {
     row.absAmount !== "0.00";
   if (!canMake) return null;
   return (
-    <form action={makePlannedFromTransaction}>
-      <input type="hidden" name="transactionId" value={row.id} />
-      <button
-        type="submit"
-        className={`${buttonCompactClass} !h-7 !px-1.5 !py-0 text-[10px]`}
-        title="Make planned payment"
-      >
-        Make planned
-      </button>
-    </form>
+    <button
+      type="button"
+      disabled={pending}
+      className={`${buttonCompactClass} !h-7 !px-1.5 !py-0 text-[10px]`}
+      title="Make planned payment"
+      onClick={(e) => {
+        e.stopPropagation();
+        const fd = new FormData();
+        fd.set("transactionId", row.id);
+        start(async () => {
+          const res = await makePlannedFromTransaction(fd);
+          if (res.ok && res.scheduledTransactionId) {
+            onLinked?.(
+              res.scheduledTransactionId,
+              res.label ?? (row.payee || "Planned"),
+            );
+          }
+        });
+      }}
+    >
+      {pending ? "…" : "Make planned"}
+    </button>
   );
 }
 
@@ -142,10 +163,12 @@ function RegisterRowCells({
   row,
   groups,
   payees,
+  onPlannedLinked,
 }: {
   row: RegisterRow;
   groups: SheetCategoryGroup[];
   payees: string[];
+  onPlannedLinked?: (scheduledTransactionId: string, label: string) => void;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -400,7 +423,7 @@ function RegisterRowCells({
       </td>
       <td className={`${sheetCell} px-1 text-center`}>
         <div className="flex items-center justify-center gap-1">
-          <PlannedRowAction row={row} />
+          <PlannedRowAction row={row} onLinked={onPlannedLinked} />
           <DeleteTransactionButton id={row.id} returnTo="stay" compact />
         </div>
       </td>
@@ -457,7 +480,33 @@ export function TransactionsRegister({
   payees: string[];
   currency: string;
 }) {
+  const [optimisticPlanned, setOptimisticPlanned] = useState<
+    Record<string, { id: string; label: string }>
+  >({});
+
   if (rows.length === 0) return null;
+
+  const withOptimistic = (row: RegisterRow): RegisterRow => {
+    const o = optimisticPlanned[row.id];
+    if (!o || row.scheduledTransactionId) return row;
+    return {
+      ...row,
+      scheduledTransactionId: o.id,
+      matchedPlannedPayment: {
+        id: o.id,
+        matchText: o.label,
+        href: `/planned?id=${encodeURIComponent(o.id)}`,
+      },
+    };
+  };
+
+  const onPlannedLinked =
+    (txnId: string) => (schedId: string, label: string) => {
+      setOptimisticPlanned((prev) => ({
+        ...prev,
+        [txnId]: { id: schedId, label },
+      }));
+    };
 
   return (
     <div className={`${cardClass} overflow-hidden`}>
@@ -478,7 +527,8 @@ export function TransactionsRegister({
 
       {/* Mobile cards */}
       <ul className="divide-y divide-rim-subtle md:hidden">
-        {rows.map((row) => {
+        {rows.map((raw) => {
+          const row = withOptimistic(raw);
           const payeeDisplay = row.isTransfer
             ? row.transferLabel
               ? `Transfer: ${row.transferLabel}`
@@ -547,7 +597,10 @@ export function TransactionsRegister({
                 plannedPayment={row.matchedPlannedPayment}
               />
               <div className="mt-2 flex items-center justify-end gap-1">
-                <PlannedRowAction row={row} />
+                <PlannedRowAction
+                  row={row}
+                  onLinked={onPlannedLinked(row.id)}
+                />
                 <DeleteTransactionButton id={row.id} returnTo="stay" compact />
               </div>
             </li>
@@ -586,14 +639,18 @@ export function TransactionsRegister({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <RegisterRowCells
-                key={row.id}
-                row={row}
-                groups={groups}
-                payees={payees}
-              />
-            ))}
+            {rows.map((raw) => {
+              const row = withOptimistic(raw);
+              return (
+                <RegisterRowCells
+                  key={row.id}
+                  row={row}
+                  groups={groups}
+                  payees={payees}
+                  onPlannedLinked={onPlannedLinked(row.id)}
+                />
+              );
+            })}
           </tbody>
         </table>
       </div>

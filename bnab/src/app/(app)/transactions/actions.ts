@@ -450,11 +450,16 @@ export async function reconcileAccount(formData: FormData) {
 /**
  * Create a MONTHLY planned payment from a ledger txn and link it.
  * Advances nextDate one month since this occurrence is already paid.
+ * Does not revalidate `/transactions` so infinite-register scroll position stays.
  */
-export async function makePlannedFromTransaction(formData: FormData) {
+export async function makePlannedFromTransaction(
+  formData: FormData,
+): Promise<{ ok: boolean; scheduledTransactionId?: string; label?: string }> {
   const { budget } = await requireBudgetAccess();
-  const transactionId = String(formData.get("transactionId") ?? "");
-  if (!transactionId) return;
+  const transactionId = String(
+    formData.get("transactionId") ?? formData.get("id") ?? "",
+  );
+  if (!transactionId) return { ok: false };
 
   const txn = await prisma.transaction.findFirst({
     where: {
@@ -462,9 +467,12 @@ export async function makePlannedFromTransaction(formData: FormData) {
       account: { budgetId: budget.id },
       isChild: false,
     },
+    include: { payee: { select: { name: true } } },
   });
-  if (!txn || txn.transferTwinId || txn.scheduledTransactionId) return;
-  if (txn.amount === 0) return;
+  if (!txn || txn.transferTwinId || txn.scheduledTransactionId) {
+    return { ok: false };
+  }
+  if (txn.amount === 0) return { ok: false };
 
   const { advancePlannedDate } = await import("@/lib/planned-payments");
   const nextDate = advancePlannedDate(txn.date, "MONTHLY");
@@ -491,8 +499,16 @@ export async function makePlannedFromTransaction(formData: FormData) {
   });
 
   revalidatePath(`/transactions/${txn.id}`);
-  revalidatePath("/transactions");
   revalidatePath("/more/schedules");
   revalidatePath("/planned");
   revalidatePath("/plan");
+
+  const label =
+    txn.payee?.name ?? txn.notes?.slice(0, 40) ?? "Planned";
+  return { ok: true, scheduledTransactionId: sched.id, label };
+}
+
+/** Form-action wrapper (void return for `<form action>`). */
+export async function makePlannedFromTransactionAction(formData: FormData) {
+  await makePlannedFromTransaction(formData);
 }

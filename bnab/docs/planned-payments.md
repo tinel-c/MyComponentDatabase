@@ -24,7 +24,6 @@ Existing rows migrate as `PLANNED`. `autoEnter` applies only to `SCHEDULED`.
 | nextDate | **Due date** for the next payment |
 | dayOfMonth / weekday | Anchors for monthly/weekly |
 | billingUrl | Optional HTTPS portal (PLANNED) |
-| importRuleId | Optional link to an **Import rule** (PLANNED) |
 | Transaction.scheduledTransactionId | Bidirectional link when paid / entered |
 
 ## Matching (PLANNED only)
@@ -63,16 +62,16 @@ When `autoEnter=true` and `nextDate ≤ today`, app layout runs catch-up (≤20 
 | Surface | Behavior |
 |---------|----------|
 | Desktop nav **Planned** | `/planned`; badge = active **PLANNED** with `nextDate ≤ today` |
-| `/planned` | Summary (pay vs assign + process blurb); **Executed** (current-month hits); Excel sheet (**Due** column); Hits → `/transactions?planned=` |
+| `/planned` | Summary (pay vs assign); **Executed**; Excel sheet grouped by category group (**Due**, **Pay cash** on due/overdue → Cash account); Hits → `/transactions?planned=` |
 | `/more/schedules` | **SCHEDULED** list; Enter + autoEnter checkbox |
 | `/more/import-rules` | Each rule lists linked planned payments |
 | Transaction detail | **Make planned payment** (monthly `PLANNED` + link) |
-| Transactions register | Mapping link **Planned · label** when linked; **Actions**: Make / Edit planned + Delete |
-| Account register | Planned column + Make planned |
+| Transactions register | Mapping link **Planned · label** when linked; **Actions**: Make / Edit planned + Delete (Make planned keeps scroll) |
+| Account register | Planned column + Make planned (keeps scroll) |
 
 ## Helpers
 
 - `bnab/src/lib/planned-payments.ts` — match, advance date, pay/assign month totals
 - `bnab/src/lib/scheduled-auto-enter.ts` — SCHEDULED catch-up
-- `updatePlannedPayment` in `more/actions.ts` — sheet Save
+- `updatePlannedPayment` / `enterPlannedPaymentFromCash` in `more/actions.ts`
 - Tests: `planned-payments.test.ts`

@@ -140,7 +140,6 @@ export async function updatePlannedPayment(formData: FormData) {
   const billingUrlRaw = String(formData.get("billingUrl") ?? "").trim();
   const billingUrl =
     billingUrlRaw && /^https?:\/\//i.test(billingUrlRaw) ? billingUrlRaw : null;
-  const importRuleId = String(formData.get("importRuleId") ?? "") || null;
   const inflow = formData.get("inflow") === "1" || formData.get("inflow") === "on";
   const active =
     formData.get("active") === "1" || formData.get("active") === "on";
@@ -151,13 +150,6 @@ export async function updatePlannedPayment(formData: FormData) {
     where: { id: accountId, budgetId: budget.id },
   });
   if (!account) return;
-
-  if (importRuleId) {
-    const rule = await prisma.importCategoryRule.findFirst({
-      where: { id: importRuleId, budgetId: budget.id },
-    });
-    if (!rule) return;
-  }
 
   let payeeId: string | null = null;
   if (payeeName) {
@@ -187,7 +179,6 @@ export async function updatePlannedPayment(formData: FormData) {
       nextDate,
       recurrence,
       billingUrl,
-      importRuleId,
       active,
       dayOfMonth:
         recurrence === "MONTHLY" || recurrence === "YEARLY" ? dayOfMonth : null,
@@ -200,6 +191,66 @@ export async function updatePlannedPayment(formData: FormData) {
   revalidatePath("/transactions");
   revalidatePath("/plan");
   revalidatePath("/more/schedules");
+}
+
+/**
+ * Create a ledger txn on the budget's Cash account for a due/overdue PLANNED
+ * payment, link it, and advance nextDate (same as scheduled Enter).
+ */
+export async function enterPlannedPaymentFromCash(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const sched = await prisma.scheduledTransaction.findFirst({
+    where: {
+      id,
+      budgetId: budget.id,
+      active: true,
+      kind: ScheduleKind.PLANNED,
+    },
+  });
+  if (!sched) return;
+  if (sched.nextDate > todayISO()) return;
+
+  const cash = await prisma.financeAccount.findFirst({
+    where: {
+      budgetId: budget.id,
+      type: "CASH",
+      closed: false,
+    },
+    orderBy: { sortOrder: "asc" },
+  });
+  if (!cash) return;
+
+  await prisma.transaction.create({
+    data: {
+      accountId: cash.id,
+      date: todayISO(),
+      amount: sched.amount,
+      payeeId: sched.payeeId,
+      categoryId: sched.categoryId,
+      notes: sched.notes,
+      cleared: true,
+      scheduledTransactionId: sched.id,
+    },
+  });
+
+  const next = advanceDate(sched.nextDate, sched.recurrence);
+  await prisma.scheduledTransaction.update({
+    where: { id },
+    data: {
+      nextDate: next,
+      active: sched.recurrence === "ONCE" ? false : true,
+    },
+  });
+
+  revalidatePath("/planned");
+  revalidatePath("/plan");
+  revalidatePath("/transactions");
+  revalidatePath(`/accounts/${cash.id}`);
+  revalidatePath("/accounts");
+  invalidateBudgetCaches(budget.id);
 }
 
 export async function updateScheduleAutoEnter(formData: FormData) {
