@@ -1,9 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Equal, Minus, Plus } from "lucide-react";
 import { quickAdjustAssigned } from "@/app/(app)/plan/actions";
+import { usePlanWorkspaceOptional } from "@/components/plan/PlanWorkspace";
+import { usePendingActionsOptional } from "@/components/providers/PendingActionsProvider";
 
 type Props = {
   categoryId: string;
@@ -22,8 +23,12 @@ export function AssignQuickButtons({
   available,
   rta,
 }: Props) {
-  const router = useRouter();
+  const workspace = usePlanWorkspaceOptional();
+  const pendingActions = usePendingActionsOptional();
   const [pending, start] = useTransition();
+
+  const liveAvailable = workspace?.rows[categoryId]?.available ?? available;
+  const liveRta = workspace?.rta ?? rta;
 
   function run(mode: "cover" | "release" | "assignRta") {
     const fd = new FormData();
@@ -31,14 +36,27 @@ export function AssignQuickButtons({
     fd.set("month", month);
     fd.set("mode", mode);
     start(async () => {
-      await quickAdjustAssigned(fd);
-      router.refresh();
+      const label =
+        mode === "cover"
+          ? "Covering overspend…"
+          : mode === "release"
+            ? "Releasing available…"
+            : "Assigning Ready to Assign…";
+      const runFn = async () => {
+        const patch = await quickAdjustAssigned(fd);
+        if (patch?.ok) workspace?.applyPatch(patch);
+      };
+      if (pendingActions) {
+        await pendingActions.runPending(label, runFn);
+      } else {
+        await runFn();
+      }
     });
   }
 
-  const canCover = available < 0;
-  const canRelease = available > 0;
-  const canAssignRta = rta > 0;
+  const canCover = liveAvailable < 0;
+  const canRelease = liveAvailable > 0;
+  const canAssignRta = liveRta > 0;
 
   return (
     <div

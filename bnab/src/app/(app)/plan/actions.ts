@@ -79,20 +79,40 @@ export async function assignFromPlannedAction(formData: FormData) {
   await assignFromPlanned(formData);
 }
 
-export async function assignToCategory(formData: FormData) {
+export type PlanCellPatch =
+  | {
+      ok: true;
+      categoryId: string;
+      assigned: number;
+      available: number;
+      rta: number;
+      totalAssigned: number;
+    }
+  | { ok: false };
+
+export async function assignToCategory(
+  formData: FormData,
+): Promise<PlanCellPatch> {
   const { budget } = await requireBudgetAccess();
   const categoryId = String(formData.get("categoryId") ?? "");
   const month = String(formData.get("month") ?? "");
   const raw = String(formData.get("amount") ?? "");
   const amount = parseMoneyInput(raw);
   if (!categoryId || !/^\d{4}-\d{2}$/.test(month) || amount === null) {
-    return;
+    return { ok: false };
   }
 
   const cat = await prisma.category.findFirst({
     where: { id: categoryId, group: { budgetId: budget.id } },
   });
-  if (!cat || cat.isIncome) return;
+  if (!cat || cat.isIncome) return { ok: false };
+
+  const { loadPlanMonth } = await import("@/lib/plan-data");
+  const { plan } = await loadPlanMonth(budget.id, month);
+  const row = plan.categories[categoryId];
+  if (!row) return { ok: false };
+
+  const delta = amount - row.assigned;
 
   await prisma.monthlyCategoryBudget.upsert({
     where: { categoryId_month: { categoryId, month } },
@@ -100,32 +120,42 @@ export async function assignToCategory(formData: FormData) {
     update: { assigned: amount },
   });
 
-  revalidatePath("/plan");
   invalidateBudgetCaches(budget.id);
-  return;
+  return {
+    ok: true,
+    categoryId,
+    assigned: amount,
+    available: row.available + delta,
+    rta: plan.rta - delta,
+    totalAssigned: plan.totalAssigned + delta,
+  };
 }
 
 /**
  * Quick assign helpers (+ cover overspend, − release available, = assign all RTA).
- * Recomputes plan numbers server-side so the UI cannot send stale/tampered amounts.
+ * Returns a cell patch so PlanWorkspace can update without full RSC refresh.
  */
-export async function quickAdjustAssigned(formData: FormData) {
+export async function quickAdjustAssigned(
+  formData: FormData,
+): Promise<PlanCellPatch> {
   const { budget } = await requireBudgetAccess();
   const categoryId = String(formData.get("categoryId") ?? "");
   const month = String(formData.get("month") ?? "");
   const mode = String(formData.get("mode") ?? "");
-  if (!categoryId || !/^\d{4}-\d{2}$/.test(month)) return;
-  if (mode !== "cover" && mode !== "release" && mode !== "assignRta") return;
+  if (!categoryId || !/^\d{4}-\d{2}$/.test(month)) return { ok: false };
+  if (mode !== "cover" && mode !== "release" && mode !== "assignRta") {
+    return { ok: false };
+  }
 
   const cat = await prisma.category.findFirst({
     where: { id: categoryId, group: { budgetId: budget.id } },
   });
-  if (!cat || cat.isIncome) return;
+  if (!cat || cat.isIncome) return { ok: false };
 
   const { loadPlanMonth } = await import("@/lib/plan-data");
   const { plan } = await loadPlanMonth(budget.id, month);
   const row = plan.categories[categoryId];
-  if (!row) return;
+  if (!row) return { ok: false };
 
   const assigned = row.assigned;
   const available = row.available;
@@ -133,17 +163,17 @@ export async function quickAdjustAssigned(formData: FormData) {
 
   let next = assigned;
   if (mode === "cover") {
-    // Available is negative when overspent — add that shortfall to Assigned
-    if (available >= 0) return;
+    if (available >= 0) return { ok: false };
     next = assigned - available;
   } else if (mode === "release") {
-    // Pull Available back out of Assigned (returns money to Ready to Assign)
-    if (available <= 0) return;
+    if (available <= 0) return { ok: false };
     next = Math.max(0, assigned - available);
   } else if (mode === "assignRta") {
-    if (rta <= 0) return;
+    if (rta <= 0) return { ok: false };
     next = assigned + rta;
   }
+
+  const delta = next - assigned;
 
   await prisma.monthlyCategoryBudget.upsert({
     where: { categoryId_month: { categoryId, month } },
@@ -151,8 +181,15 @@ export async function quickAdjustAssigned(formData: FormData) {
     update: { assigned: next },
   });
 
-  revalidatePath("/plan");
   invalidateBudgetCaches(budget.id);
+  return {
+    ok: true,
+    categoryId,
+    assigned: next,
+    available: available + delta,
+    rta: rta - delta,
+    totalAssigned: plan.totalAssigned + delta,
+  };
 }
 
 export async function moveMoney(formData: FormData) {

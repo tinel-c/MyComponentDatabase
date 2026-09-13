@@ -3,9 +3,10 @@ import { ChevronLeft, ChevronRight, PiggyBank, Wallet } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { loadPlanMonthCached } from "@/lib/cache-tags";
 import { addMonths, currentMonth, formatMoney, monthLabel } from "@/lib/money";
-import { PlanSummaryBanner } from "@/components/plan/PlanSummaryBanner";
+import { PlanSummaryBannerLive } from "@/components/plan/PlanSummaryBannerLive";
 import { CategoryIcon } from "@/components/plan/CategoryIcon";
 import { PlanCategoryList } from "@/components/plan/PlanCategoryList";
+import { PlanWorkspace } from "@/components/plan/PlanWorkspace";
 import {
   buttonCompactClass,
   cardClass,
@@ -74,6 +75,22 @@ export default async function PlanPage({
   // Activity is signed (outflow negative); banner Spent is positive.
   const spentMagnitude = -spentThisMonth;
 
+  const workspaceRows = Object.fromEntries(
+    spendingGroups.flatMap((g) =>
+      g.categories.map((c) => {
+        const row = plan.categories[c.id];
+        return [
+          c.id,
+          {
+            available: row?.available ?? 0,
+            activity: row?.activity ?? 0,
+            assigned: row?.assigned ?? 0,
+          },
+        ] as const;
+      }),
+    ),
+  );
+
   return (
     <div className="space-y-4 md:space-y-5">
       <div className="flex items-center justify-between gap-2">
@@ -104,13 +121,17 @@ export default async function PlanPage({
         </Link>
       </div>
 
-      <PlanSummaryBanner
-        rta={plan.rta}
+      <PlanWorkspace
+        month={month}
+        currency={currency}
+        initialRows={workspaceRows}
+        initialRta={plan.rta}
+        initialTotalAssigned={plan.totalAssigned}
+      >
+      <PlanSummaryBannerLive
         incomeToRta={plan.incomeToRta}
         toSavings={plan.toSavings}
-        totalAssigned={plan.totalAssigned}
         spent={spentMagnitude}
-        currency={currency}
       />
 
       {/* Income categories + Accounts (desktop); Categories assign stays below */}
@@ -473,6 +494,7 @@ export default async function PlanPage({
       <p className="hidden px-1 text-center text-xs text-fg-subtle md:block">
         Ready to Assign = Income − To savings − Assigned − hold. Drive RTA to 0.
       </p>
+      </PlanWorkspace>
     </div>
   );
 }

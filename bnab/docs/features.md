@@ -35,7 +35,8 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Ready to Assign banner (ok / ready / over-assigned)
 - [x] Income section + **Accounts · remaining** (desktop)
 - [x] Move money between categories (desktop)
-- [x] Cover overspending / release available / assign all RTA (**Quick** +, −, =)
+- [x] Cover overspending / release available / assign all RTA (**Quick** +, −, =) with **PlanWorkspace** AJAX (no full page refresh)
+- [x] **Assign from planned** for the viewed month
 - [x] Monthly carryover of Available
 - [x] Targets: monthly spending, needed by date, weekly, savings balance
 - [x] Category icons by name/group
@@ -52,7 +53,8 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Split transactions
 - [x] Cleared / uncleared
 - [x] Scheduled / recurring + enter now
-- [x] Search / filter + Excel-style register
+- [x] **Planned payments** (`/planned`): billing URL, import-rule link, ING match, Make planned payment
+- [x] Search / filter + Excel-style register (**infinite scroll**)
 - [x] Mobile quick-add / sheet editor
 - [x] **Delete transaction** (account list, register, edit sheet) with confirm
 - [x] **ING CSV import**
@@ -87,7 +89,9 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Service worker caching for static assets / faster return visits
 - [x] BNAB envelope mark + wordmark (`BnabLogo`)
 - [x] **Receipt detailing** — Gemini vision bill upload → split children via `ReceiptCategoryRule`
+- [x] **Multi-bill batch** + Imported bills **AI audit**
 - [x] Reflect “Receipt-detailed spending” from scan lines
+- [x] Agent ADRs + import vocabulary (`docs/adr/`, `docs/import-vocabulary.md`)
 
 ---
 

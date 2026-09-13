@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { AssignCell } from "@/components/plan/AssignCell";
 import { AssignQuickButtons } from "@/components/plan/AssignQuickButtons";
 import { CategoryIcon } from "@/components/plan/CategoryIcon";
 import { PlanEmptyToggle } from "@/components/plan/PlanEmptyToggle";
+import { usePlanWorkspaceOptional } from "@/components/plan/PlanWorkspace";
 import { moneyClass } from "@/components/forms/field-classes";
 import { formatMoney } from "@/lib/money";
 
@@ -52,8 +55,12 @@ export function PlanCategoryList({
   rta,
   rows,
 }: Props) {
+  const workspace = usePlanWorkspaceOptional();
+  const liveRows = workspace?.rows ?? rows;
+  const liveRta = workspace?.rta ?? rta;
+
   const enriched = categories.map((cat) => {
-    const row = rows[cat.id];
+    const row = liveRows[cat.id];
     const available = row?.available ?? 0;
     const activity = row?.activity ?? 0;
     const assigned = row?.assigned ?? 0;
@@ -163,7 +170,7 @@ export function PlanCategoryList({
                   categoryId={cat.id}
                   month={month}
                   available={available}
-                  rta={rta}
+                  rta={liveRta}
                 />
               </div>
             </div>

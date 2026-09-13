@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **PlanWorkspace AJAX:** Quick assign / Assign cell patch RTA + Available without full page refresh; pending rail tracks work
+- **Reflect** reuses plan-pack accounts/categories (fewer duplicate queries)
 - **Agent architecture memory:** `docs/adr/` + `.cursor/rules/bnab-architecture.mdc` + expanded `AGENTS.md`
 - **Import vocabulary** + planned payments docs; `/planned` nav; Assign from planned; Make planned payment; ING planned match + import history item detail
 - **Cursor infinite scroll** on Transactions, Account register, and Imported bills (no `?page=`)

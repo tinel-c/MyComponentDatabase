@@ -126,8 +126,6 @@ export default async function ReflectPage({
   const nextMonth = addMonths(focusMonth, 1);
 
   const [
-    accounts,
-    categories,
     transactions,
     allTx,
     receiptLines,
@@ -135,19 +133,6 @@ export default async function ReflectPage({
     unlinkedScans,
     planPack,
   ] = await Promise.all([
-    prisma.financeAccount.findMany({
-      where: { budgetId: budget.id },
-      select: { id: true, type: true, onBudget: true, name: true },
-    }),
-    prisma.category.findMany({
-      where: { group: { budgetId: budget.id } },
-      select: {
-        id: true,
-        name: true,
-        isIncome: true,
-        group: { select: { name: true } },
-      },
-    }),
     prisma.transaction.findMany({
       where: {
         account: { budgetId: budget.id },
@@ -237,6 +222,21 @@ export default async function ReflectPage({
     }),
     loadPlanMonthCached(budget.id, end),
   ]);
+
+  const accounts = planPack.accounts.map((a) => ({
+    id: a.id,
+    type: a.type,
+    onBudget: a.onBudget,
+    name: a.name,
+  }));
+  const categories = planPack.groups.flatMap((g) =>
+    g.categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      isIncome: c.isIncome,
+      group: { name: g.name },
+    })),
+  );
 
   const catById = new Map(categories.map((c) => [c.id, c]));
   const months: string[] = [];
