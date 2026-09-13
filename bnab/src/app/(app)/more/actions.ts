@@ -10,6 +10,12 @@ import { normalizeEmail } from "@/lib/email";
 import { parseMoneyInput, todayISO } from "@/lib/money";
 import { Recurrence, ScheduleKind } from "@prisma/client";
 
+function bustPlanCategoryCaches(budgetId: string) {
+  invalidateBudgetCaches(budgetId);
+  revalidatePath("/more/categories");
+  revalidatePath("/transactions/new");
+}
+
 export async function logoutAction() {
   await signOut({ redirectTo: "/" });
 }
@@ -189,7 +195,6 @@ export async function updatePlannedPayment(formData: FormData) {
 
   revalidatePath("/planned");
   revalidatePath("/transactions");
-  revalidatePath("/plan");
   revalidatePath("/more/schedules");
 }
 
@@ -246,7 +251,6 @@ export async function enterPlannedPaymentFromCash(formData: FormData) {
   });
 
   revalidatePath("/planned");
-  revalidatePath("/plan");
   revalidatePath("/transactions");
   revalidatePath(`/accounts/${cash.id}`);
   revalidatePath("/accounts");
@@ -315,7 +319,6 @@ export async function enterScheduled(formData: FormData) {
 
   revalidatePath("/more/schedules");
   revalidatePath("/planned");
-  revalidatePath("/plan");
   revalidatePath("/accounts");
   invalidateBudgetCaches(budget.id);
   return;
@@ -366,8 +369,7 @@ export async function setCategoryTarget(formData: FormData) {
     },
   });
 
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
+  bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -395,9 +397,7 @@ export async function createCategoryGroup(formData: FormData) {
       sortOrder: (max._max.sortOrder ?? 0) + 1,
     },
   });
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
-  revalidatePath("/transactions/new");
+  bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -409,9 +409,7 @@ export async function renameCategoryGroup(formData: FormData) {
   const g = await assertGroup(budget.id, id);
   if (!g) return;
   await prisma.categoryGroup.update({ where: { id }, data: { name } });
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
-  revalidatePath("/transactions/new");
+  bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -424,9 +422,7 @@ export async function toggleCategoryGroupHidden(formData: FormData) {
     where: { id },
     data: { hidden: !g.hidden },
   });
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
-  revalidatePath("/transactions/new");
+  bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -454,8 +450,7 @@ export async function moveCategoryGroup(formData: FormData) {
       data: { sortOrder: a.sortOrder },
     }),
   ]);
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
+  bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -478,9 +473,7 @@ export async function createCategory(formData: FormData) {
       sortOrder: (max._max.sortOrder ?? 0) + 1,
     },
   });
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
-  revalidatePath("/transactions/new");
+  bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -494,9 +487,7 @@ export async function renameCategory(formData: FormData) {
   });
   if (!cat) return;
   await prisma.category.update({ where: { id }, data: { name } });
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
-  revalidatePath("/transactions/new");
+  bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -511,9 +502,7 @@ export async function toggleCategoryHidden(formData: FormData) {
     where: { id },
     data: { hidden: !cat.hidden },
   });
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
-  revalidatePath("/transactions/new");
+  bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -545,8 +534,7 @@ export async function moveCategory(formData: FormData) {
       data: { sortOrder: a.sortOrder },
     }),
   ]);
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
+  bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -566,8 +554,6 @@ export async function hideOrDeleteCategory(formData: FormData) {
     await prisma.monthlyCategoryBudget.deleteMany({ where: { categoryId: id } });
     await prisma.category.delete({ where: { id } });
   }
-  revalidatePath("/more/categories");
-  revalidatePath("/plan");
-  revalidatePath("/transactions/new");
+  bustPlanCategoryCaches(budget.id);
   return;
 }

@@ -4,8 +4,20 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireBudgetAccess } from "@/lib/authz";
+import { invalidateBudgetCaches } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { parseMoneyInput, todayISO } from "@/lib/money";
+
+/** List/form routes that are not covered by tagged plan/activity caches. */
+function revalidateLedgerLists(opts?: { accountIds?: string[]; bills?: boolean }) {
+  revalidatePath("/accounts");
+  revalidatePath("/transactions");
+  revalidatePath("/planned");
+  if (opts?.bills) revalidatePath("/more/bills");
+  for (const id of opts?.accountIds ?? []) {
+    revalidatePath(`/accounts/${id}`);
+  }
+}
 
 async function upsertPayee(
   budgetId: string,
@@ -174,14 +186,8 @@ export async function createTransaction(formData: FormData) {
     }
   }
 
-  const { invalidateBudgetCaches } = await import("@/lib/cache-tags");
   invalidateBudgetCaches(budget.id);
-  revalidatePath("/accounts");
-  revalidatePath("/plan");
-  revalidatePath("/planned");
-  revalidatePath("/transactions");
-  revalidatePath("/reflect");
-  revalidatePath("/more/bills");
+  revalidateLedgerLists({ accountIds: [account.id], bills: true });
   redirect(`/accounts/${account.id}`);
 }
 
@@ -244,8 +250,8 @@ export async function createSplitTransaction(formData: FormData) {
     }
   });
 
-  revalidatePath("/accounts");
-  revalidatePath("/plan");
+  invalidateBudgetCaches(budget.id);
+  revalidateLedgerLists({ accountIds: [accountId] });
   redirect(`/accounts/${accountId}`);
 }
 
@@ -319,10 +325,9 @@ export async function updateTransaction(formData: FormData) {
         cleared: parsed.data.cleared === "on" || parsed.data.cleared === "1",
       },
     });
-    revalidatePath(`/accounts/${txn.accountId}`);
+    invalidateBudgetCaches(budget.id);
+    revalidateLedgerLists({ accountIds: [txn.accountId] });
     revalidatePath(`/transactions/${id}`);
-    revalidatePath("/transactions");
-    revalidatePath("/plan");
     finishMutation(returnTo, `/accounts/${txn.accountId}`);
     return;
   }
@@ -362,11 +367,11 @@ export async function updateTransaction(formData: FormData) {
         },
       }),
     ]);
-    revalidatePath(`/accounts/${txn.accountId}`);
-    revalidatePath(`/accounts/${twin.accountId}`);
+    invalidateBudgetCaches(budget.id);
+    revalidateLedgerLists({
+      accountIds: [txn.accountId, twin.accountId],
+    });
     revalidatePath(`/transactions/${id}`);
-    revalidatePath("/transactions");
-    revalidatePath("/plan");
     finishMutation(returnTo, `/accounts/${txn.accountId}`);
     return;
   }
@@ -387,10 +392,9 @@ export async function updateTransaction(formData: FormData) {
     },
   });
 
-  revalidatePath(`/accounts/${txn.accountId}`);
+  invalidateBudgetCaches(budget.id);
+  revalidateLedgerLists({ accountIds: [txn.accountId] });
   revalidatePath(`/transactions/${id}`);
-  revalidatePath("/transactions");
-  revalidatePath("/plan");
   finishMutation(returnTo, `/accounts/${txn.accountId}`);
 }
 
@@ -422,9 +426,8 @@ export async function deleteTransaction(formData: FormData) {
     await tx.transaction.delete({ where: { id } });
   });
 
-  revalidatePath(`/accounts/${accountId}`);
-  revalidatePath("/transactions");
-  revalidatePath("/plan");
+  invalidateBudgetCaches(budget.id);
+  revalidateLedgerLists({ accountIds: [accountId] });
   if (returnTo === "stay") {
     redirect("/transactions");
     return;

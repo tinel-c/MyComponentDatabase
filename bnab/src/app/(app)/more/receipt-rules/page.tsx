@@ -19,18 +19,21 @@ import { ReceiptRulesEditor } from "@/components/import/ReceiptRulesEditor";
 export default async function ReceiptRulesPage() {
   const { budget } = await requireBudgetAccess();
   await ensureYngsbCategories(prisma, budget.id);
-  await seedDefaultReceiptRules(prisma, budget.id);
 
+  // Seed with category-group options; rules read after seed so first visit sees defaults.
+  const [, groups] = await Promise.all([
+    seedDefaultReceiptRules(prisma, budget.id),
+    prisma.categoryGroup.findMany({
+      where: { budgetId: budget.id, hidden: false },
+      include: {
+        categories: { where: { hidden: false }, orderBy: { sortOrder: "asc" } },
+      },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
   const rules = await prisma.receiptCategoryRule.findMany({
     where: { budgetId: budget.id },
     include: { category: { include: { group: true } } },
-    orderBy: { sortOrder: "asc" },
-  });
-  const groups = await prisma.categoryGroup.findMany({
-    where: { budgetId: budget.id, hidden: false },
-    include: {
-      categories: { where: { hidden: false }, orderBy: { sortOrder: "asc" } },
-    },
     orderBy: { sortOrder: "asc" },
   });
 

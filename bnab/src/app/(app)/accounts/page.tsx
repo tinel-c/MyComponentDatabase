@@ -43,8 +43,10 @@ export default async function AccountsPage({
     closed?: string;
   }>;
 }) {
-  const { budget } = await requireBudgetAccess();
-  const sp = await searchParams;
+  const [{ budget }, sp] = await Promise.all([
+    requireBudgetAccess(),
+    searchParams,
+  ]);
   const q = sp.q?.trim() || "";
   const type = ACCOUNT_TYPES.includes(sp.type as (typeof ACCOUNT_TYPES)[number])
     ? sp.type

@@ -11,6 +11,9 @@ const AUTO_ENTER_LIMIT = 20;
  * Catch up due SCHEDULED rows with autoEnter=true (create ledger txn + advance).
  * Skips create when a txn already exists for that scheduledTransactionId+date.
  * Limited to AUTO_ENTER_LIMIT entries per call.
+ *
+ * Each batch: one findMany of due schedules + one findMany for existence set
+ * (not findFirst per schedule).
  */
 export async function runScheduledAutoEnter(budgetId: string): Promise<number> {
   const today = todayISO();
@@ -31,19 +34,25 @@ export async function runScheduledAutoEnter(budgetId: string): Promise<number> {
     });
     if (due.length === 0) break;
 
+    const existing = await prisma.transaction.findMany({
+      where: {
+        OR: due.map((s) => ({
+          scheduledTransactionId: s.id,
+          date: s.nextDate,
+        })),
+      },
+      select: { scheduledTransactionId: true, date: true },
+    });
+    const existSet = new Set(
+      existing.map((e) => `${e.scheduledTransactionId}|${e.date}`),
+    );
+
     let advancedAny = false;
     for (const sched of due) {
       if (processed >= AUTO_ENTER_LIMIT) break;
 
-      const existing = await prisma.transaction.findFirst({
-        where: {
-          scheduledTransactionId: sched.id,
-          date: sched.nextDate,
-        },
-        select: { id: true },
-      });
-
-      if (!existing) {
+      const key = `${sched.id}|${sched.nextDate}`;
+      if (!existSet.has(key)) {
         await prisma.transaction.create({
           data: {
             accountId: sched.accountId,
@@ -57,6 +66,7 @@ export async function runScheduledAutoEnter(budgetId: string): Promise<number> {
           },
         });
         anyCreated = true;
+        existSet.add(key);
       }
 
       const next = advancePlannedDate(

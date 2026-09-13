@@ -6,10 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/money";
 import { accountTypeMeta } from "@/lib/ui-accents";
 import {
-  buildAccountRegisterWhere,
-  fetchAccountRegisterChunk,
   type AccountRegisterFilters,
 } from "@/lib/account-register-chunk";
+import { loadAccountRegisterFirstPage } from "@/lib/cache-tags";
 import {
   buttonCompactClass,
   buttonPrimaryClass,
@@ -49,9 +48,11 @@ export default async function AccountDetailPage({
     planned?: string;
   }>;
 }) {
-  const { budget } = await requireBudgetAccess();
-  const { id } = await params;
-  const sp = await searchParams;
+  const [{ budget }, { id }, sp] = await Promise.all([
+    requireBudgetAccess(),
+    params,
+    searchParams,
+  ]);
 
   const account = await prisma.financeAccount.findFirst({
     where: { id, budgetId: budget.id },
@@ -70,14 +71,16 @@ export default async function AccountDetailPage({
   };
   const hasFilters = Object.values(filters).some(Boolean);
 
-  const pendingIds = await findPendingBillImportParentIds(prisma, [id]);
-  const categories = await prisma.category.findMany({
-    where: { group: { budgetId: budget.id }, hidden: false },
-    orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true },
-  });
+  const [pendingIds, categories] = await Promise.all([
+    findPendingBillImportParentIds(prisma, [id]),
+    prisma.category.findMany({
+      where: { group: { budgetId: budget.id }, hidden: false },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
-  const [sumAgg, chunk, listCount, balanceAdjustments] = await Promise.all([
+  const [sumAgg, firstPage, balanceAdjustments] = await Promise.all([
     prisma.transaction.aggregate({
       where: {
         accountId: id,
@@ -86,10 +89,7 @@ export default async function AccountDetailPage({
       },
       _sum: { amount: true },
     }),
-    fetchAccountRegisterChunk(id, null, undefined, filters),
-    prisma.transaction.count({
-      where: buildAccountRegisterWhere(id, filters),
-    }),
+    loadAccountRegisterFirstPage(budget.id, id, filters),
     prisma.transaction.findMany({
       where: {
         accountId: id,
@@ -106,6 +106,8 @@ export default async function AccountDetailPage({
     }),
   ]);
 
+  const listCount = firstPage.count;
+  const chunk = firstPage;
   const balance = sumAgg._sum.amount ?? 0;
   const meta = accountTypeMeta(account.type);
   const Icon = meta.icon;

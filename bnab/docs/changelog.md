@@ -1,5 +1,22 @@
 # BNAB changelog
 
+## 1.2.5 — 2026-09-13
+
+Cache correctness and speed pass: invalidation, durable engine tips, register first-page cache.
+
+### Highlights
+
+- **`invalidateBudgetCaches`** on all money/category/ledger mutations (txn update/delete/split, receipts apply, import revert/reapply, categories, balance adjust, data tools)
+- Assign cells use **`loadPlanMonthCached`** (no uncached full reload per blur)
+- **Durable `EngineMonthTip`** — cold Plan skips full history when tip coverage is complete (ADR 0010)
+- **Tagged first-page** caches for transactions / account registers (InfiniteList load-more unchanged)
+- Reflect leaner net-worth; parallelized import-history / accounts / seeds; batched assignFromPlanned + scheduled auto-enter
+- Cache Components (ADR 0008) attempted; left off — auth prerender blockers documented
+
+### Docs
+
+`performance.md`, ADRs 0004 / 0008 / 0010.
+
 ## 1.2.4 — 2026-09-13
 
 Planned sheet Pay cash, category grouping, and register Make planned scroll fix.

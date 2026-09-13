@@ -699,8 +699,6 @@ export async function confirmIngImport(formData: FormData): Promise<
   revalidatePath("/more/bills");
   revalidatePath("/transactions");
   revalidatePath("/accounts");
-  revalidatePath("/plan");
-  revalidatePath("/reflect");
   return { ok: true, batchId: batch.id, created };
 }
 
@@ -963,10 +961,11 @@ export async function revertImportBatch(formData: FormData) {
     },
   });
 
+  invalidateBudgetCaches(budget.id);
   revalidatePath("/more/import-history");
   revalidatePath("/transactions");
   revalidatePath("/accounts");
-  revalidatePath("/plan");
+  revalidatePath("/more/bills");
 }
 
 export async function reapplyRulesToBatch(formData: FormData) {
@@ -1013,7 +1012,7 @@ export async function reapplyRulesToBatch(formData: FormData) {
     }
   }
 
+  invalidateBudgetCaches(budget.id);
   revalidatePath("/more/import-history");
   revalidatePath("/transactions");
-  revalidatePath("/plan");
 }

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Prisma } from "@prisma/client";
 import { findFirstMatchingImportRule } from "@/lib/ing-import";
 import {
@@ -8,6 +9,22 @@ import {
 } from "@/lib/list-cursor";
 import { prisma } from "@/lib/prisma";
 import type { RegisterRow } from "@/components/transactions/TransactionsRegister";
+
+/** Per-request memo — InfiniteList chunks share one rules load. */
+const loadImportRulesForBudget = cache(async (budgetId: string) => {
+  return prisma.importCategoryRule.findMany({
+    where: { budgetId },
+    orderBy: { sortOrder: "asc" },
+    select: {
+      id: true,
+      matchText: true,
+      categoryId: true,
+      transferAccountId: true,
+      ignore: true,
+      sortOrder: true,
+    },
+  });
+});
 
 export type TransactionsListFilters = {
   q?: string;
@@ -177,18 +194,7 @@ export async function fetchTransactionsRegisterChunk(opts: {
         account: { select: { name: true } },
       },
     }),
-    prisma.importCategoryRule.findMany({
-      where: { budgetId: opts.budgetId },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        matchText: true,
-        categoryId: true,
-        transferAccountId: true,
-        ignore: true,
-        sortOrder: true,
-      },
-    }),
+    loadImportRulesForBudget(opts.budgetId),
   ]);
 
   const twinIds = transactions

@@ -1,29 +1,32 @@
 # 0008 — Cache Components phase 2 (Proposed)
 
-- Status: Proposed
+- Status: Proposed (blocked)
 - Date: 2026-09-13
+- Updated: 2026-09-13
 
 ## Context
 
-ADR [0004](./0004-tagged-data-cache.md) ships tagged `unstable_cache` + `invalidateBudgetCaches` without enabling Next.js 16 Cache Components / full PPR. `bnab/next.config.ts` already has safe experimental knobs (`serverActions.bodySizeLimit`, `optimizePackageImports`) but **not** `cacheComponents`.
+ADR [0004](./0004-tagged-data-cache.md) ships tagged `unstable_cache` + `invalidateBudgetCaches` without enabling Next.js 16 Cache Components / full PPR.
 
-## Decision (proposed)
+## Attempt (2026-09-13)
 
-Leave `cacheComponents` off until the checklist in [performance.md](../performance.md) Phase 2 is completed on a branch. The bridge until then:
+Enabled `cacheComponents: true` and migrated plan/activity/register loaders toward `"use cache"` + `cacheTag`. Build failed:
 
-| Concern | Today |
-|---------|--------|
-| Plan / Reflect reads | `loadPlanMonthCached` |
-| Mutation freshness | `invalidateBudgetCaches(budgetId)` |
-| Engine prefix | tip cache in `plan-data.ts` |
+1. Route segment `dynamic` / `runtime` incompatible on `/api/health` and `/api/admin/db-export` (removable).
+2. **Blocking:** almost all authenticated routes hit “uncached or runtime data during prerendering” (`cookies()` / auth / layout providers). Fixing requires Suspense shells or `instant = false` across `(app)/*`, not a single Plan-path spike.
 
-When enabling:
+Flag left **off**. Bridge remains `unstable_cache` in [`cache-tags.ts`](../../src/lib/cache-tags.ts).
 
-1. Flip `experimental.cacheComponents` (or current Next flag) only after a Plan-path `"use cache"` spike.
-2. Preserve tag semantics equivalent to `budget:{id}` / `plan:{id}:{month}`.
-3. Document any API rename from `unstable_cache` / `revalidateTag(..., "max")` in this ADR and set Status → Accepted.
+## Decision (still proposed)
+
+Leave `cacheComponents` off until a dedicated milestone:
+
+1. Audit every `(app)` layout/page for cookies/auth boundaries.
+2. Wrap dynamic shells in `<Suspense>` (or mark blocking routes).
+3. Re-enable flag; migrate plan → activity → register first-page to `"use cache"`.
+4. Smoke Plan / Reflect / import / register; then set Status → Accepted.
 
 ## Consequences
 
-- No production behavior change from this ADR.
-- Agents must not enable `cacheComponents` “because Next 16” without the measurement checklist.
+- Agents must not re-enable `cacheComponents` without clearing the prerender blockers above.
+- Performance wins for this milestone come from tip persistence (ADR 0010), register first-page tags, and invalidation completeness — not Cache Components.

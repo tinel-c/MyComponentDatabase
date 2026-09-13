@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireBudgetAccess } from "@/lib/authz";
+import { invalidateBudgetCaches } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { processReceiptDetailing } from "@/lib/receipt-ai";
 import {
@@ -306,9 +307,8 @@ export async function importBillCreateAction(
           : null,
     });
 
-    revalidatePath("/plan");
+    invalidateBudgetCaches(budget.id);
     revalidatePath("/transactions");
-    revalidatePath("/reflect");
     revalidatePath("/more/import-bill");
     revalidatePath("/more/bills");
     revalidatePath(`/accounts/${accountId}`);
@@ -557,8 +557,7 @@ export async function confirmReceiptDetail(
       data: { status: "ok" },
     });
 
-    revalidatePath("/plan");
-    revalidatePath("/reflect");
+    invalidateBudgetCaches(budget.id);
     revalidatePath("/transactions");
     revalidatePath(`/transactions/${transactionId}`);
     revalidatePath(`/accounts/${txn.accountId}`);

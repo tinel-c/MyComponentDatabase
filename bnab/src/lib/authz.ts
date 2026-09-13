@@ -59,3 +59,15 @@ export const requireBudgetAccess = cache(async () => {
   }
   return { session, membership, budget: membership.budget };
 });
+
+/**
+ * All budgets the user belongs to (for switchers).
+ * Cached per-request so layout + More share one findMany.
+ */
+export const getUserBudgetMemberships = cache(async (userId: string) => {
+  return prisma.budgetMember.findMany({
+    where: { userId },
+    include: { budget: { select: { id: true, name: true, currency: true } } },
+    orderBy: { budget: { createdAt: "asc" } },
+  });
+});

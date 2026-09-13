@@ -55,25 +55,45 @@ export async function assignFromPlanned(formData: FormData): Promise<{
     byCategory.set(s.categoryId, (byCategory.get(s.categoryId) ?? 0) + abs);
   }
 
-  let count = 0;
+  const categoryIds = [...byCategory.keys()];
+  if (categoryIds.length === 0) {
+    return { ok: true, count: 0 };
+  }
+
+  const existingRows = await prisma.monthlyCategoryBudget.findMany({
+    where: { month, categoryId: { in: categoryIds } },
+    select: { categoryId: true, assigned: true },
+  });
+  const assignedByCategory = new Map(
+    existingRows.map((r) => [r.categoryId, r.assigned]),
+  );
+
+  const upserts: {
+    categoryId: string;
+    assigned: number;
+  }[] = [];
   for (const [categoryId, plannedAbs] of byCategory) {
-    const existing = await prisma.monthlyCategoryBudget.findUnique({
-      where: { categoryId_month: { categoryId, month } },
-    });
-    const current = existing?.assigned ?? 0;
+    const current = assignedByCategory.get(categoryId) ?? 0;
     const next = Math.max(current, plannedAbs);
     if (next === current) continue;
-    await prisma.monthlyCategoryBudget.upsert({
-      where: { categoryId_month: { categoryId, month } },
-      create: { categoryId, month, assigned: next },
-      update: { assigned: next },
-    });
-    count++;
+    upserts.push({ categoryId, assigned: next });
+  }
+
+  if (upserts.length > 0) {
+    await prisma.$transaction(
+      upserts.map(({ categoryId, assigned }) =>
+        prisma.monthlyCategoryBudget.upsert({
+          where: { categoryId_month: { categoryId, month } },
+          create: { categoryId, month, assigned },
+          update: { assigned },
+        }),
+      ),
+    );
   }
 
   revalidatePath("/plan");
   invalidateBudgetCaches(budget.id);
-  return { ok: true, count };
+  return { ok: true, count: upserts.length };
 }
 
 /** Form-action wrapper (void return for `<form action>`). */
@@ -109,8 +129,8 @@ export async function assignToCategory(
   });
   if (!cat || cat.isIncome) return { ok: false };
 
-  const { loadPlanMonth } = await import("@/lib/plan-data");
-  const { plan } = await loadPlanMonth(budget.id, month);
+  const { loadPlanMonthCached } = await import("@/lib/cache-tags");
+  const { plan } = await loadPlanMonthCached(budget.id, month);
   const row = plan.categories[categoryId];
   if (!row) return { ok: false };
 
@@ -154,8 +174,8 @@ export async function quickAdjustAssigned(
   });
   if (!cat || cat.isIncome) return { ok: false };
 
-  const { loadPlanMonth } = await import("@/lib/plan-data");
-  const { plan } = await loadPlanMonth(budget.id, month);
+  const { loadPlanMonthCached } = await import("@/lib/cache-tags");
+  const { plan } = await loadPlanMonthCached(budget.id, month);
   const row = plan.categories[categoryId];
   if (!row) return { ok: false };
 
@@ -350,7 +370,7 @@ export async function createAccount(formData: FormData) {
   });
 
   revalidatePath("/accounts");
-  revalidatePath("/plan");
+  invalidateBudgetCaches(budget.id);
   return;
 }
 
@@ -396,8 +416,8 @@ export async function renameAccount(formData: FormData) {
 
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${id}`);
-  revalidatePath("/plan");
   revalidatePath("/more/categories");
+  invalidateBudgetCaches(budget.id);
   return;
 }
 
@@ -508,7 +528,6 @@ export async function adjustAccountBalance(formData: FormData) {
 
   revalidatePath(`/accounts/${accountId}`);
   revalidatePath("/accounts");
-  revalidatePath("/plan");
   revalidatePath("/transactions");
-  revalidatePath("/reflect");
+  invalidateBudgetCaches(budget.id);
 }

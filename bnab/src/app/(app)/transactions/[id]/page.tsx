@@ -20,31 +20,35 @@ export default async function EditTransactionPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { budget } = await requireBudgetAccess();
-  const { id } = await params;
+  const [{ budget }, { id }] = await Promise.all([
+    requireBudgetAccess(),
+    params,
+  ]);
   await ensureYngsbCategories(prisma, budget.id);
-  await seedDefaultReceiptRules(prisma, budget.id);
 
-  const txn = await prisma.transaction.findFirst({
-    where: { id, account: { budgetId: budget.id }, isChild: false },
-    include: {
-      payee: true,
-      category: true,
-      account: true,
-      children: { include: { category: true }, orderBy: { createdAt: "asc" } },
-      scheduledTransaction: { select: { id: true, nextDate: true } },
-    },
-  });
+  // Seed receipt defaults alongside the txn read (independent).
+  const [, txn] = await Promise.all([
+    seedDefaultReceiptRules(prisma, budget.id),
+    prisma.transaction.findFirst({
+      where: { id, account: { budgetId: budget.id }, isChild: false },
+      include: {
+        payee: true,
+        category: true,
+        account: true,
+        children: { include: { category: true }, orderBy: { createdAt: "asc" } },
+        scheduledTransaction: { select: { id: true, nextDate: true } },
+      },
+    }),
+  ]);
   if (!txn) notFound();
 
-  const twin = txn.transferTwinId
-    ? await prisma.transaction.findFirst({
-        where: { id: txn.transferTwinId },
-        include: { account: true },
-      })
-    : null;
-
-  const [groups, payees] = await Promise.all([
+  const [twin, groups, payees] = await Promise.all([
+    txn.transferTwinId
+      ? prisma.transaction.findFirst({
+          where: { id: txn.transferTwinId },
+          include: { account: true },
+        })
+      : Promise.resolve(null),
     prisma.categoryGroup.findMany({
       where: { budgetId: budget.id, hidden: false },
       orderBy: { sortOrder: "asc" },

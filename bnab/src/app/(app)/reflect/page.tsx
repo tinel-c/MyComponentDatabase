@@ -54,14 +54,18 @@ function reflectHref(opts: {
   return `/reflect?${sp.toString()}`;
 }
 
-/** Month-end balances via one sorted pass per account (prefix sums). */
+/**
+ * Month-end net worth from opening balances (pre-span groupBy) + lean in-span
+ * deltas — avoids a full-ledger scan. Pack `accountBalances` is tip-only.
+ */
 function netWorthByMonth(
   accounts: { id: string; type: string }[],
-  allTx: { accountId: string; date: string; amount: number }[],
+  openingByAccount: Map<string, number>,
+  spanTx: { accountId: string; date: string; amount: number }[],
   months: string[],
 ) {
   const byAccount = new Map<string, { date: string; amount: number }[]>();
-  for (const t of allTx) {
+  for (const t of spanTx) {
     let list = byAccount.get(t.accountId);
     if (!list) {
       list = [];
@@ -70,22 +74,23 @@ function netWorthByMonth(
     list.push(t);
   }
 
-  type Prefix = { date: string; bal: number };
+  type Prefix = { date: string; delta: number };
   const prefixes = new Map<string, Prefix[]>();
   for (const [accountId, list] of byAccount) {
     list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const pref: Prefix[] = [];
-    let bal = 0;
+    let delta = 0;
     for (const t of list) {
-      bal += t.amount;
-      pref.push({ date: t.date, bal });
+      delta += t.amount;
+      pref.push({ date: t.date, delta });
     }
     prefixes.set(accountId, pref);
   }
 
   function balanceAt(accountId: string, monthEnd: string): number {
+    const opening = openingByAccount.get(accountId) ?? 0;
     const pref = prefixes.get(accountId);
-    if (!pref || pref.length === 0) return 0;
+    if (!pref || pref.length === 0) return opening;
     let lo = 0;
     let hi = pref.length - 1;
     let ans = -1;
@@ -98,7 +103,7 @@ function netWorthByMonth(
         hi = mid - 1;
       }
     }
-    return ans >= 0 ? pref[ans].bal : 0;
+    return opening + (ans >= 0 ? pref[ans].delta : 0);
   }
 
   return months.map((m) => {
@@ -144,9 +149,13 @@ export default async function ReflectPage({
         : end;
   const nextMonth = addMonths(focusMonth, 1);
 
+  // Envelope/BvA from tagged plan pack (ADR 0001). Charts: span-bounded
+  // ledger only. Net worth: lean opening groupBy + in-span deltas (no full
+  // history). Receipt overlays stay separate lean queries.
   const [
     transactions,
-    allTx,
+    openingBalances,
+    netWorthSpanTx,
     receiptLines,
     detailedParentIds,
     unlinkedScans,
@@ -171,11 +180,20 @@ export default async function ReflectPage({
         account: { select: { id: true, onBudget: true } },
       },
     }),
+    prisma.transaction.groupBy({
+      by: ["accountId"],
+      where: {
+        account: { budgetId: budget.id },
+        isChild: false,
+        date: { lt: rangeFrom },
+      },
+      _sum: { amount: true },
+    }),
     prisma.transaction.findMany({
       where: {
         account: { budgetId: budget.id },
         isChild: false,
-        date: { lte: rangeTo },
+        date: { gte: rangeFrom, lte: rangeTo },
       },
       select: { accountId: true, date: true, amount: true },
     }),
@@ -372,10 +390,18 @@ export default async function ReflectPage({
   const netWorthAccounts = accountId
     ? accounts.filter((a) => a.id === accountId)
     : accounts;
-  const netWorthTx = accountId
-    ? allTx.filter((t) => t.accountId === accountId)
-    : allTx;
-  const netWorth = netWorthByMonth(netWorthAccounts, netWorthTx, months);
+  const openingByAccount = new Map(
+    openingBalances.map((b) => [b.accountId, b._sum.amount ?? 0]),
+  );
+  const netWorthSpan = accountId
+    ? netWorthSpanTx.filter((t) => t.accountId === accountId)
+    : netWorthSpanTx;
+  const netWorth = netWorthByMonth(
+    netWorthAccounts,
+    openingByAccount,
+    netWorthSpan,
+    months,
+  );
   const totalSpend = spendingData.reduce((s, x) => s + x.value, 0);
 
   const receiptByCat = new Map<string, number>();

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { requireBudgetAccess } from "@/lib/authz";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import {
+  getUserBudgetMemberships,
+  requireBudgetAccess,
+} from "@/lib/authz";
 import {
   buttonDangerClass,
   cardClass,
@@ -165,15 +166,11 @@ const sections: { title: string; items: LinkItem[] }[] = [
 ];
 
 export default async function MorePage() {
-  const { budget, session: budgetSession } = await requireBudgetAccess();
-  const session = await auth();
-  const isAdmin = session?.user?.role === "ADMIN";
+  const { budget, session } = await requireBudgetAccess();
+  const isAdmin = session.user.role === "ADMIN";
   const FeaturedIcon = featured.icon;
-  const memberships = await prisma.budgetMember.findMany({
-    where: { userId: budgetSession.user.id },
-    include: { budget: { select: { id: true, name: true, currency: true } } },
-    orderBy: { budget: { createdAt: "asc" } },
-  });
+  // Shares React.cache with app layout — no second memberships round-trip.
+  const memberships = await getUserBudgetMemberships(session.user.id);
   const budgetOptions = memberships.map((m) => m.budget);
 
   return (
@@ -183,7 +180,7 @@ export default async function MorePage() {
           More
         </h1>
         <p className={sectionSubheadingClass}>
-          {budget.name} · {budget.currency} · {session?.user?.email}
+          {budget.name} · {budget.currency} · {session.user.email}
         </p>
       </div>
 

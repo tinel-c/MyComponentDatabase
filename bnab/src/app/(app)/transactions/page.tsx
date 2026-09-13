@@ -4,10 +4,9 @@ import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, monthLabel } from "@/lib/money";
 import {
-  buildTransactionsWhere,
-  fetchTransactionsRegisterChunk,
   type TransactionsListFilters,
 } from "@/lib/transactions-register-chunk";
+import { loadTransactionsRegisterFirstPage } from "@/lib/cache-tags";
 import {
   buttonPrimaryClass,
   buttonSecondaryClass,
@@ -81,8 +80,6 @@ export default async function TransactionsPage({
     ...(planned ? { planned } : {}),
   };
 
-  const where = buildTransactionsWhere(budget.id, filters);
-
   const [
     accounts,
     groups,
@@ -91,9 +88,7 @@ export default async function TransactionsPage({
     filterGroup,
     filterAccount,
     filterPlanned,
-    chunk,
-    count,
-    activitySum,
+    firstPage,
   ] = await Promise.all([
     prisma.financeAccount.findMany({
       where: { budgetId: budget.id },
@@ -149,21 +144,12 @@ export default async function TransactionsPage({
           },
         })
       : Promise.resolve(null),
-    fetchTransactionsRegisterChunk({
-      budgetId: budget.id,
-      where,
-    }),
-    prisma.transaction.count({ where }),
-    activityView
-      ? prisma.transaction.aggregate({
-          where,
-          _sum: { amount: true },
-        })
-      : Promise.resolve(null),
+    loadTransactionsRegisterFirstPage(budget.id, filters),
   ]);
 
-  const rows = chunk.items;
-  const sumCents = activitySum?._sum.amount ?? 0;
+  const rows = firstPage.items;
+  const count = firstPage.count;
+  const sumCents = firstPage.activitySum ?? 0;
   const registerFiltered = Boolean(
     q ||
       memo ||
@@ -407,8 +393,8 @@ export default async function TransactionsPage({
       ) : (
         <TransactionsInfiniteRegister
           initialRows={rows}
-          initialCursor={chunk.nextCursor}
-          hasMore={chunk.hasMore}
+          initialCursor={firstPage.nextCursor}
+          hasMore={firstPage.hasMore}
           filters={filters}
           groups={sheetGroups}
           payees={payees.map((p) => p.name)}

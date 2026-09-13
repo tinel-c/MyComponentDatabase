@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireBudgetAccess } from "@/lib/authz";
+import { invalidateBudgetCaches } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { replaceDatabaseFromUpload } from "@/lib/data-tools/db-file";
 import {
@@ -36,6 +37,13 @@ export async function importDatabaseAction(
     });
     await prisma.$connect();
     revalidatePath("/", "layout");
+    // Best-effort: after full DB replace, any known budget tags may be stale.
+    try {
+      const budgets = await prisma.budget.findMany({ select: { id: true } });
+      for (const b of budgets) invalidateBudgetCaches(b.id);
+    } catch {
+      /* ignore if schema mid-reconnect */
+    }
     return {
       ok: true,
       message: `Database replaced. Pre-import snapshot: ${snapshotRelative}. If the app looks stale, soft-restart PM2 (or reload the process).`,
@@ -67,6 +75,7 @@ export async function selectiveEraseAction(
 
   try {
     const result = await selectiveEraseBudget(prisma, budget.id, flags);
+    invalidateBudgetCaches(budget.id);
     revalidatePath("/", "layout");
     const extras: string[] = [];
     if (result.reseededImportRules) extras.push("reseeded default import rules");

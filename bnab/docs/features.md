@@ -102,7 +102,9 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] **Receipt detailing** — Gemini vision bill upload → split children via `ReceiptCategoryRule`
 - [x] **Multi-bill batch** + Imported bills **AI audit** + status chips
 - [x] Reflect “Receipt-detailed spending” from scan lines; Reflect shares tagged plan pack
-- [x] Tagged caches (plan / activity / engine tip) + `invalidateBudgetCaches`
+- [x] Tagged caches (plan / activity / engine tip / register first-page) + `invalidateBudgetCaches`
+- [x] Durable engine tips (`EngineMonthTip`) for cold Plan continueFrom
+- [ ] Cache Components / `"use cache"` (ADR 0008 blocked on auth prerender shells)
 - [x] Agent ADRs + import vocabulary (`docs/adr/`, `docs/import-vocabulary.md`)
 
 ---

@@ -10,6 +10,10 @@ import {
 import { computeAccountMonthFlows } from "@/lib/plan-account-flows";
 import { unstable_cache } from "next/cache";
 import { addMonths } from "@/lib/money";
+import {
+  loadEngineMonthTip,
+  upsertEngineMonthTip,
+} from "@/lib/engine-month-tip";
 
 export async function loadPlanMonth(budgetId: string, month: string) {
   const budget = await prisma.budget.findUniqueOrThrow({
@@ -19,8 +23,32 @@ export async function loadPlanMonth(budgetId: string, month: string) {
   // Never ask the engine for a range that starts after the viewed month
   // (empty results → undefined plan → Plan page 500).
   const endMonth = month < budget.firstMonth ? budget.firstMonth : month;
-  const dateFrom = `${budget.firstMonth}-01`;
   const dateTo = `${endMonth}-31`;
+  const prevMonth =
+    endMonth > budget.firstMonth ? addMonths(endMonth, -1) : null;
+
+  let durableTip: MonthResult | null = null;
+  let tipCoverageComplete = false;
+  if (prevMonth) {
+    const [tip, tipCount] = await Promise.all([
+      loadEngineMonthTip(budgetId, prevMonth),
+      prisma.engineMonthTip.count({
+        where: {
+          budgetId,
+          month: { gte: budget.firstMonth, lte: prevMonth },
+        },
+      }),
+    ]);
+    durableTip = tip;
+    tipCoverageComplete =
+      Boolean(tip) &&
+      tipCount >= monthsBetweenInclusive(budget.firstMonth, prevMonth);
+  }
+  const useTipShortcut = tipCoverageComplete;
+
+  // With complete durable tips, only load ledger rows for the tip month.
+  const assignedFrom = useTipShortcut ? endMonth : budget.firstMonth;
+  const txnFrom = useTipShortcut ? `${endMonth}-01` : `${budget.firstMonth}-01`;
 
   const [
     accounts,
@@ -66,14 +94,14 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     prisma.monthlyCategoryBudget.findMany({
       where: {
         category: { group: { budgetId } },
-        month: { gte: budget.firstMonth, lte: endMonth },
+        month: { gte: assignedFrom, lte: endMonth },
       },
       select: { categoryId: true, month: true, assigned: true },
     }),
     prisma.transaction.findMany({
       where: {
         account: { budgetId },
-        date: { gte: dateFrom, lte: dateTo },
+        date: { gte: txnFrom, lte: dateTo },
       },
       select: {
         id: true,
@@ -92,13 +120,17 @@ export async function loadPlanMonth(budgetId: string, month: string) {
       },
     }),
     prisma.monthMeta.findMany({
-      where: { budgetId, month: { gte: budget.firstMonth, lte: endMonth } },
+      where: {
+        budgetId,
+        month: { gte: assignedFrom, lte: endMonth },
+      },
       select: {
         month: true,
         holdForNextMonth: true,
         heldAmount: true,
       },
     }),
+    // Pending bill parents only need ids for balance exclusion through dateTo.
     prisma.transaction.findMany({
       where: {
         account: { budgetId },
@@ -120,7 +152,6 @@ export async function loadPlanMonth(budgetId: string, month: string) {
   ]);
 
   const pendingParentIds = new Set(pendingBillParents.map((p) => p.id));
-  // Also treat in-range parents with pending notes as pending (fingerprint null).
   for (const t of transactions) {
     if (
       !t.isChild &&
@@ -223,11 +254,28 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     })),
   };
 
-  // Tip cache: reuse prior months from a tagged cache, recompute only the tip.
-  const prevMonth =
-    endMonth > budget.firstMonth ? addMonths(endMonth, -1) : null;
   let months: MonthResult[];
-  if (prevMonth) {
+  if (useTipShortcut && durableTip && prevMonth) {
+    const { parseMonthTip } = await import("@/lib/engine-month-tip");
+    const priorTips = await prisma.engineMonthTip.findMany({
+      where: {
+        budgetId,
+        month: { gte: budget.firstMonth, lte: prevMonth },
+      },
+      select: { payload: true },
+    });
+    const priorParsed = priorTips
+      .map((r) => parseMonthTip(r.payload))
+      .filter((m): m is MonthResult => Boolean(m))
+      .sort((a, b) => a.month.localeCompare(b.month));
+    const tip = computeBudgetMonths({
+      ...engineInput,
+      firstMonth: endMonth,
+      endMonth,
+      continueFrom: durableTip,
+    });
+    months = [...priorParsed, ...tip];
+  } else if (prevMonth) {
     const prefix = await unstable_cache(
       async () =>
         computeBudgetMonths({
@@ -250,6 +298,11 @@ export async function loadPlanMonth(budgetId: string, month: string) {
       endMonth,
     });
   }
+
+  // Persist tips for continueFrom on later cold loads / Reflect span assembly.
+  await Promise.all(
+    months.map((m) => upsertEngineMonthTip(budgetId, m).catch(() => undefined)),
+  );
 
   const emptyPlan = (m: string): MonthResult => ({
     month: m,
@@ -324,4 +377,10 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     months,
     currency: budget.currency,
   };
+}
+
+function monthsBetweenInclusive(start: string, end: string): number {
+  const [sy, sm] = start.split("-").map(Number);
+  const [ey, em] = end.split("-").map(Number);
+  return (ey - sy) * 12 + (em - sm) + 1;
 }

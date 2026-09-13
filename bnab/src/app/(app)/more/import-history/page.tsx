@@ -63,15 +63,17 @@ export default async function ImportHistoryPage({
     filters.q || filters.rule || filters.planned || filters.action,
   );
 
-  const batches = await prisma.importBatch.findMany({
-    where: { budgetId: budget.id },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
-  const accounts = await prisma.financeAccount.findMany({
-    where: { budgetId: budget.id },
-    select: { id: true, name: true },
-  });
+  const [batches, accounts] = await Promise.all([
+    prisma.importBatch.findMany({
+      where: { budgetId: budget.id },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+    prisma.financeAccount.findMany({
+      where: { budgetId: budget.id },
+      select: { id: true, name: true },
+    }),
+  ]);
   const accountName = new Map(accounts.map((a) => [a.id, a.name]));
 
   const selectedId = sp.batch ?? batches[0]?.id;
@@ -81,12 +83,31 @@ export default async function ImportHistoryPage({
       })
     : null;
 
-  const itemsChunk = selected
-    ? await fetchImportBatchItemsChunk({
-        batchId: selected.id,
-        filters,
-      })
-    : null;
+  const [itemsChunk, uncategorized, groups] = await Promise.all([
+    selected
+      ? fetchImportBatchItemsChunk({
+          batchId: selected.id,
+          filters,
+        })
+      : Promise.resolve(null),
+    selected
+      ? prisma.transaction.findMany({
+          where: {
+            importBatchId: selected.id,
+            categoryId: null,
+          },
+          orderBy: { date: "desc" },
+          take: 80,
+        })
+      : Promise.resolve([]),
+    prisma.categoryGroup.findMany({
+      where: { budgetId: budget.id, hidden: false },
+      include: {
+        categories: { where: { hidden: false }, orderBy: { sortOrder: "asc" } },
+      },
+      orderBy: { sortOrder: "asc" },
+    }),
+  ]);
 
   const ruleIds = [
     ...new Set(
@@ -115,7 +136,7 @@ export default async function ImportHistoryPage({
           where: { id: { in: ruleIds }, budgetId: budget.id },
           select: { id: true, matchText: true },
         })
-      : Promise.resolve([]),
+      : Promise.resolve([] as { id: string; matchText: string }[]),
     scheduleIds.length
       ? prisma.scheduledTransaction.findMany({
           where: { id: { in: scheduleIds }, budgetId: budget.id },
@@ -127,7 +148,15 @@ export default async function ImportHistoryPage({
             category: { select: { name: true } },
           },
         })
-      : Promise.resolve([]),
+      : Promise.resolve(
+          [] as {
+            id: string;
+            notes: string | null;
+            amount: number;
+            payee: { name: string } | null;
+            category: { name: string } | null;
+          }[],
+        ),
   ]);
   const ruleById = new Map(rules.map((r) => [r.id, r.matchText]));
   const scheduleLabelById = new Map(
@@ -140,26 +169,6 @@ export default async function ImportHistoryPage({
       return [s.id, label] as const;
     }),
   );
-
-  const uncategorized =
-    selected
-      ? await prisma.transaction.findMany({
-          where: {
-            importBatchId: selected.id,
-            categoryId: null,
-          },
-          orderBy: { date: "desc" },
-          take: 80,
-        })
-      : [];
-
-  const groups = await prisma.categoryGroup.findMany({
-    where: { budgetId: budget.id, hidden: false },
-    include: {
-      categories: { where: { hidden: false }, orderBy: { sortOrder: "asc" } },
-    },
-    orderBy: { sortOrder: "asc" },
-  });
 
   const clearHref = selected
     ? `/more/import-history?batch=${selected.id}`

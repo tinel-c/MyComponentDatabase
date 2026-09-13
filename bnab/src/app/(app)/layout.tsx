@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { requireBudgetAccess } from "@/lib/authz";
+import { getUserBudgetMemberships, requireBudgetAccess } from "@/lib/authz";
 import {
   AccountActivityRail,
   AppChrome,
@@ -41,11 +41,7 @@ export default async function AppLayout({
         nextDate: { lte: todayISO() },
       },
     }),
-    prisma.budgetMember.findMany({
-      where: { userId: session.user.id },
-      include: { budget: { select: { id: true, name: true, currency: true } } },
-      orderBy: { budget: { createdAt: "asc" } },
-    }),
+    getUserBudgetMemberships(session.user.id),
   ]);
   const budgets = memberships.map((m) => m.budget);
   return (

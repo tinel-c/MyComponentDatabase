@@ -17,6 +17,9 @@ Every navigation reloaded plan history and account activity. Only `React.cache(r
 
 ## Consequences
 
-- New data loaders that are expensive should take tags from `bnab/src/lib/cache-tags.ts` (except the tip cache, which stays in `plan-data` to avoid circular imports).
+- New data loaders that are expensive should take tags from `bnab/src/lib/cache-tags.ts` (except the tip L1 cache, which stays in `plan-data` to avoid circular imports).
 - Optimistic Plan AJAX still returns patched cells; background invalidation keeps other tabs fresh.
 - Activity rail uses lean Prisma selects/`groupBy` under the same tags (see [performance.md](../performance.md)).
+- Register **first page** uses the same budget tag; InfiniteList load-more stays uncached (ADR 0005).
+- `invalidateBudgetCaches` also clears durable tips (ADR 0010).
+- Money/category/ledger mutations must call `invalidateBudgetCaches` — path-only revalidation is not enough.
