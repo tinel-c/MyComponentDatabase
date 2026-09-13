@@ -88,7 +88,7 @@ export async function runScheduledAutoEnter(budgetId: string): Promise<number> {
   }
 
   if (anyCreated) {
-    invalidateBudgetCaches(budgetId);
+    await invalidateBudgetCaches(budgetId);
   }
   return processed;
 }

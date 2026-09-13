@@ -307,7 +307,7 @@ export async function importBillCreateAction(
           : null,
     });
 
-    invalidateBudgetCaches(budget.id);
+    await invalidateBudgetCaches(budget.id);
     revalidatePath("/transactions");
     revalidatePath("/more/import-bill");
     revalidatePath("/more/bills");
@@ -557,7 +557,7 @@ export async function confirmReceiptDetail(
       data: { status: "ok" },
     });
 
-    invalidateBudgetCaches(budget.id);
+    await invalidateBudgetCaches(budget.id);
     revalidatePath("/transactions");
     revalidatePath(`/transactions/${transactionId}`);
     revalidatePath(`/accounts/${txn.accountId}`);

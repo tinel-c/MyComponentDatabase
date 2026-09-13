@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -52,15 +53,29 @@ export function PlanWorkspace({
   const [rta, setRta] = useState(initialRta);
   const [totalAssigned, setTotalAssigned] = useState(initialTotalAssigned);
   const pending = usePendingActionsOptional();
+  const localDirty = useRef(false);
 
+  // Remount-equivalent when the month changes.
   useEffect(() => {
+    localDirty.current = false;
     setRows(initialRows);
     setRta(initialRta);
     setTotalAssigned(initialTotalAssigned);
-  }, [initialRows, initialRta, initialTotalAssigned, month]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- month navigation only
+  }, [month]);
+
+  // Accept fresh RSC props only when we have not applied a local optimistic patch.
+  // Otherwise a soft refresh fed by a still-warm tagged cache can wipe the first click.
+  useEffect(() => {
+    if (localDirty.current) return;
+    setRows(initialRows);
+    setRta(initialRta);
+    setTotalAssigned(initialTotalAssigned);
+  }, [initialRows, initialRta, initialTotalAssigned]);
 
   const applyPatch = useCallback((patch: PlanCellPatch) => {
     if (!patch?.ok) return;
+    localDirty.current = true;
     setRows((prev) => {
       const cur = prev[patch.categoryId] ?? {
         available: 0,
@@ -82,6 +97,7 @@ export function PlanWorkspace({
 
   const setCategoryAssignedLocal = useCallback(
     (categoryId: string, assigned: number) => {
+      localDirty.current = true;
       setRows((prev) => {
         const cur = prev[categoryId] ?? {
           available: 0,

@@ -1,5 +1,20 @@
 # BNAB changelog
 
+## 1.2.6 — 2026-09-13
+
+Plan quick-assign reliability and Income/Savings layout; cache invalidation races closed.
+
+### Highlights
+
+- Plan **+/−/=** and assign cells: optimistic patches; mutations use **uncached** `loadPlanMonth` (not tagged cache)
+- `invalidateBudgetCaches` **awaits** durable tip clear so the next plan load cannot continueFrom a stale seed
+- `PlanWorkspace` ignores soft RSC refreshes while local dirty (avoids warm cache wiping the first click)
+- Desktop Plan: **Income** and **Savings** side-by-side
+
+### Docs
+
+`performance.md` mutation-safety rules.
+
 ## 1.2.5 — 2026-09-13
 
 Cache correctness and speed pass: invalidation, durable engine tips, register first-page cache.
@@ -7,7 +22,6 @@ Cache correctness and speed pass: invalidation, durable engine tips, register fi
 ### Highlights
 
 - **`invalidateBudgetCaches`** on all money/category/ledger mutations (txn update/delete/split, receipts apply, import revert/reapply, categories, balance adjust, data tools)
-- Assign cells use **`loadPlanMonthCached`** (no uncached full reload per blur)
 - **Durable `EngineMonthTip`** — cold Plan skips full history when tip coverage is complete (ADR 0010)
 - **Tagged first-page** caches for transactions / account registers (InfiniteList load-more unchanged)
 - Reflect leaner net-worth; parallelized import-history / accounts / seeds; batched assignFromPlanned + scheduled auto-enter

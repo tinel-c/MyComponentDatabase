@@ -28,9 +28,35 @@ export function AssignQuickButtons({
   const [pending, start] = useTransition();
 
   const liveAvailable = workspace?.rows[categoryId]?.available ?? available;
+  const liveAssigned = workspace?.rows[categoryId]?.assigned ?? 0;
   const liveRta = workspace?.rta ?? rta;
+  const liveTotalAssigned = workspace?.totalAssigned ?? 0;
 
   function run(mode: "cover" | "release" | "assignRta") {
+    let next = liveAssigned;
+    if (mode === "cover") {
+      if (liveAvailable >= 0) return;
+      next = liveAssigned - liveAvailable;
+    } else if (mode === "release") {
+      if (liveAvailable <= 0) return;
+      next = Math.max(0, liveAssigned - liveAvailable);
+    } else if (mode === "assignRta") {
+      if (liveRta <= 0) return;
+      next = liveAssigned + liveRta;
+    }
+    const delta = next - liveAssigned;
+    if (delta === 0) return;
+
+    // Optimistic UI so one click always updates the row immediately.
+    workspace?.applyPatch({
+      ok: true,
+      categoryId,
+      assigned: next,
+      available: liveAvailable + delta,
+      rta: liveRta - delta,
+      totalAssigned: liveTotalAssigned + delta,
+    });
+
     const fd = new FormData();
     fd.set("categoryId", categoryId);
     fd.set("month", month);

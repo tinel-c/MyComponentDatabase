@@ -186,7 +186,7 @@ export async function createTransaction(formData: FormData) {
     }
   }
 
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   revalidateLedgerLists({ accountIds: [account.id], bills: true });
   redirect(`/accounts/${account.id}`);
 }
@@ -250,7 +250,7 @@ export async function createSplitTransaction(formData: FormData) {
     }
   });
 
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   revalidateLedgerLists({ accountIds: [accountId] });
   redirect(`/accounts/${accountId}`);
 }
@@ -325,7 +325,7 @@ export async function updateTransaction(formData: FormData) {
         cleared: parsed.data.cleared === "on" || parsed.data.cleared === "1",
       },
     });
-    invalidateBudgetCaches(budget.id);
+    await invalidateBudgetCaches(budget.id);
     revalidateLedgerLists({ accountIds: [txn.accountId] });
     revalidatePath(`/transactions/${id}`);
     finishMutation(returnTo, `/accounts/${txn.accountId}`);
@@ -367,7 +367,7 @@ export async function updateTransaction(formData: FormData) {
         },
       }),
     ]);
-    invalidateBudgetCaches(budget.id);
+    await invalidateBudgetCaches(budget.id);
     revalidateLedgerLists({
       accountIds: [txn.accountId, twin.accountId],
     });
@@ -392,7 +392,7 @@ export async function updateTransaction(formData: FormData) {
     },
   });
 
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   revalidateLedgerLists({ accountIds: [txn.accountId] });
   revalidatePath(`/transactions/${id}`);
   finishMutation(returnTo, `/accounts/${txn.accountId}`);
@@ -426,7 +426,7 @@ export async function deleteTransaction(formData: FormData) {
     await tx.transaction.delete({ where: { id } });
   });
 
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   revalidateLedgerLists({ accountIds: [accountId] });
   if (returnTo === "stay") {
     redirect("/transactions");

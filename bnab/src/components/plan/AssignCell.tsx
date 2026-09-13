@@ -23,6 +23,9 @@ export function AssignCell({
   const [pending, start] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const liveAssigned = workspace?.rows[categoryId]?.assigned ?? assigned;
+  const liveAvailable = workspace?.rows[categoryId]?.available ?? 0;
+  const liveRta = workspace?.rta ?? 0;
+  const liveTotalAssigned = workspace?.totalAssigned ?? 0;
 
   useEffect(() => {
     if (inputRef.current && document.activeElement !== inputRef.current) {
@@ -34,6 +37,19 @@ export function AssignCell({
     <form
       className="flex justify-end"
       action={(fd) => {
+        const amountRaw = String(fd.get("amount") ?? "");
+        const parsed = parseMoneyInput(amountRaw);
+        if (parsed !== null && parsed !== liveAssigned) {
+          const delta = parsed - liveAssigned;
+          workspace?.applyPatch({
+            ok: true,
+            categoryId,
+            assigned: parsed,
+            available: liveAvailable + delta,
+            rta: liveRta - delta,
+            totalAssigned: liveTotalAssigned + delta,
+          });
+        }
         start(async () => {
           const runFn = async () => {
             const patch = await assignToCategory(fd);

@@ -92,7 +92,7 @@ export async function assignFromPlanned(formData: FormData): Promise<{
   }
 
   revalidatePath("/plan");
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   return { ok: true, count: upserts.length };
 }
 
@@ -129,8 +129,8 @@ export async function assignToCategory(
   });
   if (!cat || cat.isIncome) return { ok: false };
 
-  const { loadPlanMonthCached } = await import("@/lib/cache-tags");
-  const { plan } = await loadPlanMonthCached(budget.id, month);
+  const { loadPlanMonth } = await import("@/lib/plan-data");
+  const { plan } = await loadPlanMonth(budget.id, month);
   const row = plan.categories[categoryId];
   if (!row) return { ok: false };
 
@@ -142,7 +142,7 @@ export async function assignToCategory(
     update: { assigned: amount },
   });
 
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   return {
     ok: true,
     categoryId,
@@ -174,8 +174,8 @@ export async function quickAdjustAssigned(
   });
   if (!cat || cat.isIncome) return { ok: false };
 
-  const { loadPlanMonthCached } = await import("@/lib/cache-tags");
-  const { plan } = await loadPlanMonthCached(budget.id, month);
+  const { loadPlanMonth } = await import("@/lib/plan-data");
+  const { plan } = await loadPlanMonth(budget.id, month);
   const row = plan.categories[categoryId];
   if (!row) return { ok: false };
 
@@ -203,7 +203,7 @@ export async function quickAdjustAssigned(
     update: { assigned: next },
   });
 
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   return {
     ok: true,
     categoryId,
@@ -255,7 +255,7 @@ export async function moveMoney(formData: FormData) {
   });
 
   revalidatePath("/plan");
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   return;
 }
 
@@ -370,7 +370,7 @@ export async function createAccount(formData: FormData) {
   });
 
   revalidatePath("/accounts");
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   return;
 }
 
@@ -417,7 +417,7 @@ export async function renameAccount(formData: FormData) {
   revalidatePath("/accounts");
   revalidatePath(`/accounts/${id}`);
   revalidatePath("/more/categories");
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   return;
 }
 
@@ -529,5 +529,5 @@ export async function adjustAccountBalance(formData: FormData) {
   revalidatePath(`/accounts/${accountId}`);
   revalidatePath("/accounts");
   revalidatePath("/transactions");
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
 }

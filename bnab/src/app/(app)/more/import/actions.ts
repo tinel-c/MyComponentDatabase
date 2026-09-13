@@ -693,7 +693,7 @@ export async function confirmIngImport(formData: FormData): Promise<
     },
   });
 
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   revalidatePath("/more/import");
   revalidatePath("/more/import-history");
   revalidatePath("/more/bills");
@@ -961,7 +961,7 @@ export async function revertImportBatch(formData: FormData) {
     },
   });
 
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   revalidatePath("/more/import-history");
   revalidatePath("/transactions");
   revalidatePath("/accounts");
@@ -1012,7 +1012,7 @@ export async function reapplyRulesToBatch(formData: FormData) {
     }
   }
 
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   revalidatePath("/more/import-history");
   revalidatePath("/transactions");
 }

@@ -10,8 +10,8 @@ import { normalizeEmail } from "@/lib/email";
 import { parseMoneyInput, todayISO } from "@/lib/money";
 import { Recurrence, ScheduleKind } from "@prisma/client";
 
-function bustPlanCategoryCaches(budgetId: string) {
-  invalidateBudgetCaches(budgetId);
+async function bustPlanCategoryCaches(budgetId: string) {
+  await invalidateBudgetCaches(budgetId);
   revalidatePath("/more/categories");
   revalidatePath("/transactions/new");
 }
@@ -254,7 +254,7 @@ export async function enterPlannedPaymentFromCash(formData: FormData) {
   revalidatePath("/transactions");
   revalidatePath(`/accounts/${cash.id}`);
   revalidatePath("/accounts");
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
 }
 
 export async function updateScheduleAutoEnter(formData: FormData) {
@@ -320,7 +320,7 @@ export async function enterScheduled(formData: FormData) {
   revalidatePath("/more/schedules");
   revalidatePath("/planned");
   revalidatePath("/accounts");
-  invalidateBudgetCaches(budget.id);
+  await invalidateBudgetCaches(budget.id);
   return;
 }
 
@@ -369,7 +369,7 @@ export async function setCategoryTarget(formData: FormData) {
     },
   });
 
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -397,7 +397,7 @@ export async function createCategoryGroup(formData: FormData) {
       sortOrder: (max._max.sortOrder ?? 0) + 1,
     },
   });
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -409,7 +409,7 @@ export async function renameCategoryGroup(formData: FormData) {
   const g = await assertGroup(budget.id, id);
   if (!g) return;
   await prisma.categoryGroup.update({ where: { id }, data: { name } });
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -422,7 +422,7 @@ export async function toggleCategoryGroupHidden(formData: FormData) {
     where: { id },
     data: { hidden: !g.hidden },
   });
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -450,7 +450,7 @@ export async function moveCategoryGroup(formData: FormData) {
       data: { sortOrder: a.sortOrder },
     }),
   ]);
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -473,7 +473,7 @@ export async function createCategory(formData: FormData) {
       sortOrder: (max._max.sortOrder ?? 0) + 1,
     },
   });
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -487,7 +487,7 @@ export async function renameCategory(formData: FormData) {
   });
   if (!cat) return;
   await prisma.category.update({ where: { id }, data: { name } });
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -502,7 +502,7 @@ export async function toggleCategoryHidden(formData: FormData) {
     where: { id },
     data: { hidden: !cat.hidden },
   });
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -534,7 +534,7 @@ export async function moveCategory(formData: FormData) {
       data: { sortOrder: a.sortOrder },
     }),
   ]);
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }
 
@@ -554,6 +554,6 @@ export async function hideOrDeleteCategory(formData: FormData) {
     await prisma.monthlyCategoryBudget.deleteMany({ where: { categoryId: id } });
     await prisma.category.delete({ where: { id } });
   }
-  bustPlanCategoryCaches(budget.id);
+  await bustPlanCategoryCaches(budget.id);
   return;
 }

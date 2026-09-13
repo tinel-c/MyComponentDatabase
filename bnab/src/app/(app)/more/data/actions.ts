@@ -40,7 +40,7 @@ export async function importDatabaseAction(
     // Best-effort: after full DB replace, any known budget tags may be stale.
     try {
       const budgets = await prisma.budget.findMany({ select: { id: true } });
-      for (const b of budgets) invalidateBudgetCaches(b.id);
+      for (const b of budgets) await invalidateBudgetCaches(b.id);
     } catch {
       /* ignore if schema mid-reconnect */
     }
@@ -75,7 +75,7 @@ export async function selectiveEraseAction(
 
   try {
     const result = await selectiveEraseBudget(prisma, budget.id, flags);
-    invalidateBudgetCaches(budget.id);
+    await invalidateBudgetCaches(budget.id);
     revalidatePath("/", "layout");
     const extras: string[] = [];
     if (result.reseededImportRules) extras.push("reseeded default import rules");

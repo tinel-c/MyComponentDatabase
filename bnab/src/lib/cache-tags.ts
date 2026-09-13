@@ -41,11 +41,16 @@ export function hashRegisterFilters(filters: unknown): string {
 
 /**
  * Bust plan / activity / tip / register first-page caches for a budget.
- * Also clears durable EngineMonthTip rows so continueFrom cannot go stale.
+ * Await tip clear so the next loadPlanMonth cannot continueFrom a stale seed
+ * (that race caused Plan quick-assign to need two clicks).
+ *
+ * Never read tagged loaders (`loadPlanMonthCached`, register first-page, etc.)
+ * inside mutation handlers to decide write values — use uncached Prisma /
+ * `loadPlanMonth` instead.
  */
-export function invalidateBudgetCaches(budgetId: string) {
+export async function invalidateBudgetCaches(budgetId: string): Promise<void> {
   revalidateTag(budgetTag(budgetId), "max");
-  void clearEngineMonthTips(budgetId);
+  await clearEngineMonthTips(budgetId);
 }
 
 /** Per-request memoization of plan month. */

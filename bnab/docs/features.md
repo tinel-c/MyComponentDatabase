@@ -33,9 +33,9 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Month navigator
 - [x] Assigned / Activity / Available columns (desktop)
 - [x] Ready to Assign banner (ok / ready / over-assigned)
-- [x] Income section + **Accounts · remaining** (desktop)
+- [x] Income section + **Savings** side-by-side (desktop) + **Accounts · remaining** matrix
 - [x] Move money between categories (desktop)
-- [x] Cover overspending / release available / assign all RTA (**Quick** +, −, =) with **PlanWorkspace** AJAX (no full page refresh)
+- [x] Cover overspending / release available / assign all RTA (**Quick** +, −, =) with **PlanWorkspace** optimistic AJAX (uncached plan reads on mutate)
 - [x] **Assign from planned** for the viewed month (YEARLY = amount ÷ 12 sinking fund)
 - [x] Monthly carryover of Available
 - [x] Targets: monthly spending, needed by date, weekly, savings balance

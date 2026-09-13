@@ -28,6 +28,12 @@ Mutations that change money, categories, or ledger structure **must** call `inva
 - **`revalidatePath`** for non-tagged surfaces: `/transactions`, `/accounts`, `/planned`, `/more/bills`, import history, forms.
 - Avoid redundant `/plan` + `/reflect` path fans when tags already cover those loaders.
 
+### Mutation safety (avoid double-click / no-op UI)
+
+1. **Never** call `loadPlanMonthCached` / register first-page / activity cached loaders inside a mutation to decide the write. Use uncached `loadPlanMonth` or direct Prisma.
+2. **`invalidateBudgetCaches` must be awaited** — it clears durable `EngineMonthTip` rows; fire-and-forget tip clears race the next plan load and can serve a stale `continueFrom`.
+3. Plan assign UI applies **optimistic patches** and ignores soft RSC refreshes while local dirty (see `PlanWorkspace`) so a warm tagged cache cannot wipe the first click.
+
 Do **not** import `cache-tags` from `plan-data` (circular). Tip L1 cache lives next to the engine walk.
 
 ### Bridge to Cache Components

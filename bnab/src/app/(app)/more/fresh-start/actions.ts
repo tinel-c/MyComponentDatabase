@@ -36,7 +36,7 @@ export async function freshStartEraseAction(
     if (flags.transactions || flags.monthlyBudgets) {
       await prisma.wishItem.deleteMany({ where: { budgetId: budget.id } });
     }
-    invalidateBudgetCaches(budget.id);
+    await invalidateBudgetCaches(budget.id);
     revalidatePath("/", "layout");
     const extras: string[] = [];
     if (result.reseededImportRules) extras.push("reseeded default import rules");
