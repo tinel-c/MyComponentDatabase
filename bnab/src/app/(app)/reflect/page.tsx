@@ -1,7 +1,7 @@
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { addMonths, currentMonth, formatMoney, monthLabel } from "@/lib/money";
-import { loadPlanMonth } from "@/lib/plan-data";
+import { loadPlanMonthCached } from "@/lib/cache-tags";
 import {
   buildBudgetVsActualRows,
   buildReflectOpportunities,
@@ -235,7 +235,7 @@ export default async function ReflectPage({
         status: { in: ["ok", "needs_mapping"] },
       },
     }),
-    loadPlanMonth(budget.id, end),
+    loadPlanMonthCached(budget.id, end),
   ]);
 
   const catById = new Map(categories.map((c) => [c.id, c]));
