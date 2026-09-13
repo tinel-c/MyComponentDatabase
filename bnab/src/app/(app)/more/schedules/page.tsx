@@ -10,13 +10,17 @@ import {
   labelClass,
   pageStackClass,
 } from "@/components/forms/field-classes";
-import { createSchedule, enterScheduled } from "../actions";
+import {
+  createSchedule,
+  enterScheduled,
+  updateScheduleAutoEnter,
+} from "../actions";
 
 export default async function SchedulesPage() {
   const { budget } = await requireBudgetAccess();
   const [schedules, accounts, groups] = await Promise.all([
     prisma.scheduledTransaction.findMany({
-      where: { budgetId: budget.id, active: true },
+      where: { budgetId: budget.id, kind: "SCHEDULED", active: true },
       orderBy: { nextDate: "asc" },
       include: { account: true, payee: true, category: true },
     }),
@@ -40,6 +44,13 @@ export default async function SchedulesPage() {
         <h1 className="mt-1 text-xl font-semibold text-fg md:text-2xl">
           Scheduled
         </h1>
+        <p className="mt-1 text-sm text-fg-muted">
+          Auto-enter or manual Enter — separate from{" "}
+          <Link href="/planned" className="text-accent hover:underline">
+            planned payments
+          </Link>
+          .
+        </p>
       </div>
 
       <ul className={`${cardCompactClass} divide-y divide-rim-subtle`}>
@@ -61,6 +72,25 @@ export default async function SchedulesPage() {
                   {s.nextDate} · {s.recurrence.toLowerCase()} · {s.account.name}
                   {s.category ? ` · ${s.category.name}` : ""}
                 </p>
+                <form
+                  action={updateScheduleAutoEnter}
+                  className="mt-1 flex flex-wrap items-center gap-2"
+                >
+                  <input type="hidden" name="id" value={s.id} />
+                  <label className="flex items-center gap-2 text-xs text-fg-muted">
+                    <input
+                      type="checkbox"
+                      name="autoEnter"
+                      value="1"
+                      defaultChecked={s.autoEnter}
+                      className="size-3.5"
+                    />
+                    Auto-enter when due
+                  </label>
+                  <button type="submit" className={buttonCompactClass}>
+                    Save
+                  </button>
+                </form>
               </div>
               <div className="flex items-center justify-between gap-2 sm:justify-end">
                 <p className="tabular-nums text-sm font-medium text-fg">
@@ -82,6 +112,7 @@ export default async function SchedulesPage() {
         action={createSchedule}
         className={`${cardCompactClass} space-y-2 p-3 lg:grid lg:max-w-4xl lg:grid-cols-2 lg:gap-2 lg:space-y-0`}
       >
+        <input type="hidden" name="kind" value="SCHEDULED" />
         <h2 className="text-sm font-semibold text-fg lg:col-span-2">
           New schedule
         </h2>
@@ -135,6 +166,10 @@ export default async function SchedulesPage() {
             <option value="MONTHLY">Monthly</option>
             <option value="YEARLY">Yearly</option>
           </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm text-fg lg:col-span-2">
+          <input type="checkbox" name="autoEnter" value="1" className="size-4" />
+          Auto-enter when due (catch-up on app load)
         </label>
         <button
           type="submit"

@@ -10,6 +10,9 @@ BNAB agent memory. **Before implementing a feature that changes how subsystems i
 | [0004](./0004-tagged-data-cache.md) | Tagged cache + invalidate on mutation | Accepted |
 | [0005](./0005-cursor-infinite-scroll.md) | Cursor infinite scroll for lists | Accepted |
 | [0006](./0006-theme-semantic-tokens.md) | Theme semantic tokens only | Accepted |
+| [0007](./0007-planned-vs-scheduled-kind.md) | Planned vs scheduled: one model + kind | Accepted |
+| [0008](./0008-cache-components-phase2.md) | Cache Components phase 2 | Proposed |
+| [0009](./0009-budget-preference-cookie.md) | Multi-budget preference cookie | Accepted |
 
 ## Template
 

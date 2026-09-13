@@ -6,7 +6,7 @@ Detailed docs live under [`bnab/docs/`](./bnab/docs/README.md).
 
 ## Status
 
-**v1.1.0 live** at https://bnab.bogza.ro — Plan (AJAX), accounts, transactions, planned payments, Reflect (shared plan pack), multi-bill Gemini scans, ING import + history infinite scroll, tagged caches, PWA, ADRs. See [`bnab/docs/`](./bnab/docs/README.md) and [`bnab/docs/changelog.md`](./bnab/docs/changelog.md).
+**v1.2.0 live** at https://bnab.bogza.ro — Planned vs Scheduled kind, page filters, Wish Farm / loans / Fresh Start, multi-budget switcher. See [`bnab/docs/`](./bnab/docs/README.md) and [`bnab/docs/changelog.md`](./bnab/docs/changelog.md).
 
 ## Defaults
 

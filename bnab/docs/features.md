@@ -71,6 +71,7 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 ### Household
 
 - [x] Single shared budget
+- [x] **Multi-budget switcher** — cookie `bnab_budget_id` + More / sidebar dropdown
 - [x] Invite second user by email
 - [x] Roles: ADMIN (invite) / EDITOR (full edit)
 
@@ -79,6 +80,12 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Spending by category / payee (pie + bars)
 - [x] Income vs Expense monthly matrix
 - [x] Net Worth over time
+
+### Tools
+
+- [x] **Loan payoff** (`/more/loans`) — tracking liability + APR/payment → months estimate
+- [x] **Wish Farm** (`/more/wish-farm`) — goals + Harvest funded progress
+- [x] **Fresh Start** (`/more/fresh-start`) — guided selective erase (admin/editor)
 
 ### UX / brand
 
@@ -100,10 +107,8 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 ## Deferred
 
 - [ ] Bank sync / Open Banking / Plaid
-- [ ] Loan payoff / interest tools
-- [ ] Multiple budgets or multi-currency budgets
-- [ ] Cross-site SSO (`.bogza.ro` cookie)
-- [ ] Native Android WebView client
-- [ ] Advanced Fresh Start wizard
-- [ ] Wish Farm / goal harvesting helpers
+- [ ] Multi-currency budgets / FX
+- [x] Cross-site SSO cookie domain (`.bogza.ro` via `AUTH_COOKIE_DOMAIN`; see deploy.md) — enable with part-db when ready
+- [x] Android TWA docs + assetlinks template (`docs/android-twa.md`)
+- [ ] Wish Farm auto-assign from RTA / category Available
 - [ ] Mobile inline Assign (currently desktop / edit flows)

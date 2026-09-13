@@ -6,7 +6,15 @@ import {
   buildBudgetVsActualRows,
   buildReflectOpportunities,
 } from "@/lib/reflect-insights";
-import { cardCompactClass, tableClass, thClass, tdClass, pageStackClass } from "@/components/forms/field-classes";
+import {
+  cardCompactClass,
+  chipClass,
+  chipMutedClass,
+  tableClass,
+  thClass,
+  tdClass,
+  pageStackClass,
+} from "@/components/forms/field-classes";
 import { ReflectChartsLazy as ReflectCharts } from "@/components/reflect/ReflectChartsLazy";
 import { ReflectInsightsPanel } from "@/components/reflect/ReflectInsightsPanel";
 import { ReflectBudgetVsActual } from "@/components/reflect/ReflectBudgetVsActual";
@@ -32,6 +40,18 @@ function pushTop(
   list.push(item);
   list.sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
   map.set(key, list.slice(0, limit));
+}
+
+function reflectHref(opts: {
+  months: number;
+  month: string;
+  accountId?: string;
+}) {
+  const sp = new URLSearchParams();
+  sp.set("months", String(opts.months));
+  sp.set("month", opts.month);
+  if (opts.accountId) sp.set("accountId", opts.accountId);
+  return `/reflect?${sp.toString()}`;
 }
 
 /** Month-end balances via one sorted pass per account (prefix sums). */
@@ -66,7 +86,6 @@ function netWorthByMonth(
   function balanceAt(accountId: string, monthEnd: string): number {
     const pref = prefixes.get(accountId);
     if (!pref || pref.length === 0) return 0;
-    // Last entry with date <= monthEnd
     let lo = 0;
     let hi = pref.length - 1;
     let ans = -1;
@@ -108,7 +127,7 @@ function netWorthByMonth(
 export default async function ReflectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ months?: string; month?: string }>;
+  searchParams: Promise<{ months?: string; month?: string; accountId?: string }>;
 }) {
   const { budget } = await requireBudgetAccess();
   const sp = await searchParams;
@@ -149,7 +168,7 @@ export default async function ReflectPage({
         notes: true,
         payee: { select: { name: true } },
         category: { select: { name: true } },
-        account: { select: { onBudget: true } },
+        account: { select: { id: true, onBudget: true } },
       },
     }),
     prisma.transaction.findMany({
@@ -198,7 +217,7 @@ export default async function ReflectPage({
             transactionId: true,
             rawJson: true,
             createdAt: true,
-            transaction: { select: { date: true } },
+            transaction: { select: { date: true, accountId: true } },
           },
         },
       },
@@ -210,7 +229,7 @@ export default async function ReflectPage({
         status: "ok",
         transaction: { date: { gte: rangeFrom, lte: rangeTo } },
       },
-      select: { transactionId: true },
+      select: { transactionId: true, transaction: { select: { accountId: true } } },
       distinct: ["transactionId"],
     }),
     prisma.receiptScan.count({
@@ -229,6 +248,12 @@ export default async function ReflectPage({
     onBudget: a.onBudget,
     name: a.name,
   }));
+  const accountIdRaw = sp.accountId?.trim() || undefined;
+  const scopedAccount = accountIdRaw
+    ? accounts.find((a) => a.id === accountIdRaw) ?? null
+    : null;
+  const accountId = scopedAccount?.id;
+
   const categories = planPack.groups.flatMap((g) =>
     g.categories.map((c) => ({
       id: c.id,
@@ -274,6 +299,7 @@ export default async function ReflectPage({
   for (const t of transactions) {
     if (t.transferTwinId) continue;
     if (!t.account.onBudget) continue;
+    if (accountId && t.account.id !== accountId) continue;
     const m = t.date.slice(0, 7);
     const overlay: Overlay = {
       id: t.id,
@@ -343,7 +369,13 @@ export default async function ReflectPage({
     expenseItems: expenseItemsByMonth.get(m) ?? [],
   }));
 
-  const netWorth = netWorthByMonth(accounts, allTx, months);
+  const netWorthAccounts = accountId
+    ? accounts.filter((a) => a.id === accountId)
+    : accounts;
+  const netWorthTx = accountId
+    ? allTx.filter((t) => t.accountId === accountId)
+    : allTx;
+  const netWorth = netWorthByMonth(netWorthAccounts, netWorthTx, months);
   const totalSpend = spendingData.reduce((s, x) => s + x.value, 0);
 
   const receiptByCat = new Map<string, number>();
@@ -355,7 +387,15 @@ export default async function ReflectPage({
   }[] = [];
   for (const line of receiptLines) {
     if (line.matchedRule?.ignore) continue;
-    // Prefer linked txn date; else rawJson purchase date; else createdAt
+    if (
+      accountId &&
+      line.scan.transaction?.accountId &&
+      line.scan.transaction.accountId !== accountId
+    ) {
+      continue;
+    }
+    if (accountId && !line.scan.transactionId) continue;
+
     let lineMonth: string | null = null;
     if (line.scan.transaction?.date) {
       lineMonth = line.scan.transaction.date.slice(0, 7);
@@ -404,19 +444,25 @@ export default async function ReflectPage({
     }))
     .sort((a, b) => b.value - a.value);
 
+  const detailedCount = accountId
+    ? detailedParentIds.filter(
+        (s) => s.transaction?.accountId === accountId,
+      ).length
+    : detailedParentIds.length;
+
   const opportunitiesWithReceipt = buildReflectOpportunities({
     months: engineMonths,
     categories: catMeta,
     focusMonth,
     nextMonth,
-    unlinkedBillCount: unlinkedScans,
+    unlinkedBillCount: accountId ? 0 : unlinkedScans,
     receiptByCategory: receiptByCat,
   });
 
   const spanLinks = [3, 6, 12].map((n) => (
     <Link
       key={n}
-      href={`/reflect?months=${n}&month=${focusMonth}`}
+      href={reflectHref({ months: n, month: focusMonth, accountId })}
       className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
         span === n
           ? "bg-accent-muted text-accent"
@@ -426,6 +472,35 @@ export default async function ReflectPage({
       {n} mo
     </Link>
   ));
+
+  const accountChips = [
+    <Link
+      key="all"
+      href={reflectHref({ months: span, month: focusMonth })}
+      className={!accountId ? chipClass : chipMutedClass}
+      scroll={false}
+      aria-current={!accountId ? "page" : undefined}
+    >
+      All accounts
+    </Link>,
+    ...accounts
+      .filter((a) => a.onBudget)
+      .map((a) => (
+        <Link
+          key={a.id}
+          href={reflectHref({
+            months: span,
+            month: focusMonth,
+            accountId: a.id,
+          })}
+          className={accountId === a.id ? chipClass : chipMutedClass}
+          scroll={false}
+          aria-current={accountId === a.id ? "page" : undefined}
+        >
+          {a.name}
+        </Link>
+      )),
+  ];
 
   const hasAnyData =
     spendingData.length > 0 ||
@@ -440,15 +515,24 @@ export default async function ReflectPage({
           <h1 className="text-2xl font-semibold tracking-tight text-fg">Reflect</h1>
           <p className="mt-1 text-sm text-fg-muted">
             Review {monthLabel(focusMonth)} · plan {monthLabel(nextMonth)} ·{" "}
-            last {span} months · {formatMoney(totalSpend, budget.currency)}{" "}
-            spending in top categories
-            {detailedParentIds.length > 0
-              ? ` · ${detailedParentIds.length} receipt-detailed`
+            last {span} months
+            {scopedAccount ? ` · ${scopedAccount.name}` : ""} ·{" "}
+            {formatMoney(totalSpend, budget.currency)} spending in top categories
+            {detailedCount > 0 ? ` · ${detailedCount} receipt-detailed` : ""}
+            {!accountId && unlinkedScans > 0
+              ? ` · ${unlinkedScans} unlinked bills`
               : ""}
-            {unlinkedScans > 0 ? ` · ${unlinkedScans} unlinked bills` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">{spanLinks}</div>
+      </div>
+
+      <div
+        className="flex flex-wrap gap-1.5"
+        role="navigation"
+        aria-label="Account filter"
+      >
+        {accountChips}
       </div>
 
       {hasAnyData ? (

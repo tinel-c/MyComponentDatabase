@@ -11,11 +11,12 @@ YNAB-style **zero-based envelope budgeting** for a two-person household, optimiz
 | [data-model.md](./data-model.md) | Prisma models, amounts, import batches, invariants |
 | [import-vocabulary.md](./import-vocabulary.md) | Canonical import / planned / bill terms |
 | [planned-payments.md](./planned-payments.md) | Recurring planned payments |
-| [lists.md](./lists.md) | Cursor infinite scroll contract |
-| [performance.md](./performance.md) | Cache tags, engine tip, hotspots |
+| [lists.md](./lists.md) | Cursor infinite scroll + `content-visibility` rows |
+| [performance.md](./performance.md) | Cache tags, engine tip, Cache Components phase 2 |
 | [receipt-agent.md](./receipt-agent.md) | Gemini bill scans, batch queue, AI audit |
 | [adr/README.md](./adr/README.md) | Architecture decision records (agent memory) |
-| [deploy.md](./deploy.md) | DNS, nginx, PM2, secrets, **PC build → live upload** |
+| [deploy.md](./deploy.md) | DNS, nginx, PM2, secrets, SSO, **PC build → live upload** |
+| [android-twa.md](./android-twa.md) | Trusted Web Activity / Play wrap for bnab.bogza.ro |
 | [changelog.md](./changelog.md) | Release notes |
 
 Root charter: [BNAB_IMPLEMENTATION_PLAN.md](../../BNAB_IMPLEMENTATION_PLAN.md).
@@ -85,8 +86,11 @@ Put real ING CSV exports only under **`bnab/ING/`** (gitignored). Never commit s
 | `/more/receipt-rules` | Bill line → category |
 | `/more/import-history` | Batches, item detail (infinite), revert, snapshots |
 | `/more/data` | Admin: DB export / import / selective erase |
+| `/more/fresh-start` | Guided Fresh Start selective erase (admin/editor) |
+| `/more/loans` | Loan payoff months estimate |
+| `/more/wish-farm` | Wish Farm goals + harvest |
 | `/more/categories`, `/payees`, `/schedules`, `/team` | CRUD & household |
 
 ## Version
 
-See [`package.json`](../package.json) and [changelog.md](./changelog.md). Current: **1.1.0**.
+See [`package.json`](../package.json) and [changelog.md](./changelog.md). Current: **1.2.0**.

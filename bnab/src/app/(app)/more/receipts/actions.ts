@@ -576,6 +576,78 @@ export async function confirmReceiptDetail(
   }
 }
 
+/**
+ * Re-map ReceiptScanLine.matchedRuleId on unlinked bill scans via current
+ * Receipt rules + mapReceiptLines — no Gemini call.
+ */
+export async function reapplyReceiptRulesAction() {
+  const { budget } = await requireBudgetAccess();
+  const { mapReceiptLines } = await import("@/lib/receipt-ai");
+
+  const [categories, rules, scans] = await Promise.all([
+    prisma.category.findMany({
+      where: { group: { budgetId: budget.id }, hidden: false },
+      select: { id: true, name: true },
+    }),
+    prisma.receiptCategoryRule.findMany({
+      where: { budgetId: budget.id },
+      include: { category: { select: { name: true } } },
+      orderBy: { sortOrder: "asc" },
+    }),
+    prisma.receiptScan.findMany({
+      where: {
+        budgetId: budget.id,
+        transactionId: null,
+        status: { in: ["ok", "preview", "needs_mapping"] },
+      },
+      include: { lines: { orderBy: { sortOrder: "asc" } } },
+    }),
+  ]);
+
+  const categoriesByName = new Map(
+    categories.map((c) => [c.name, { id: c.id, name: c.name }]),
+  );
+  const unknown = categoriesByName.get("Unknown") ?? null;
+  const ruleRows = rules.map((r) => ({
+    id: r.id,
+    matchText: r.matchText,
+    ignore: r.ignore,
+    categoryId: r.categoryId,
+    categoryName: r.category?.name ?? null,
+    sortOrder: r.sortOrder,
+  }));
+
+  for (const scan of scans) {
+    if (scan.lines.length === 0) continue;
+    const mapped = mapReceiptLines({
+      lines: scan.lines.map((l) => ({
+        description: l.description,
+        amount: l.amountCents / 100,
+        categoryHint: l.categoryHint ?? undefined,
+      })),
+      rules: ruleRows,
+      categoriesByName,
+      unknownCategoryId: unknown?.id ?? null,
+      unknownCategoryName: unknown?.name ?? "Unknown",
+    });
+
+    for (let i = 0; i < scan.lines.length; i++) {
+      const line = scan.lines[i];
+      const m = mapped[i];
+      if (!m) continue;
+      if (line.matchedRuleId === m.matchedRuleId) continue;
+      await prisma.receiptScanLine.update({
+        where: { id: line.id },
+        data: { matchedRuleId: m.matchedRuleId },
+      });
+    }
+  }
+
+  revalidatePath("/more/receipt-rules");
+  revalidatePath("/more/bills");
+  revalidatePath("/reflect");
+}
+
 export async function createReceiptRuleAction(formData: FormData) {
   const { budget } = await requireBudgetAccess();
   const matchText = String(formData.get("matchText") ?? "").trim();

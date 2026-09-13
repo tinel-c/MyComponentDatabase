@@ -17,6 +17,7 @@ import {
 } from "@/components/forms/field-classes";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BillsInfiniteList } from "@/components/bills/BillsInfiniteList";
+import { reapplyReceiptRulesAction } from "@/app/(app)/more/receipts/actions";
 
 const STATUS_CHIPS: {
   value: BillListStatusFilter;
@@ -54,12 +55,22 @@ export default async function BillsPage({
             </Link>
           </p>
         </div>
-        <Link
-          href="/more/import-bill"
-          className={`${buttonCompactClass} w-full shrink-0 sm:w-auto`}
-        >
-          Import bill
-        </Link>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <form action={reapplyReceiptRulesAction}>
+            <button
+              type="submit"
+              className={`${buttonCompactClass} w-full sm:w-auto`}
+            >
+              Re-apply to unlinked scans
+            </button>
+          </form>
+          <Link
+            href="/more/import-bill"
+            className={`${buttonCompactClass} w-full shrink-0 sm:w-auto`}
+          >
+            Import bill
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2" role="navigation" aria-label="Bill status filter">

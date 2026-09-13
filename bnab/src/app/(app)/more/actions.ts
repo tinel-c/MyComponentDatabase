@@ -8,7 +8,7 @@ import { invalidateBudgetCaches } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { normalizeEmail } from "@/lib/email";
 import { parseMoneyInput, todayISO } from "@/lib/money";
-import { Recurrence } from "@prisma/client";
+import { Recurrence, ScheduleKind } from "@prisma/client";
 
 export async function logoutAction() {
   await signOut({ redirectTo: "/" });
@@ -62,6 +62,12 @@ export async function createSchedule(formData: FormData) {
     billingUrlRaw && /^https?:\/\//i.test(billingUrlRaw) ? billingUrlRaw : null;
   const importRuleId = String(formData.get("importRuleId") ?? "") || null;
   const inflow = formData.get("inflow") === "1";
+  const kindRaw = String(formData.get("kind") ?? "PLANNED").toUpperCase();
+  const kind: ScheduleKind =
+    kindRaw === "SCHEDULED" ? ScheduleKind.SCHEDULED : ScheduleKind.PLANNED;
+  const autoEnter =
+    kind === ScheduleKind.SCHEDULED &&
+    (formData.get("autoEnter") === "1" || formData.get("autoEnter") === "on");
 
   if (!accountId || amount === null || amount === 0) {
     return;
@@ -97,6 +103,8 @@ export async function createSchedule(formData: FormData) {
       notes,
       nextDate,
       recurrence,
+      kind,
+      autoEnter,
       billingUrl,
       importRuleId,
       dayOfMonth: recurrence === "MONTHLY" || recurrence === "YEARLY" ? dayOfMonth : null,
@@ -110,11 +118,41 @@ export async function createSchedule(formData: FormData) {
   return;
 }
 
+export async function updateScheduleAutoEnter(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  const autoEnter =
+    formData.get("autoEnter") === "1" || formData.get("autoEnter") === "on";
+  if (!id) return;
+
+  const sched = await prisma.scheduledTransaction.findFirst({
+    where: {
+      id,
+      budgetId: budget.id,
+      kind: ScheduleKind.SCHEDULED,
+    },
+  });
+  if (!sched) return;
+
+  await prisma.scheduledTransaction.update({
+    where: { id },
+    data: { autoEnter },
+  });
+
+  revalidatePath("/more/schedules");
+  return;
+}
+
 export async function enterScheduled(formData: FormData) {
   const { budget } = await requireBudgetAccess();
   const id = String(formData.get("id") ?? "");
   const sched = await prisma.scheduledTransaction.findFirst({
-    where: { id, budgetId: budget.id, active: true },
+    where: {
+      id,
+      budgetId: budget.id,
+      active: true,
+      kind: ScheduleKind.SCHEDULED,
+    },
   });
   if (!sched) return;
 

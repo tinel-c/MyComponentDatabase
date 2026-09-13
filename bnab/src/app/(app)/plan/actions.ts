@@ -25,6 +25,7 @@ export async function assignFromPlanned(formData: FormData): Promise<{
     where: {
       budgetId: budget.id,
       active: true,
+      kind: "PLANNED",
       categoryId: { not: null },
     },
     select: {

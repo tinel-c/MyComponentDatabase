@@ -122,6 +122,7 @@ export async function createTransaction(formData: FormData) {
           where: {
             budgetId: budget.id,
             active: true,
+            kind: "PLANNED",
             accountId: account.id,
           },
           select: {
@@ -479,6 +480,7 @@ export async function makePlannedFromTransaction(formData: FormData) {
       notes: txn.notes,
       nextDate,
       recurrence: "MONTHLY",
+      kind: "PLANNED",
       dayOfMonth,
     },
   });

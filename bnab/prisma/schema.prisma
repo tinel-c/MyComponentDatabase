@@ -41,6 +41,11 @@ enum Recurrence {
   YEARLY
 }
 
+enum ScheduleKind {
+  PLANNED
+  SCHEDULED
+}
+
 model User {
   id            String         @id @default(cuid())
   name          String?
@@ -106,6 +111,7 @@ model Budget {
   importBatches ImportBatch[]
   receiptRules ReceiptCategoryRule[]
   receiptScans ReceiptScan[]
+  wishItems   WishItem[]
 }
 
 model BudgetMember {
@@ -369,7 +375,7 @@ model ImportBatchItem {
 }
 
 model ScheduledTransaction {
-  id             String     @id @default(cuid())
+  id             String       @id @default(cuid())
   budgetId       String
   accountId      String
   payeeId        String?
@@ -377,9 +383,12 @@ model ScheduledTransaction {
   amount         Int
   notes          String?
   nextDate       String
-  recurrence     Recurrence @default(MONTHLY)
+  recurrence     Recurrence   @default(MONTHLY)
+  kind           ScheduleKind @default(PLANNED)
+  /** Opt-in catch-up auto-enter for SCHEDULED only. */
+  autoEnter      Boolean      @default(false)
   transferToId   String?
-  active         Boolean    @default(true)
+  active         Boolean      @default(true)
   /** Optional HTTPS link to billing portal. */
   billingUrl     String?
   /** Optional linked Import rule. */
@@ -409,4 +418,20 @@ model MonthMeta {
   budget          Budget  @relation(fields: [budgetId], references: [id], onDelete: Cascade)
 
   @@unique([budgetId, month])
+}
+
+/** Wish Farm savings goal — fundedCents is tracked here; plan assign is optional/manual. */
+model WishItem {
+  id          String   @id @default(cuid())
+  budgetId    String
+  name        String
+  amountCents Int
+  fundedCents Int      @default(0)
+  sortOrder   Float    @default(0)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  budget      Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId, sortOrder])
 }

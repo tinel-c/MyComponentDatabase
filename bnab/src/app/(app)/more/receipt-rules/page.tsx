@@ -13,7 +13,7 @@ import {
   pageStackClass,
   sectionSubheadingClass,
 } from "@/components/forms/field-classes";
-import { createReceiptRuleAction } from "../receipts/actions";
+import { createReceiptRuleAction, reapplyReceiptRulesAction } from "../receipts/actions";
 import { ReceiptRulesEditor } from "@/components/import/ReceiptRulesEditor";
 
 export default async function ReceiptRulesPage() {
@@ -53,17 +53,24 @@ export default async function ReceiptRulesPage() {
 
   return (
     <div className={pageStackClass}>
-      <div>
-        <Link href="/more" className="text-sm text-fg-muted hover:text-fg">
-          ← More
-        </Link>
-        <h1 className="mt-1 text-xl font-semibold text-fg md:text-2xl">
-          Receipt mappings
-        </h1>
-        <p className={sectionSubheadingClass}>
-          Bill line items (Gemini detailing). First substring match wins —
-          independent of ING import rules.
-        </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <Link href="/more" className="text-sm text-fg-muted hover:text-fg">
+            ← More
+          </Link>
+          <h1 className="mt-1 text-xl font-semibold text-fg md:text-2xl">
+            Receipt mappings
+          </h1>
+          <p className={sectionSubheadingClass}>
+            Bill line items (Gemini detailing). First substring match wins —
+            independent of ING import rules.
+          </p>
+        </div>
+        <form action={reapplyReceiptRulesAction}>
+          <button type="submit" className={`${buttonCompactClass} w-full sm:w-auto`}>
+            Re-apply to unlinked scans
+          </button>
+        </form>
       </div>
 
       <form

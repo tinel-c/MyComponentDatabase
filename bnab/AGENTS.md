@@ -25,10 +25,12 @@ After shipping an architecture decision, add/update an ADR in the same commit.
 
 - Envelope math only via `loadPlanMonth` / `budget-engine` (ADR 0001).
 - Bill scans are Reflect-first by default (ADR 0002).
-- Import rule ≠ Receipt rule ≠ Planned payment (ADR 0003).
+- Import rule ≠ Receipt rule ≠ Planned payment ≠ Scheduled transaction (ADR 0003 / 0007).
 - Lists use cursor infinite scroll, not `?page=` (ADR 0005).
 - Theme semantic tokens only (ADR 0006).
 
 ## Delivery
 
-Commit and push after each major milestone. Never commit secrets, real ING CSVs, or `deploy/bnab/_diag_*` scripts.
+After finishing a plan or major milestone: **ask** the user, then update docs → commit → push → release (when versioned) → deploy (`python deploy/bnab/bnab_deploy.py all`). See `.cursor/rules/post-plan-delivery.mdc`.
+
+Never commit secrets, real ING CSVs, or `deploy/bnab/_diag_*` scripts.

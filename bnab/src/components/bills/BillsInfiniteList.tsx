@@ -17,8 +17,12 @@ import type {
   BillListStatusFilter,
 } from "@/lib/bills-chunk";
 import { InfiniteList } from "@/components/ui/InfiniteList";
-import { cardCompactClass } from "@/components/forms/field-classes";
+import {
+  buttonCompactClass,
+  cardCompactClass,
+} from "@/components/forms/field-classes";
 import { formatMoney } from "@/lib/money";
+import { reapplyReceiptRulesAction } from "@/app/(app)/more/receipts/actions";
 
 function statusMeta(status: string): {
   label: string;
@@ -185,6 +189,14 @@ function BillAiAudit({
         ) : (
           <p className="text-fg-muted">No bill lines on this scan.</p>
         )}
+
+        {(scan.linkState === "unlinked" || !txn) && scan.lines.length > 0 ? (
+          <form action={reapplyReceiptRulesAction}>
+            <button type="submit" className={buttonCompactClass}>
+              Re-apply to unlinked scans
+            </button>
+          </form>
+        ) : null}
       </div>
     </details>
   );

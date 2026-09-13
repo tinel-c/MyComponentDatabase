@@ -14,4 +14,4 @@ When working under `bnab/`:
 2. **Do not** invent synonyms for Import rule / Receipt rule / Planned payment / Bill scan.
 3. **After** shipping an architecture decision, add or update an ADR under `bnab/docs/adr/` and the index in the **same milestone commit**.
 4. Prefer existing helpers: `loadPlanMonth`, `budget-engine`, `cache-tags`, `InfiniteList`, theme tokens, `field-classes`.
-5. After each **major milestone**, commit and push to GitHub (no secrets, no `_diag_*` junk).
+5. After each **major milestone** / finished plan: follow [`.cursor/rules/post-plan-delivery.mdc`](post-plan-delivery.mdc) — **ask** to update docs, then commit, push, release, and deploy (BNAB: `python deploy/bnab/bnab_deploy.py all`). Never commit secrets or `deploy/bnab/_diag_*`.

@@ -1,0 +1,25 @@
+---
+description: After finishing a plan implementation, ask to update docs then commit, push, release, and deploy.
+alwaysApply: true
+---
+
+# Post-plan delivery gate
+
+When you **finish implementing a plan** (all plan todos done, or the user confirms the milestone is complete):
+
+1. **Ask first** — Do not silently ship. Prompt the user to confirm the post-plan ship sequence, e.g.:
+   > Plan implementation is done. Update documentation, then commit, push, release, and deploy?
+
+2. **On confirmation**, run this sequence (skip any step the user explicitly excludes):
+
+   | Step | Action |
+   |------|--------|
+   | Docs | Sync ADRs, `bnab/docs/` (changelog, features, lists, vocabulary, performance, etc.), and `AGENTS.md` / architecture notes for what shipped |
+   | Commit | Stage relevant files only (no secrets, no `deploy/bnab/_diag_*`, no `.kilo/`); concise why-focused message |
+   | Push | `git push` to the tracked remote branch |
+   | Release | Tag + GitHub release when the change is a versioned BNAB ship (e.g. `bnab-vX.Y.Z`); bump `bnab/package.json` + changelog if needed |
+   | Deploy | BNAB: `python deploy/bnab/bnab_deploy.py all` (see `deploy/bnab/AGENT_DEPLOY.md`) |
+
+3. **Still ask** even if an earlier user rule said “commit after milestones” — confirmation is required for release and deploy because they are higher impact.
+
+4. If the user already said in the **same turn** to “commit, push, release, and deploy” after the plan, treat that as confirmation and proceed without a second prompt.

@@ -26,6 +26,10 @@ import {
   PendingActionsProvider,
   usePendingActionsOptional,
 } from "@/components/providers/PendingActionsProvider";
+import {
+  BudgetSwitcher,
+  type BudgetOption,
+} from "@/components/budget/BudgetSwitcher";
 import type { AccountActivitySummary } from "@/lib/account-activity-summary";
 import { uniqueAccountMonograms } from "@/lib/account-activity-summary";
 import { accountTypeMeta } from "@/lib/ui-accents";
@@ -290,11 +294,15 @@ export function AccountActivityRail({
 export function AppChrome({
   children,
   budgetName,
+  budgetId,
+  budgets = [],
   activitySlot,
   plannedDueCount = 0,
 }: {
   children: React.ReactNode;
   budgetName: string;
+  budgetId?: string;
+  budgets?: BudgetOption[];
   /** Desktop activity rail — typically a Suspense-wrapped async server child. */
   activitySlot?: React.ReactNode;
   /** Active planned payments with nextDate ≤ today. */
@@ -334,6 +342,13 @@ export function AppChrome({
             <BnabLogo showTagline compact markClassName="size-7" />
           </Link>
           <p className="mt-2 truncate pl-0.5 text-xs text-fg-subtle">{budgetName}</p>
+          {budgetId && budgets.length > 1 ? (
+            <BudgetSwitcher
+              budgets={budgets}
+              currentBudgetId={budgetId}
+              compact
+            />
+          ) : null}
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
           <PendingActionsRail />

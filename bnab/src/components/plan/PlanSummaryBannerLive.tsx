@@ -7,10 +7,12 @@ export function PlanSummaryBannerLive({
   incomeToRta,
   toSavings,
   spent,
+  month,
 }: {
   incomeToRta: number;
   toSavings?: number;
   spent?: number;
+  month?: string;
 }) {
   const { rta, totalAssigned, currency } = usePlanWorkspace();
   return (
@@ -21,6 +23,7 @@ export function PlanSummaryBannerLive({
       totalAssigned={totalAssigned}
       spent={spent}
       currency={currency}
+      month={month}
     />
   );
 }

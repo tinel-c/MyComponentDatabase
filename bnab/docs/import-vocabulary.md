@@ -9,6 +9,7 @@ Single source of truth for BNAB UI copy, batch `action` strings, and code commen
 | Import batch | Bill queue (client multi-upload) |
 | Import rule | Receipt rule |
 | Planned payment | Pending bill entry |
+| Planned payment | Scheduled transaction |
 | AI category hint | Category matched |
 | Import history item | Bill AI audit |
 
@@ -23,9 +24,11 @@ Single source of truth for BNAB UI copy, batch `action` strings, and code commen
 | **Ledger transaction** | On-budget bank row (`Transaction`, non-child) | Split child, receipt line |
 | **Import rule** | Memo substring → category / transfer / ignore (`ImportCategoryRule`) | Receipt category rule |
 | **Receipt rule** | Bill line → category (`ReceiptCategoryRule`) | Import rule |
-| **Planned payment** | Recurring schedule (`ScheduledTransaction` evolved) | Pending bill ledger |
+| **Planned payment** | Contract expectation (`ScheduledTransaction` with `kind=PLANNED`); match on import/manual create; feeds Assign from planned | Scheduled transaction; Pending bill |
+| **Scheduled transaction** | Enter template (`kind=SCHEDULED`); optional `autoEnter` catch-up; does **not** assign envelopes or match on import | Planned payment |
 | **Bill scan** | Gemini `ReceiptScan` (+ lines); Reflect-first | Import batch |
 | **Pending bill entry** | Optional ledger txn with `isPendingBill`, no fingerprint yet | Planned payment |
+| **Wish item** | Wish Farm goal (`WishItem`) | Category target |
 
 ---
 

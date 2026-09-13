@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import {
   dateIdCursorOr,
   decodeListCursor,
@@ -5,6 +6,16 @@ import {
   nextCursorFromRows,
 } from "@/lib/list-cursor";
 import { prisma } from "@/lib/prisma";
+
+export type AccountRegisterFilters = {
+  q?: string;
+  categoryId?: string;
+  dir?: "in" | "out";
+  from?: string;
+  to?: string;
+  cleared?: "0" | "1";
+  planned?: "linked" | "none";
+};
 
 export type AccountRegisterItem = {
   id: string;
@@ -18,19 +29,67 @@ export type AccountRegisterItem = {
   payeeName: string | null;
   categoryName: string | null;
   notes: string | null;
+  scheduledTransactionId: string | null;
+  plannedLabel: string | null;
 };
+
+export function buildAccountRegisterWhere(
+  accountId: string,
+  filters: AccountRegisterFilters = {},
+): Prisma.TransactionWhereInput {
+  const { q, categoryId, dir, from, to, cleared, planned } = filters;
+  const dateFilter: Prisma.StringFilter | undefined =
+    from || to
+      ? {
+          ...(from ? { gte: from } : {}),
+          ...(to ? { lte: to } : {}),
+        }
+      : undefined;
+
+  return {
+    accountId,
+    isChild: false,
+    ...(categoryId ? { categoryId } : {}),
+    ...(dir === "in"
+      ? { amount: { gt: 0 } }
+      : dir === "out"
+        ? { amount: { lt: 0 } }
+        : {}),
+    ...(dateFilter ? { date: dateFilter } : {}),
+    ...(cleared === "1"
+      ? { cleared: true }
+      : cleared === "0"
+        ? { cleared: false }
+        : {}),
+    ...(planned === "linked"
+      ? { scheduledTransactionId: { not: null } }
+      : planned === "none"
+        ? { scheduledTransactionId: null }
+        : {}),
+    ...(q
+      ? {
+          OR: [
+            { notes: { contains: q } },
+            { payee: { name: { contains: q } } },
+            { category: { name: { contains: q } } },
+          ],
+        }
+      : {}),
+  };
+}
 
 export async function fetchAccountRegisterChunk(
   accountId: string,
   cursor?: string | null,
   take = LIST_PAGE_SIZE,
+  filters: AccountRegisterFilters = {},
 ): Promise<{
   items: AccountRegisterItem[];
   nextCursor: string | null;
   hasMore: boolean;
 }> {
   const decoded = decodeListCursor(cursor);
-  const baseWhere = { accountId, isChild: false };
+  const baseWhere = buildAccountRegisterWhere(accountId, filters);
   const where = decoded
     ? { AND: [baseWhere, { OR: dateIdCursorOr(decoded) }] }
     : baseWhere;
@@ -49,10 +108,40 @@ export async function fetchAccountRegisterChunk(
       isStartingBalance: true,
       transferTwinId: true,
       notes: true,
+      scheduledTransactionId: true,
       payee: { select: { name: true } },
       category: { select: { name: true } },
     },
   });
+
+  const scheduleIds = [
+    ...new Set(
+      rows
+        .map((r) => r.scheduledTransactionId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const schedules = scheduleIds.length
+    ? await prisma.scheduledTransaction.findMany({
+        where: { id: { in: scheduleIds } },
+        select: {
+          id: true,
+          notes: true,
+          payee: { select: { name: true } },
+          category: { select: { name: true } },
+        },
+      })
+    : [];
+  const labelById = new Map(
+    schedules.map((s) => {
+      const label =
+        s.payee?.name ??
+        s.category?.name ??
+        s.notes?.slice(0, 40) ??
+        "Planned";
+      return [s.id, label] as const;
+    }),
+  );
 
   const items: AccountRegisterItem[] = rows.map((t) => ({
     id: t.id,
@@ -66,6 +155,10 @@ export async function fetchAccountRegisterChunk(
     payeeName: t.payee?.name ?? null,
     categoryName: t.category?.name ?? null,
     notes: t.notes,
+    scheduledTransactionId: t.scheduledTransactionId,
+    plannedLabel: t.scheduledTransactionId
+      ? (labelById.get(t.scheduledTransactionId) ?? "Planned")
+      : null,
   }));
 
   const { nextCursor, hasMore } = nextCursorFromRows(items, take);

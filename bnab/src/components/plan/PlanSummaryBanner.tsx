@@ -1,24 +1,17 @@
 import { formatMoney } from "@/lib/money";
 import { moneyClass } from "@/components/forms/field-classes";
+import { assignFromPlannedAction } from "@/app/(app)/plan/actions";
 
 type Props = {
   rta: number;
   incomeToRta: number;
   toSavings?: number;
   totalAssigned: number;
-  /** Positive outflow total this month (−Σ non-income activity). */
   spent?: number;
   currency: string;
+  month?: string;
 };
 
-/**
- * YNAB-style Ready to Assign strip:
- * - Positive → money left to give jobs (accent)
- * - Zero → all set (green)
- * - Negative → assigned too much (danger)
- *
- * RTA = Income − To savings − Assigned (− hold).
- */
 export function PlanSummaryBanner({
   rta,
   incomeToRta,
@@ -26,9 +19,9 @@ export function PlanSummaryBanner({
   totalAssigned,
   spent = 0,
   currency,
+  month,
 }: Props) {
-  const state =
-    rta === 0 ? "zero" : rta < 0 ? "over" : "ready";
+  const state = rta === 0 ? "zero" : rta < 0 ? "over" : "ready";
 
   const tint =
     state === "zero"
@@ -98,6 +91,18 @@ export function PlanSummaryBanner({
               {formatMoney(spent, currency)}
             </span>
           </p>
+          {month ? (
+            <form action={assignFromPlannedAction} className="mt-1.5">
+              <input type="hidden" name="month" value={month} />
+              <button
+                type="submit"
+                title="Set Assigned to at least this month’s planned payment totals"
+                className="font-medium text-accent hover:underline"
+              >
+                Assign from planned
+              </button>
+            </form>
+          ) : null}
         </div>
       </div>
     </div>

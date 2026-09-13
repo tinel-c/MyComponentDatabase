@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireBudgetAccess } from "@/lib/authz";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import {
   buttonDangerClass,
   cardClass,
@@ -11,6 +12,7 @@ import {
 import { logoutAction } from "./actions";
 import { ThemeSelector } from "@/components/ui/ThemeSelector";
 import { InstallAppCard } from "@/components/pwa/InstallAppPrompt";
+import { BudgetSwitcher } from "@/components/budget/BudgetSwitcher";
 import {
   Receipt,
   BarChart3,
@@ -25,6 +27,9 @@ import {
   History,
   ScanLine,
   Database,
+  Sparkles,
+  Landmark,
+  Sprout,
 } from "lucide-react";
 
 type LinkItem = {
@@ -84,6 +89,18 @@ const sections: { title: string; items: LinkItem[] }[] = [
         desc: "Recurring transactions",
         icon: CalendarClock,
       },
+      {
+        href: "/more/loans",
+        label: "Loan payoff",
+        desc: "Months-to-payoff estimate for tracking liabilities",
+        icon: Landmark,
+      },
+      {
+        href: "/more/wish-farm",
+        label: "Wish Farm",
+        desc: "Savings goals and harvest progress",
+        icon: Sprout,
+      },
     ],
   },
   {
@@ -131,6 +148,12 @@ const sections: { title: string; items: LinkItem[] }[] = [
         icon: Users,
       },
       {
+        href: "/more/fresh-start",
+        label: "Fresh Start",
+        desc: "Guided selective erase to reset the ledger",
+        icon: Sparkles,
+      },
+      {
         href: "/more/data",
         label: "Data",
         desc: "Export, import, or selectively erase the database",
@@ -142,10 +165,16 @@ const sections: { title: string; items: LinkItem[] }[] = [
 ];
 
 export default async function MorePage() {
-  const { budget } = await requireBudgetAccess();
+  const { budget, session: budgetSession } = await requireBudgetAccess();
   const session = await auth();
   const isAdmin = session?.user?.role === "ADMIN";
   const FeaturedIcon = featured.icon;
+  const memberships = await prisma.budgetMember.findMany({
+    where: { userId: budgetSession.user.id },
+    include: { budget: { select: { id: true, name: true, currency: true } } },
+    orderBy: { budget: { createdAt: "asc" } },
+  });
+  const budgetOptions = memberships.map((m) => m.budget);
 
   return (
     <div className={pageStackClass}>
@@ -157,6 +186,18 @@ export default async function MorePage() {
           {budget.name} · {budget.currency} · {session?.user?.email}
         </p>
       </div>
+
+      {budgetOptions.length > 1 ? (
+        <section className={`${cardCompactClass} p-3`}>
+          <h2 className="text-sm font-semibold text-fg">Budgets</h2>
+          <div className="mt-2">
+            <BudgetSwitcher
+              budgets={budgetOptions}
+              currentBudgetId={budget.id}
+            />
+          </div>
+        </section>
+      ) : null}
 
       <InstallAppCard />
 

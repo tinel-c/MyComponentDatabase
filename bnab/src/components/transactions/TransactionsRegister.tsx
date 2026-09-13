@@ -166,6 +166,7 @@ function RegisterRowCells({
           ? "opacity-60"
           : "odd:bg-surface even:bg-canvas/40 hover:bg-accent-muted/25"
       }`}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "48px" }}
     >
       <td
         className={`${sheetCell} sticky left-0 z-[1] bg-inherit text-center shadow-[2px_0_6px_-2px_color-mix(in_oklch,var(--rim)_50%,transparent)]`}
@@ -439,7 +440,11 @@ export function TransactionsRegister({
                 .find((c) => c.id === row.categoryId)?.name ??
               (row.isSplit ? "Split" : row.isTransfer ? "—" : "RTA");
           return (
-            <li key={row.id} className="px-3 py-3">
+            <li
+              key={row.id}
+              className="px-3 py-3"
+              style={{ contentVisibility: "auto", containIntrinsicSize: "72px" }}
+            >
               <a
                 href={`/transactions/${row.id}`}
                 className="block space-y-1 hover:opacity-90"

@@ -5,6 +5,8 @@ import {
   buttonCompactClass,
   buttonCompactDangerClass,
   cardCompactClass,
+  chipClass,
+  chipMutedClass,
   inputCompactClass,
   pageStackClass,
   sectionSubheadingClass,
@@ -14,16 +16,53 @@ import {
   reapplyRulesToBatch,
   revertImportBatch,
 } from "../import/actions";
-import { fetchImportBatchItemsChunk } from "@/lib/import-history-items-chunk";
+import {
+  fetchImportBatchItemsChunk,
+  IMPORT_HISTORY_ACTION_OPTIONS,
+  parseImportHistoryAction,
+  type ImportHistoryItemFilters,
+} from "@/lib/import-history-items-chunk";
 import { ImportHistoryItemsInfinite } from "@/components/import/ImportHistoryItemsInfinite";
+
+function historyHref(
+  batchId: string | undefined,
+  filters: ImportHistoryItemFilters,
+  overrides: Partial<ImportHistoryItemFilters> = {},
+) {
+  const params = new URLSearchParams();
+  if (batchId) params.set("batch", batchId);
+  const next = { ...filters, ...overrides };
+  if (next.q) params.set("q", next.q);
+  if (next.rule) params.set("rule", next.rule);
+  if (next.planned) params.set("planned", next.planned);
+  if (next.action) params.set("action", next.action);
+  const s = params.toString();
+  return s ? `/more/import-history?${s}` : "/more/import-history";
+}
 
 export default async function ImportHistoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ batch?: string }>;
+  searchParams: Promise<{
+    batch?: string;
+    q?: string;
+    rule?: string;
+    planned?: string;
+    action?: string;
+  }>;
 }) {
   const { budget } = await requireBudgetAccess();
   const sp = await searchParams;
+  const filters: ImportHistoryItemFilters = {
+    q: sp.q?.trim() || undefined,
+    rule: sp.rule?.trim() || undefined,
+    planned: sp.planned?.trim() || undefined,
+    action: parseImportHistoryAction(sp.action),
+  };
+  const hasItemFilters = Boolean(
+    filters.q || filters.rule || filters.planned || filters.action,
+  );
+
   const batches = await prisma.importBatch.findMany({
     where: { budgetId: budget.id },
     orderBy: { createdAt: "desc" },
@@ -43,21 +82,30 @@ export default async function ImportHistoryPage({
     : null;
 
   const itemsChunk = selected
-    ? await fetchImportBatchItemsChunk({ batchId: selected.id })
+    ? await fetchImportBatchItemsChunk({
+        batchId: selected.id,
+        filters,
+      })
     : null;
 
   const ruleIds = [
     ...new Set(
-      (itemsChunk?.items ?? [])
-        .map((i) => i.importRuleId)
-        .filter((id): id is string => Boolean(id)),
+      [
+        ...(itemsChunk?.items ?? [])
+          .map((i) => i.importRuleId)
+          .filter((id): id is string => Boolean(id)),
+        ...(filters.rule ? [filters.rule] : []),
+      ],
     ),
   ];
   const scheduleIds = [
     ...new Set(
-      (itemsChunk?.items ?? [])
-        .map((i) => i.scheduledTransactionId)
-        .filter((id): id is string => Boolean(id)),
+      [
+        ...(itemsChunk?.items ?? [])
+          .map((i) => i.scheduledTransactionId)
+          .filter((id): id is string => Boolean(id)),
+        ...(filters.planned ? [filters.planned] : []),
+      ],
     ),
   ];
 
@@ -112,6 +160,10 @@ export default async function ImportHistoryPage({
     },
     orderBy: { sortOrder: "asc" },
   });
+
+  const clearHref = selected
+    ? `/more/import-history?batch=${selected.id}`
+    : "/more/import-history";
 
   return (
     <div className={pageStackClass}>
@@ -185,20 +237,141 @@ export default async function ImportHistoryPage({
             </p>
           )}
 
-          {itemsChunk && itemsChunk.items.length > 0 && (
+          <form
+            method="get"
+            className="grid gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_auto_auto_auto]"
+          >
+            <input type="hidden" name="batch" value={selected.id} />
+            {filters.rule ? (
+              <input type="hidden" name="rule" value={filters.rule} />
+            ) : null}
+            {filters.planned ? (
+              <input type="hidden" name="planned" value={filters.planned} />
+            ) : null}
+            <label className="block text-xs font-medium text-fg-muted sm:col-span-2 lg:col-span-1">
+              Memo
+              <input
+                name="q"
+                defaultValue={filters.q ?? ""}
+                className={`${inputCompactClass} mt-1`}
+                placeholder="Contains…"
+              />
+            </label>
+            <label className="block text-xs font-medium text-fg-muted">
+              Outcome
+              <select
+                name="action"
+                defaultValue={filters.action ?? ""}
+                className={`${inputCompactClass} mt-1`}
+              >
+                <option value="">All</option>
+                {IMPORT_HISTORY_ACTION_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex flex-wrap items-end gap-2">
+              <button type="submit" className={buttonCompactClass}>
+                Filter
+              </button>
+              {hasItemFilters ? (
+                <Link href={clearHref} className={buttonCompactClass}>
+                  Clear
+                </Link>
+              ) : null}
+            </div>
+          </form>
+
+          <div
+            className="flex flex-wrap gap-2"
+            role="navigation"
+            aria-label="Outcome filter"
+          >
+            {IMPORT_HISTORY_ACTION_OPTIONS.map((chip) => {
+              const active = filters.action === chip.value;
+              const href = historyHref(
+                selected.id,
+                filters,
+                active ? { action: undefined } : { action: chip.value },
+              );
+              return (
+                <Link
+                  key={chip.value}
+                  href={href}
+                  className={active ? chipClass : chipMutedClass}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {chip.label}
+                </Link>
+              );
+            })}
+          </div>
+
+          {(filters.rule || filters.planned || filters.q) && (
+            <div className="flex flex-wrap gap-2">
+              {filters.q ? (
+                <Link
+                  href={historyHref(selected.id, filters, { q: undefined })}
+                  className={chipClass}
+                >
+                  Memo: {filters.q} ×
+                </Link>
+              ) : null}
+              {filters.rule ? (
+                <Link
+                  href={historyHref(selected.id, filters, { rule: undefined })}
+                  className={chipClass}
+                >
+                  Rule: {ruleById.get(filters.rule) ?? filters.rule.slice(0, 8)}{" "}
+                  ×
+                </Link>
+              ) : null}
+              {filters.planned ? (
+                <Link
+                  href={historyHref(selected.id, filters, {
+                    planned: undefined,
+                  })}
+                  className={chipClass}
+                >
+                  Planned:{" "}
+                  {scheduleLabelById.get(filters.planned) ??
+                    filters.planned.slice(0, 8)}{" "}
+                  ×
+                </Link>
+              ) : null}
+            </div>
+          )}
+
+          {itemsChunk && itemsChunk.items.length > 0 ? (
             <div>
               <h3 className="mb-2 text-sm font-semibold text-fg">
                 Batch items
               </h3>
               <ImportHistoryItemsInfinite
+                key={[
+                  selected.id,
+                  filters.q ?? "",
+                  filters.rule ?? "",
+                  filters.planned ?? "",
+                  filters.action ?? "",
+                ].join("|")}
                 batchId={selected.id}
                 initialItems={itemsChunk.items}
                 initialCursor={itemsChunk.nextCursor}
                 hasMore={itemsChunk.hasMore}
+                filters={filters}
                 ruleById={Object.fromEntries(ruleById)}
                 scheduleLabelById={Object.fromEntries(scheduleLabelById)}
               />
             </div>
+          ) : (
+            <p className="text-sm text-fg-muted">
+              {hasItemFilters
+                ? "No batch items match these filters."
+                : "No batch items recorded."}
+            </p>
           )}
 
           {uncategorized.length > 0 && (

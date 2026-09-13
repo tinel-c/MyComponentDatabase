@@ -8,6 +8,11 @@ import { PlanEmptyToggle } from "@/components/plan/PlanEmptyToggle";
 import { usePlanWorkspaceOptional } from "@/components/plan/PlanWorkspace";
 import { moneyClass } from "@/components/forms/field-classes";
 import { formatMoney } from "@/lib/money";
+import {
+  planHref,
+  rowMatchesPlanFocus,
+  type PlanFocusFilter,
+} from "@/lib/plan-url";
 
 function activityHref(categoryId: string, month: string) {
   return `/transactions?categoryId=${encodeURIComponent(categoryId)}&month=${encodeURIComponent(month)}`;
@@ -21,6 +26,8 @@ type Props = {
   month: string;
   currency: string;
   rta: number;
+  showEmpty: boolean;
+  focus: PlanFocusFilter | null;
   rows: Record<
     string,
     { available: number; activity: number; assigned: number }
@@ -41,11 +48,10 @@ const DESKTOP_GRID =
   "grid-cols-[minmax(0,1fr)_6rem_6.5rem_6rem_5.75rem] gap-x-3";
 
 /**
- * Mobile single row — fixed money columns so the name truncates instead of wrapping.
- * Category | Activity | Available
+ * Mobile single row — Category | Activity | Assign | Available
  */
 const MOBILE_GRID =
-  "grid grid-cols-[minmax(0,1fr)_4.5rem_4.75rem] items-center gap-x-1.5";
+  "grid grid-cols-[minmax(0,1fr)_3.25rem_4.25rem_3.5rem] items-center gap-x-1";
 
 export function PlanCategoryList({
   groupName,
@@ -53,6 +59,8 @@ export function PlanCategoryList({
   month,
   currency,
   rta,
+  showEmpty,
+  focus,
   rows,
 }: Props) {
   const workspace = usePlanWorkspaceOptional();
@@ -65,20 +73,43 @@ export function PlanCategoryList({
     const activity = row?.activity ?? 0;
     const assigned = row?.assigned ?? 0;
     const isEmpty = assigned === 0 && available === 0 && activity === 0;
-    return { cat, available, activity, assigned, isEmpty };
+    const matchesFocus = rowMatchesPlanFocus(focus, {
+      available,
+      activity,
+      assigned,
+    });
+    return { cat, available, activity, assigned, isEmpty, matchesFocus };
   });
 
-  const emptyCount = enriched.filter((e) => e.isEmpty).length;
+  const visible = enriched.filter((e) => e.matchesFocus);
+  const emptyCount = visible.filter((e) => e.isEmpty).length;
+
+  const showEmptyHref = planHref({ month, empty: true, focus });
+  const hideEmptyHref = planHref({ month, empty: false, focus });
+
+  if (focus && visible.length === 0) {
+    return (
+      <p className="px-3 py-3 text-center text-xs text-fg-muted">
+        No categories match this filter.
+      </p>
+    );
+  }
 
   return (
-    <PlanEmptyToggle emptyCount={emptyCount}>
+    <PlanEmptyToggle
+      showEmpty={showEmpty}
+      emptyCount={emptyCount}
+      showEmptyHref={showEmptyHref}
+      hideEmptyHref={hideEmptyHref}
+    >
       <ul className="divide-y divide-rim-subtle/60">
         <li
           className={`${MOBILE_GRID} h-7 px-2 text-[10px] font-semibold uppercase tracking-wide text-fg-subtle md:hidden`}
         >
           <span className="truncate">Category</span>
-          <span className="text-right">Activity</span>
-          <span className="text-right">Available</span>
+          <span className="text-right">Act</span>
+          <span className="text-right">Assign</span>
+          <span className="text-right">Avail</span>
         </li>
 
         <li
@@ -91,7 +122,7 @@ export function PlanCategoryList({
           <span className="text-center">Quick</span>
         </li>
 
-        {enriched.map(({ cat, available, activity, assigned, isEmpty }) => (
+        {visible.map(({ cat, available, activity, assigned, isEmpty }) => (
           <li
             key={cat.id}
             className={
@@ -101,7 +132,7 @@ export function PlanCategoryList({
             }
           >
             <div
-              className={`${MOBILE_GRID} h-9 px-2 md:hidden`}
+              className={`${MOBILE_GRID} min-h-9 px-2 py-1 md:hidden`}
               title={cat.name}
             >
               <span className="min-w-0 truncate text-[13px] font-medium leading-none text-fg">
@@ -110,13 +141,21 @@ export function PlanCategoryList({
               <Link
                 href={activityHref(cat.id, month)}
                 prefetch
-                className={`whitespace-nowrap text-right text-xs leading-none text-fg-muted underline-offset-2 hover:text-accent hover:underline ${moneyClass}`}
+                className={`whitespace-nowrap text-right text-[11px] leading-none text-fg-muted underline-offset-2 hover:text-accent hover:underline ${moneyClass}`}
                 title={`View transactions · ${formatMoney(activity, currency)}`}
               >
                 {planAmount(activity)}
               </Link>
+              <div className="min-w-0">
+                <AssignCell
+                  categoryId={cat.id}
+                  month={month}
+                  assigned={assigned}
+                  currency={currency}
+                />
+              </div>
               <span
-                className={`whitespace-nowrap text-right text-xs font-semibold leading-none ${moneyClass} ${
+                className={`whitespace-nowrap text-right text-[11px] font-semibold leading-none ${moneyClass} ${
                   available < 0
                     ? "text-danger"
                     : available > 0

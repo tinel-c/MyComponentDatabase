@@ -24,9 +24,50 @@ function localDevEmail(): string {
 
 const localDevAuthEnabled = isLocalDevAuthEnabled();
 
+/**
+ * Cross-subdomain SSO (bnab.bogza.ro ↔ part-db / warehouse on *.bogza.ro).
+ *
+ * Set AUTH_COOKIE_DOMAIN=.bogza.ro only when AUTH_URL is the production HTTPS
+ * host (https://bnab.bogza.ro). Leave unset on localhost — browsers reject
+ * Domain=.bogza.ro (or .localhost) for http://localhost and would break login.
+ *
+ * For JWT SSO both apps must also share the same AUTH_SECRET and use matching
+ * Auth.js cookie names (see docs/deploy.md).
+ */
+function authCookieDomain(): string | undefined {
+  const domain = process.env.AUTH_COOKIE_DOMAIN?.trim();
+  if (!domain) return undefined;
+  const authUrl = process.env.AUTH_URL ?? "";
+  const isProdBnab =
+    authUrl === "https://bnab.bogza.ro" ||
+    authUrl.startsWith("https://bnab.bogza.ro/");
+  if (!isProdBnab) return undefined;
+  return domain;
+}
+
+const cookieDomain = authCookieDomain();
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma as PrismaClient),
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
+  // Only override sessionToken when sharing across *.bogza.ro. Do not set Domain
+  // on CSRF cookies (Auth.js may use __Host- which forbids Domain).
+  ...(cookieDomain
+    ? {
+        cookies: {
+          sessionToken: {
+            name: "__Secure-authjs.session-token",
+            options: {
+              httpOnly: true,
+              sameSite: "lax" as const,
+              path: "/",
+              secure: true,
+              domain: cookieDomain,
+            },
+          },
+        },
+      }
+    : {}),
   providers: [
     Google({
       clientId: getGoogleClientId() ?? "",

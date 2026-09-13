@@ -18,8 +18,37 @@ Canonical contract for BNAB long lists (ADR 0005).
 | `/transactions` | Infinite | `date\|id` |
 | `/accounts/[id]` | Infinite | Register |
 | `/more/bills` | Infinite | Status chips via `?status=` |
-| `/more/import-history` | Infinite | Batch list + selected-batch items (`ImportHistoryItemsInfinite`) |
+| `/more/import-history` | Infinite | Batch list + selected-batch items; item filters `?batch=&q=&rule=&planned=&action=` |
 | `/planned` | Short list | Infinite only if needed later |
+
+## Cheap virtualization (`content-visibility`)
+
+Prefer **CSS containment** over a heavy windowing library for register rows:
+
+- `content-visibility: auto` + `containIntrinsicSize` on each list row so off-screen rows skip layout/paint.
+- Applied on:
+  - `TransactionsRegister` — mobile `<li>` and desktop register `<tr>`
+  - `AccountTransactionsInfiniteList` — register `<li>`
+  - Plan category mobile rows (same pattern in `PlanCategoryList`)
+
+Do **not** add a full `VirtualizedInfiniteList` / `react-window` stack unless profiling shows `content-visibility` is insufficient (variable-height bill splits, sticky columns, and InfiniteList’s append model fight classic windowing).
+
+## Filters (URL)
+
+Prefer shareable query params + Clear; changing filters resets the infinite cursor.
+
+| Page | Params |
+|------|--------|
+| `/accounts` | `q`, `type`, `onBudget`, `closed` |
+| `/accounts/[id]` | `q`, `categoryId`, `dir`, `from`, `to`, `cleared`, `planned` |
+| `/transactions` | `q`, `memo`, `payee`, `accountId`, `categoryId`, `dir`, `from`, `to`, … |
+| `/plan` | `month`, `empty`, `focus` (`overspent` \| `underfunded`) |
+| `/reflect` | `months`, `month`, `accountId` |
+| `/planned` | `id`, (+ search when present) |
+| `/more/bills` | `status`, `q` |
+| `/more/import-history` | `batch`, `q`, `rule`, `planned`, `action` |
+| `/more/categories` | `q`, `hidden`, `income` |
+| `/more/payees` | `q` |
 
 ## Import history items
 

@@ -8,22 +8,29 @@ import { CategoryIcon } from "@/components/plan/CategoryIcon";
 import { PlanCategoryList } from "@/components/plan/PlanCategoryList";
 import { PlanWorkspace } from "@/components/plan/PlanWorkspace";
 import {
-  buttonCompactClass,
   cardClass,
+  chipClass,
+  chipMutedClass,
   moneyClass,
 } from "@/components/forms/field-classes";
 import { accountTypeMeta, groupAccent } from "@/lib/ui-accents";
-import { assignFromPlannedAction } from "./actions";
+import {
+  parsePlanEmpty,
+  parsePlanFocus,
+  planHref,
+} from "@/lib/plan-url";
 
 export default async function PlanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; empty?: string; focus?: string }>;
 }) {
   const { budget } = await requireBudgetAccess();
   const sp = await searchParams;
   const month =
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentMonth();
+  const showEmpty = parsePlanEmpty(sp.empty);
+  const focus = parsePlanFocus(sp.focus);
 
   const {
     groups,
@@ -95,7 +102,7 @@ export default async function PlanPage({
     <div className="space-y-4 md:space-y-5">
       <div className="flex items-center justify-between gap-2">
         <Link
-          href={`/plan?month=${prev}`}
+          href={planHref({ month: prev, empty: showEmpty, focus })}
           className="rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
           aria-label="Previous month"
         >
@@ -105,15 +112,9 @@ export default async function PlanPage({
           <h1 className="text-center text-xl font-semibold tracking-tight text-fg">
             {monthLabel(month)}
           </h1>
-          <form action={assignFromPlannedAction}>
-            <input type="hidden" name="month" value={month} />
-            <button type="submit" className={buttonCompactClass}>
-              Assign from planned
-            </button>
-          </form>
         </div>
         <Link
-          href={`/plan?month=${next}`}
+          href={planHref({ month: next, empty: showEmpty, focus })}
           className="rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
           aria-label="Next month"
         >
@@ -132,7 +133,43 @@ export default async function PlanPage({
         incomeToRta={plan.incomeToRta}
         toSavings={plan.toSavings}
         spent={spentMagnitude}
+        month={month}
       />
+
+      <div className="flex flex-wrap justify-center gap-2" role="navigation" aria-label="Plan focus">
+        <Link
+          href={planHref({ month, empty: showEmpty, focus: null })}
+          className={!focus ? chipClass : chipMutedClass}
+          scroll={false}
+          aria-current={!focus ? "page" : undefined}
+        >
+          All
+        </Link>
+        <Link
+          href={planHref({ month, empty: showEmpty, focus: "overspent" })}
+          className={focus === "overspent" ? chipClass : chipMutedClass}
+          scroll={false}
+          aria-current={focus === "overspent" ? "page" : undefined}
+        >
+          Overspent
+        </Link>
+        <Link
+          href={planHref({ month, empty: showEmpty, focus: "underfunded" })}
+          className={focus === "underfunded" ? chipClass : chipMutedClass}
+          scroll={false}
+          aria-current={focus === "underfunded" ? "page" : undefined}
+        >
+          Underfunded
+        </Link>
+        <Link
+          href={planHref({ month, empty: !showEmpty, focus })}
+          className={showEmpty ? chipClass : chipMutedClass}
+          scroll={false}
+          aria-current={showEmpty ? "page" : undefined}
+        >
+          {showEmpty ? "Hide empty" : "Show empty"}
+        </Link>
+      </div>
 
       {/* Income categories + Accounts (desktop); Categories assign stays below */}
       <div className="space-y-3">
@@ -472,6 +509,8 @@ export default async function PlanPage({
                 month={month}
                 currency={currency}
                 rta={plan.rta}
+                showEmpty={showEmpty}
+                focus={focus}
                 rows={Object.fromEntries(
                   group.categories.map((c) => {
                     const row = plan.categories[c.id];

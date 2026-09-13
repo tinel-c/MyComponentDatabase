@@ -1,12 +1,16 @@
 "use server";
 
 import { requireBudgetAccess } from "@/lib/authz";
-import { fetchAccountRegisterChunk } from "@/lib/account-register-chunk";
+import {
+  fetchAccountRegisterChunk,
+  type AccountRegisterFilters,
+} from "@/lib/account-register-chunk";
 import { prisma } from "@/lib/prisma";
 
 export async function loadMoreAccountTransactions(
   accountId: string,
   cursor: string,
+  filters: AccountRegisterFilters = {},
 ) {
   const { budget } = await requireBudgetAccess();
   const account = await prisma.financeAccount.findFirst({
@@ -17,5 +21,5 @@ export async function loadMoreAccountTransactions(
     return { items: [], nextCursor: null, hasMore: false };
   }
 
-  return fetchAccountRegisterChunk(accountId, cursor);
+  return fetchAccountRegisterChunk(accountId, cursor, undefined, filters);
 }

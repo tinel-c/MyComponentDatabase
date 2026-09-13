@@ -1,5 +1,24 @@
 # BNAB changelog
 
+## 1.2.0 — 2026-09-13
+
+Deferred follow-ups: Planned vs Scheduled kind, complete page filters, Wish Farm / loans / Fresh Start, multi-budget switcher.
+
+### Highlights
+
+- **Planned ≠ Scheduled:** `ScheduleKind` on one model; Assign/match = PLANNED; Enter + opt-in `autoEnter` catch-up = SCHEDULED (ADR 0007)
+- **URL filters** on accounts, account register, categories, payees, plan (`empty`/`focus`), reflect (`accountId`), import history (`q`/`rule`/`planned`/`action`), bills
+- **Account register Planned column** + Make planned; Assign from planned moved into RTA banner; mobile Plan Assign
+- **Receipt rule re-apply** on unlinked scans (no Gemini)
+- **Wish Farm** (`WishItem`), **loan payoff** estimator, **Fresh Start** wizard
+- **Multi-budget** preference cookie (ADR 0009); budget switcher in chrome / More
+- **Perf / platform:** `content-visibility` list rows; Cache Components phase 2 ADR 0008 (Proposed); SSO cookie domain notes; Android TWA docs
+- **Agent:** post-plan delivery gate (ask → docs → commit → push → release → deploy)
+
+### Docs
+
+ADRs 0007–0009; `android-twa.md`; lists/filters; planned-payments kind matrix.
+
 ## 1.1.0 — 2026-09-13
 
 Planned payments, multi-bill batch, infinite lists, tagged caches, and agent architecture memory.
@@ -31,7 +50,7 @@ Planned payments, multi-bill batch, infinite lists, tagged caches, and agent arc
 
 ### Docs
 
-Full docs under [`bnab/docs/`](./README.md). ADRs 0001–0006.
+Full docs under [`bnab/docs/`](./README.md). ADRs 0001–0006 (0007+ in 1.2.0).
 
 ## 1.0.0 — 2026-09-06
 

@@ -2,11 +2,15 @@
 
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { fetchImportBatchItemsChunk } from "@/lib/import-history-items-chunk";
+import {
+  fetchImportBatchItemsChunk,
+  type ImportHistoryItemFilters,
+} from "@/lib/import-history-items-chunk";
 
 export async function loadMoreImportBatchItems(opts: {
   batchId: string;
   cursor: string;
+  filters?: ImportHistoryItemFilters;
 }) {
   const { budget } = await requireBudgetAccess();
   const batch = await prisma.importBatch.findFirst({
@@ -25,6 +29,7 @@ export async function loadMoreImportBatchItems(opts: {
   const chunk = await fetchImportBatchItemsChunk({
     batchId: opts.batchId,
     cursor: opts.cursor,
+    filters: opts.filters,
   });
   const ruleIds = [
     ...new Set(

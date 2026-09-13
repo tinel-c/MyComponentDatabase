@@ -3,14 +3,13 @@ import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatMoney, todayISO } from "@/lib/money";
 import {
-  buttonCompactClass,
   buttonPrimaryClass,
   cardCompactClass,
   inputClass,
   labelClass,
   pageStackClass,
 } from "@/components/forms/field-classes";
-import { createSchedule, enterScheduled } from "@/app/(app)/more/actions";
+import { createSchedule } from "@/app/(app)/more/actions";
 import { ExternalLink } from "lucide-react";
 
 export default async function PlannedPage({
@@ -25,7 +24,7 @@ export default async function PlannedPage({
 
   const [schedules, accounts, groups, importRules] = await Promise.all([
     prisma.scheduledTransaction.findMany({
-      where: { budgetId: budget.id },
+      where: { budgetId: budget.id, kind: "PLANNED" },
       orderBy: [{ active: "desc" }, { nextDate: "asc" }],
       include: {
         account: true,
@@ -92,19 +91,9 @@ export default async function PlannedPage({
             </a>
           ) : null}
         </div>
-        <div className="flex items-center justify-between gap-2 sm:justify-end">
-          <p className="tabular-nums text-sm font-medium text-fg">
-            {formatMoney(s.amount, budget.currency)}
-          </p>
-          {s.active ? (
-            <form action={enterScheduled}>
-              <input type="hidden" name="id" value={s.id} />
-              <button type="submit" className={buttonCompactClass}>
-                Enter
-              </button>
-            </form>
-          ) : null}
-        </div>
+        <p className="tabular-nums text-sm font-medium text-fg sm:text-right">
+          {formatMoney(s.amount, budget.currency)}
+        </p>
       </li>
     );
   }
@@ -116,10 +105,10 @@ export default async function PlannedPage({
           Planned payments
         </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Recurring ledger expectations (not bill scans). See{" "}
+          Recurring ledger expectations matched on import (not bill scans). See{" "}
           <code className="text-xs">docs/import-vocabulary.md</code> ·{" "}
           <Link href="/more/schedules" className="text-accent hover:underline">
-            Legacy schedules URL
+            Auto-enter schedules
           </Link>
         </p>
       </div>
@@ -169,6 +158,7 @@ export default async function PlannedPage({
         action={createSchedule}
         className={`${cardCompactClass} space-y-2 p-3 lg:grid lg:max-w-4xl lg:grid-cols-2 lg:gap-2 lg:space-y-0`}
       >
+        <input type="hidden" name="kind" value="PLANNED" />
         <h2 className="text-sm font-semibold text-fg lg:col-span-2">
           New planned payment
         </h2>

@@ -347,7 +347,12 @@ export async function confirmIngImport(formData: FormData): Promise<
   const payeeIdByName = new Map(existingPayees.map((p) => [p.name, p.id]));
 
   const scheduleRows = await prisma.scheduledTransaction.findMany({
-    where: { budgetId: budget.id, accountId, active: true },
+    where: {
+      budgetId: budget.id,
+      accountId,
+      active: true,
+      kind: "PLANNED",
+    },
     select: {
       id: true,
       accountId: true,

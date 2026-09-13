@@ -17,6 +17,7 @@ Same shapes as part-db: `User`, `Account` (OAuth), `Session`, `VerificationToken
 |-------|---------|
 | `Budget` | name, `currency` (default `RON`), `firstMonth` (`YYYY-MM`) |
 | `BudgetMember` | `userId`, `role` (`ADMIN` \| `EDITOR`) |
+| `WishItem` | Wish Farm goal: `name`, `amountCents`, `fundedCents`, `sortOrder`, optional `notes` |
 | `FinanceAccount` | Bank/cash/credit/tracking (`type`, `onBudget`, `closed`, optional `creditCategoryId`) |
 | `CategoryGroup` | Envelope group; `isIncome`, `hidden`, `sortOrder` |
 | `Category` | Envelope; `isIncome`, `hidden`, `isSystem`, `systemKey`, link to CC payment |
@@ -24,7 +25,7 @@ Same shapes as part-db: `User`, `Account` (OAuth), `Session`, `VerificationToken
 | `CategoryTarget` | target type + amount + due |
 | `Payee` | name, `lastCategoryId` |
 | `Transaction` | date, amount, account, payee, category, cleared, transfer twin, split parent; optional `isPendingBill`, `scheduledTransactionId`, import fingerprints |
-| `ScheduledTransaction` | Planned payment: recurrence, next date, template fields, optional `billingUrl` / `importRuleId` |
+| `ScheduledTransaction` | Recurring template with `kind` (`PLANNED` \| `SCHEDULED`), recurrence, next date, optional `billingUrl` / `importRuleId` / `autoEnter` — one model, not two (ADR 0007) |
 | `MonthMeta` | optional notes / hold-for-next-month flag |
 
 ## ING import
@@ -71,6 +72,10 @@ See [receipt-agent.md](./receipt-agent.md) and ADR [0002](./adr/0002-reflect-fir
 ## Admin data tools
 
 `/more/data` (ADMIN): download live SQLite (optional gzip), replace from upload (snapshot first), selective erase with flags that default to **keeping** `ImportCategoryRule` and `ReceiptCategoryRule`.
+
+`/more/fresh-start` (budget ADMIN/EDITOR): same selective-erase engine via a guided wizard.
+
+Active budget preference: HTTP-only cookie `bnab_budget_id` (see [ADR 0009](./adr/0009-budget-preference-cookie.md)).
 
 ## Indexes
 

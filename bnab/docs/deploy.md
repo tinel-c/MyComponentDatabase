@@ -38,6 +38,8 @@ http://localhost:3010/api/auth/callback/google
 DATABASE_URL="file:/opt/bnab/shared/bnab.db"
 AUTH_SECRET="…"   # openssl rand -base64 32
 AUTH_URL="https://bnab.bogza.ro"
+# Cross-subdomain SSO with part-db (optional — see below):
+# AUTH_COOKIE_DOMAIN=".bogza.ro"
 AUTH_GOOGLE_ID="…"
 AUTH_GOOGLE_SECRET="…"
 ADMIN_EMAIL="you@example.com"
@@ -46,7 +48,29 @@ GEMINI_API_KEY="…"          # Google AI — receipt bill detailing
 # BNAB_RECEIPT_DIR="/opt/bnab/shared/receipts"
 ```
 
-You can copy Google client ID/secret from `/opt/warehouse/shared/.env`, but use a **new** `AUTH_SECRET` and `AUTH_URL` for BNAB. Add `GEMINI_API_KEY` for bill detailing (see [receipt-agent.md](./receipt-agent.md)).
+You can copy Google client ID/secret from `/opt/warehouse/shared/.env`. By default use a **separate** `AUTH_SECRET` and `AUTH_URL` for BNAB (sessions stay host-scoped). Add `GEMINI_API_KEY` for bill detailing (see [receipt-agent.md](./receipt-agent.md)).
+
+### Cross-site SSO (`.bogza.ro`)
+
+Auth.js in `src/auth.ts` sets the session cookie `Domain` only when **both** are true:
+
+1. `AUTH_URL` is production `https://bnab.bogza.ro`
+2. `AUTH_COOKIE_DOMAIN=.bogza.ro` is set
+
+**Do not** set `AUTH_COOKIE_DOMAIN` for localhost — login would break (cookie Domain never matches `localhost`).
+
+To share a login JWT across `bnab.bogza.ro` and part-db (`*.bogza.ro`):
+
+| Requirement | Notes |
+|-------------|--------|
+| Same `AUTH_SECRET` | Both apps must verify the same JWT |
+| Same cookie domain | BNAB: `AUTH_COOKIE_DOMAIN=.bogza.ro`; part-db must set the same Domain on its Auth.js `sessionToken` |
+| Matching cookie name | Production uses `__Secure-authjs.session-token` |
+| Per-app user rows | Each app still has its own DB / invite gate — the shared cookie only carries the JWT; the email must exist (or bootstrap) in that app |
+
+CSRF / PKCE cookies stay host-scoped (`__Host-` / no Domain). Only the session token is shared.
+
+Local / CI: omit `AUTH_COOKIE_DOMAIN`; Auth.js keeps default host-only cookies.
 
 ## Bootstrap (once)
 
@@ -134,6 +158,7 @@ python deploy/bnab/ssh_upload_public_brand.py
 - Manifest: `/manifest.webmanifest` (standalone, maskable icons, `start_url=/plan?source=pwa`)
 - Service worker: `/sw.js` (caches `/_next/static` + icons)
 - In-app **Install on Android** banner + **More** install card
+- Trusted Web Activity / Play wrap: [android-twa.md](./android-twa.md) + `public/.well-known/assetlinks.json`
 
 ### YNGSB reset / reseed (destructive)
 

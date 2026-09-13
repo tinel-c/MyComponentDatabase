@@ -8,6 +8,8 @@ import {
   buttonCompactClass,
   buttonCompactDangerClass,
   cardCompactClass,
+  chipClass,
+  chipMutedClass,
   inputCompactClass,
   pageStackClass,
   sectionSubheadingClass,
@@ -26,10 +28,23 @@ import {
   toggleCategoryHidden,
 } from "../actions";
 
-export default async function CategoriesPage() {
+export default async function CategoriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; hidden?: string; income?: string }>;
+}) {
   const { budget } = await requireBudgetAccess();
-  const groups = await prisma.categoryGroup.findMany({
-    where: { budgetId: budget.id },
+  const sp = await searchParams;
+  const q = sp.q?.trim().toLowerCase() || "";
+  const showHidden = sp.hidden === "1";
+  const incomeFilter =
+    sp.income === "1" ? true : sp.income === "0" ? false : null;
+
+  const groupsRaw = await prisma.categoryGroup.findMany({
+    where: {
+      budgetId: budget.id,
+      ...(incomeFilter !== null ? { isIncome: incomeFilter } : {}),
+    },
     orderBy: { sortOrder: "asc" },
     include: {
       categories: {
@@ -38,6 +53,42 @@ export default async function CategoriesPage() {
       },
     },
   });
+
+  const groups = groupsRaw
+    .map((g) => {
+      let cats = g.categories;
+      if (!showHidden) {
+        if (g.hidden) return null;
+        cats = cats.filter((c) => !c.hidden);
+      }
+      if (q) {
+        const groupMatch = g.name.toLowerCase().includes(q);
+        cats = groupMatch
+          ? cats
+          : cats.filter((c) => c.name.toLowerCase().includes(q));
+        if (!groupMatch && cats.length === 0) return null;
+      }
+      return { ...g, categories: cats };
+    })
+    .filter((g): g is NonNullable<typeof g> => g != null);
+
+  const hasFilters = Boolean(q || showHidden || incomeFilter !== null);
+
+  function href(overrides: Record<string, string | undefined>) {
+    const params = new URLSearchParams();
+    const next = {
+      q: q || undefined,
+      hidden: showHidden ? "1" : undefined,
+      income:
+        incomeFilter === true ? "1" : incomeFilter === false ? "0" : undefined,
+      ...overrides,
+    };
+    for (const [k, v] of Object.entries(next)) {
+      if (v) params.set(k, v);
+    }
+    const s = params.toString();
+    return s ? `/more/categories?${s}` : "/more/categories";
+  }
 
   return (
     <div className={pageStackClass}>
@@ -51,6 +102,50 @@ export default async function CategoriesPage() {
         <p className={sectionSubheadingClass}>
           Rename groups, add envelopes, hide, or reorder.
         </p>
+      </div>
+
+      <form
+        method="get"
+        className={`${cardCompactClass} flex flex-wrap items-end gap-2 p-3`}
+      >
+        <label className="min-w-[10rem] flex-1 text-xs font-medium text-fg-muted">
+          Search
+          <input
+            name="q"
+            defaultValue={sp.q?.trim() ?? ""}
+            className={`${inputCompactClass} mt-1`}
+            placeholder="Group or category"
+          />
+        </label>
+        <button type="submit" className={buttonCompactClass}>
+          Filter
+        </button>
+        {hasFilters ? (
+          <Link href="/more/categories" className={buttonCompactClass}>
+            Clear
+          </Link>
+        ) : null}
+      </form>
+
+      <div className="flex flex-wrap gap-2" role="navigation" aria-label="Category filters">
+        <Link
+          href={href({ income: "0" })}
+          className={incomeFilter === false ? chipClass : chipMutedClass}
+        >
+          Spending
+        </Link>
+        <Link
+          href={href({ income: "1" })}
+          className={incomeFilter === true ? chipClass : chipMutedClass}
+        >
+          Income
+        </Link>
+        <Link
+          href={href({ hidden: showHidden ? undefined : "1" })}
+          className={showHidden ? chipClass : chipMutedClass}
+        >
+          Show hidden
+        </Link>
       </div>
 
       <form

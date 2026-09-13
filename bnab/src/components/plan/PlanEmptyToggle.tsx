@@ -1,30 +1,33 @@
-"use client";
+import type { ReactNode } from "react";
+import Link from "next/link";
 
-import { useState, type ReactNode } from "react";
-
-/** Isolates show-empty toggle so PlanCategoryList can stay a Server Component. */
+/** Wraps category rows; empty visibility comes from URL `empty=0|1`. */
 export function PlanEmptyToggle({
+  showEmpty,
   emptyCount,
+  showEmptyHref,
+  hideEmptyHref,
   children,
 }: {
+  showEmpty: boolean;
   emptyCount: number;
+  showEmptyHref: string;
+  hideEmptyHref: string;
   children: ReactNode;
 }) {
-  const [showEmpty, setShowEmpty] = useState(false);
-
   return (
     <div data-show-empty={showEmpty ? "1" : "0"} className="group/plan-empty">
       {children}
       {emptyCount > 0 ? (
-        <button
-          type="button"
-          className="w-full border-t border-rim-subtle/60 px-3 py-2 text-center text-xs font-medium text-fg-muted transition-colors hover:bg-overlay/40 hover:text-fg md:hidden"
-          onClick={() => setShowEmpty((v) => !v)}
+        <Link
+          href={showEmpty ? hideEmptyHref : showEmptyHref}
+          className="block w-full border-t border-rim-subtle/60 px-3 py-2 text-center text-xs font-medium text-fg-muted transition-colors hover:bg-overlay/40 hover:text-fg md:hidden"
+          scroll={false}
         >
           {showEmpty
             ? "Hide empty categories"
             : `Show ${emptyCount} empty categor${emptyCount === 1 ? "y" : "ies"}`}
-        </button>
+        </Link>
       ) : null}
     </div>
   );
