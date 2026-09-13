@@ -118,6 +118,90 @@ export async function createSchedule(formData: FormData) {
   return;
 }
 
+export async function updatePlannedPayment(formData: FormData) {
+  const { budget } = await requireBudgetAccess();
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  const existing = await prisma.scheduledTransaction.findFirst({
+    where: { id, budgetId: budget.id, kind: ScheduleKind.PLANNED },
+  });
+  if (!existing) return;
+
+  const accountId = String(formData.get("accountId") ?? "");
+  const amount = parseMoneyInput(String(formData.get("amount") ?? ""));
+  const nextDate = String(formData.get("nextDate") || existing.nextDate);
+  const recurrence = String(
+    formData.get("recurrence") ?? existing.recurrence,
+  ) as Recurrence;
+  const categoryId = String(formData.get("categoryId") ?? "") || null;
+  const payeeName = String(formData.get("payee") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "") || null;
+  const billingUrlRaw = String(formData.get("billingUrl") ?? "").trim();
+  const billingUrl =
+    billingUrlRaw && /^https?:\/\//i.test(billingUrlRaw) ? billingUrlRaw : null;
+  const importRuleId = String(formData.get("importRuleId") ?? "") || null;
+  const inflow = formData.get("inflow") === "1" || formData.get("inflow") === "on";
+  const active =
+    formData.get("active") === "1" || formData.get("active") === "on";
+
+  if (!accountId || amount === null || amount === 0) return;
+
+  const account = await prisma.financeAccount.findFirst({
+    where: { id: accountId, budgetId: budget.id },
+  });
+  if (!account) return;
+
+  if (importRuleId) {
+    const rule = await prisma.importCategoryRule.findFirst({
+      where: { id: importRuleId, budgetId: budget.id },
+    });
+    if (!rule) return;
+  }
+
+  let payeeId: string | null = null;
+  if (payeeName) {
+    const p = await prisma.payee.upsert({
+      where: { budgetId_name: { budgetId: budget.id, name: payeeName } },
+      create: {
+        budgetId: budget.id,
+        name: payeeName,
+        lastCategoryId: categoryId,
+      },
+      update: categoryId ? { lastCategoryId: categoryId } : {},
+    });
+    payeeId = p.id;
+  }
+
+  const dayOfMonth = Number(nextDate.slice(8, 10)) || null;
+  const weekday = new Date(nextDate + "T12:00:00").getDay();
+
+  await prisma.scheduledTransaction.update({
+    where: { id },
+    data: {
+      accountId,
+      payeeId,
+      categoryId,
+      amount: inflow ? Math.abs(amount) : -Math.abs(amount),
+      notes,
+      nextDate,
+      recurrence,
+      billingUrl,
+      importRuleId,
+      active,
+      dayOfMonth:
+        recurrence === "MONTHLY" || recurrence === "YEARLY" ? dayOfMonth : null,
+      weekday:
+        recurrence === "WEEKLY" || recurrence === "BIWEEKLY" ? weekday : null,
+    },
+  });
+
+  revalidatePath("/planned");
+  revalidatePath("/transactions");
+  revalidatePath("/plan");
+  revalidatePath("/more/schedules");
+}
+
 export async function updateScheduleAutoEnter(formData: FormData) {
   const { budget } = await requireBudgetAccess();
   const id = String(formData.get("id") ?? "");

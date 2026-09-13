@@ -21,6 +21,8 @@ export type TransactionsListFilters = {
   dir?: "in" | "out";
   from?: string;
   to?: string;
+  /** Linked planned payment id (`Transaction.scheduledTransactionId`). */
+  planned?: string;
 };
 
 function ruleHref(
@@ -62,6 +64,7 @@ export function buildTransactionsWhere(
     dir,
     from,
     to,
+    planned,
   } = filters;
 
   const categoryActivityView = Boolean(categoryId && month);
@@ -88,6 +91,7 @@ export function buildTransactionsWhere(
         onBudget: true,
         ...(accountId ? { id: accountId } : {}),
       },
+      ...(planned ? { scheduledTransactionId: planned } : {}),
       ...(categoryId
         ? { categoryId }
         : groupId
@@ -115,6 +119,7 @@ export function buildTransactionsWhere(
     ...(categoryId ? { categoryId } : {}),
     ...(payee ? { payee: { name: { contains: payee } } } : {}),
     ...(memo ? { notes: { contains: memo } } : {}),
+    ...(planned ? { scheduledTransactionId: planned } : {}),
     ...(dir === "in"
       ? { amount: { gt: 0 } }
       : dir === "out"
@@ -247,6 +252,36 @@ export async function fetchTransactionsRegisterChunk(opts: {
       .map((s) => [s.transactionId as string, s]),
   );
 
+  const scheduleIds = [
+    ...new Set(
+      transactions
+        .map((t) => t.scheduledTransactionId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const schedules =
+    scheduleIds.length > 0
+      ? await prisma.scheduledTransaction.findMany({
+          where: { id: { in: scheduleIds } },
+          select: {
+            id: true,
+            notes: true,
+            payee: { select: { name: true } },
+            category: { select: { name: true } },
+          },
+        })
+      : [];
+  const plannedLabelById = new Map(
+    schedules.map((s) => {
+      const label =
+        s.payee?.name ??
+        s.category?.name ??
+        s.notes?.slice(0, 40) ??
+        "Planned";
+      return [s.id, label] as const;
+    }),
+  );
+
   const receiptRulesByTxn = new Map<
     string,
     { id: string; matchText: string }[]
@@ -312,6 +347,14 @@ export async function fetchTransactionsRegisterChunk(opts: {
         ...r,
         href: ruleHref("/more/receipt-rules", r),
       })),
+      matchedPlannedPayment: t.scheduledTransactionId
+        ? {
+            id: t.scheduledTransactionId,
+            matchText:
+              plannedLabelById.get(t.scheduledTransactionId) ?? "Planned",
+            href: `/planned?id=${encodeURIComponent(t.scheduledTransactionId)}`,
+          }
+        : null,
       billGroup,
     };
   });

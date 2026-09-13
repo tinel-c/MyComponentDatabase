@@ -52,15 +52,16 @@ When `autoEnter=true` and `nextDate ≤ today`, app layout runs catch-up (≤20 
 | Surface | Behavior |
 |---------|----------|
 | Desktop nav **Planned** | `/planned`; badge = active **PLANNED** with `nextDate ≤ today` |
-| `/planned` | Due / upcoming / inactive (**PLANNED** only) |
+| `/planned` | Excel-style sheet: edit fields + Save; status Due/Upcoming/Inactive; **Hits** count → `/transactions?planned=`; **Executed** list = linked txns in the current month (above the sheet) |
 | `/more/schedules` | **SCHEDULED** list; Enter + autoEnter checkbox |
 | `/more/import-rules` | Each rule lists linked planned payments |
 | Transaction detail | **Make planned payment** (monthly `PLANNED` + link) |
-| Transactions register | **Actions**: Make planned (eligible) or **Edit planned** → `/planned?id=` when linked |
+| Transactions register | Mapping link **Planned · label** when linked; **Actions**: Make / Edit planned + Delete |
 | Account register | Planned column + Make planned |
 
 ## Helpers
 
 - `bnab/src/lib/planned-payments.ts` — match + advance date
 - `bnab/src/lib/scheduled-auto-enter.ts` — SCHEDULED catch-up
+- `updatePlannedPayment` in `more/actions.ts` — sheet Save
 - Tests: `planned-payments.test.ts`

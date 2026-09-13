@@ -1,5 +1,20 @@
 # BNAB changelog
 
+## 1.2.2 — 2026-09-13
+
+Planned payment sheet editor, register hit links, and current-month Executed list.
+
+### Highlights
+
+- **Planned payments sheet** on `/planned`: dense editable rows (Save), status chips, linked txn **Hits** → `/transactions?planned=`
+- **Executed** on `/planned`: current-month ledger txns that hit a planned payment (above the sheet)
+- **Register mapping link** `Planned · label` beside Import/Receipt when `scheduledTransactionId` is set
+- **Transactions filter** `?planned=` with clear banner
+
+### Docs
+
+`planned-payments.md`, `lists.md`, `features.md` synced.
+
 ## 1.2.1 — 2026-09-13
 
 UX polish for Plan filters and transactions register planned actions.

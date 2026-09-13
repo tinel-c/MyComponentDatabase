@@ -40,6 +40,7 @@ export default async function TransactionsPage({
     dir?: string;
     from?: string;
     to?: string;
+    planned?: string;
   }>;
 }) {
   const { budget } = await requireBudgetAccess();
@@ -58,6 +59,7 @@ export default async function TransactionsPage({
     sp.dir === "in" || sp.dir === "out" ? sp.dir : undefined;
   const from = sp.from && ISO_DATE.test(sp.from) ? sp.from : undefined;
   const to = sp.to && ISO_DATE.test(sp.to) ? sp.to : undefined;
+  const planned = (sp.planned ?? "").trim() || undefined;
   const categoryActivityView = Boolean(categoryId && month);
   const groupActivityView = Boolean(groupId && month);
   const flowActivityView = Boolean(month && flow);
@@ -76,6 +78,7 @@ export default async function TransactionsPage({
     ...(dir ? { dir } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
+    ...(planned ? { planned } : {}),
   };
 
   const where = buildTransactionsWhere(budget.id, filters);
@@ -87,6 +90,7 @@ export default async function TransactionsPage({
     filterCategory,
     filterGroup,
     filterAccount,
+    filterPlanned,
     chunk,
     count,
     activitySum,
@@ -130,6 +134,21 @@ export default async function TransactionsPage({
           select: { id: true, name: true },
         })
       : Promise.resolve(null),
+    planned
+      ? prisma.scheduledTransaction.findFirst({
+          where: {
+            id: planned,
+            budgetId: budget.id,
+            kind: "PLANNED",
+          },
+          select: {
+            id: true,
+            notes: true,
+            payee: { select: { name: true } },
+            category: { select: { name: true } },
+          },
+        })
+      : Promise.resolve(null),
     fetchTransactionsRegisterChunk({
       budgetId: budget.id,
       where,
@@ -146,9 +165,24 @@ export default async function TransactionsPage({
   const rows = chunk.items;
   const sumCents = activitySum?._sum.amount ?? 0;
   const registerFiltered = Boolean(
-    q || memo || payee || accountId || categoryId || dir || from || to,
+    q ||
+      memo ||
+      payee ||
+      accountId ||
+      categoryId ||
+      dir ||
+      from ||
+      to ||
+      planned,
   );
   const filtered = Boolean(registerFiltered || activityView);
+
+  const plannedLabel = filterPlanned
+    ? (filterPlanned.payee?.name ??
+      filterPlanned.category?.name ??
+      filterPlanned.notes?.slice(0, 40) ??
+      "Planned payment")
+    : null;
 
   const activityTitle = (() => {
     if (!activityView || !month) return null;
@@ -212,6 +246,37 @@ export default async function TransactionsPage({
             <X className="size-4" />
             Clear filter
           </Link>
+        </div>
+      ) : planned ? (
+        <div
+          className={`${cardClass} flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between`}
+        >
+          <div>
+            <p className="text-sm font-medium text-fg">
+              Linked to planned payment
+              {plannedLabel ? `: ${plannedLabel}` : ""}
+            </p>
+            <p className="mt-1 text-sm text-fg-muted">
+              {count} transaction{count === 1 ? "" : "s"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {planned ? (
+              <Link
+                href={`/planned?id=${encodeURIComponent(planned)}`}
+                className={buttonSecondaryClass}
+              >
+                Edit planned
+              </Link>
+            ) : null}
+            <Link
+              href="/transactions"
+              className={`${buttonSecondaryClass} inline-flex items-center gap-2`}
+            >
+              <X className="size-4" />
+              Clear filter
+            </Link>
+          </div>
         </div>
       ) : (
         <form

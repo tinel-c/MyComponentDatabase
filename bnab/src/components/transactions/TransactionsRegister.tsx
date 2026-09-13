@@ -44,6 +44,7 @@ export type RegisterRow = {
   scheduledTransactionId: string | null;
   matchedImportRule?: MatchedRuleLink | null;
   matchedReceiptRules?: MatchedRuleLink[];
+  matchedPlannedPayment?: MatchedRuleLink | null;
   billGroup?: {
     merchant: string | null;
     scanId: string | null;
@@ -92,12 +93,14 @@ function PlannedRowAction({ row }: { row: RegisterRow }) {
 function MappingLinks({
   importRule,
   receiptRules,
+  plannedPayment,
 }: {
   importRule?: MatchedRuleLink | null;
   receiptRules?: MatchedRuleLink[];
+  plannedPayment?: MatchedRuleLink | null;
 }) {
   const receipts = receiptRules ?? [];
-  if (!importRule && receipts.length === 0) return null;
+  if (!importRule && receipts.length === 0 && !plannedPayment) return null;
   return (
     <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] leading-tight">
       {importRule ? (
@@ -121,6 +124,16 @@ function MappingLinks({
           Receipt · {r.matchText}
         </Link>
       ))}
+      {plannedPayment ? (
+        <Link
+          href={plannedPayment.href}
+          className="text-accent hover:underline"
+          title={`Planned payment: ${plannedPayment.matchText}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          Planned · {plannedPayment.matchText}
+        </Link>
+      ) : null}
     </div>
   );
 }
@@ -326,6 +339,7 @@ function RegisterRowCells({
         <MappingLinks
           importRule={row.matchedImportRule}
           receiptRules={row.matchedReceiptRules}
+          plannedPayment={row.matchedPlannedPayment}
         />
       </td>
       <td className={sheetCell}>
@@ -530,6 +544,7 @@ export function TransactionsRegister({
               <MappingLinks
                 importRule={row.matchedImportRule}
                 receiptRules={row.matchedReceiptRules}
+                plannedPayment={row.matchedPlannedPayment}
               />
               <div className="mt-2 flex items-center justify-end gap-1">
                 <PlannedRowAction row={row} />

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { formatMoney, todayISO } from "@/lib/money";
+import { todayISO } from "@/lib/money";
 import {
   buttonPrimaryClass,
   cardCompactClass,
@@ -9,8 +9,13 @@ import {
   labelClass,
   pageStackClass,
 } from "@/components/forms/field-classes";
-import { createSchedule } from "@/app/(app)/more/actions";
-import { ExternalLink } from "lucide-react";
+import {
+  createSchedule,
+} from "@/app/(app)/more/actions";
+import {
+  PlannedPaymentsSheet,
+  type PlannedSheetRow,
+} from "@/components/planned/PlannedPaymentsSheet";
 
 export default async function PlannedPage({
   searchParams,
@@ -31,6 +36,7 @@ export default async function PlannedPage({
         payee: true,
         category: true,
         importRule: { select: { id: true, matchText: true } },
+        _count: { select: { occurrences: true } },
       },
     }),
     prisma.financeAccount.findMany({
@@ -49,54 +55,29 @@ export default async function PlannedPage({
     }),
   ]);
 
-  const due = schedules.filter((s) => s.active && s.nextDate <= today);
-  const upcoming = schedules.filter((s) => s.active && s.nextDate > today);
-  const inactive = schedules.filter((s) => !s.active);
-
-  function row(
-    s: (typeof schedules)[number],
-    tone: "due" | "upcoming" | "inactive",
-  ) {
-    const highlighted = highlightId === s.id;
-    return (
-      <li
-        key={s.id}
-        id={`planned-${s.id}`}
-        className={`flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center ${
-          highlighted ? "bg-accent-muted/50" : ""
-        }`}
-      >
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-fg">
-            {s.payee?.name ?? s.notes ?? "Planned payment"}
-            {tone === "due" && (
-              <span className="ml-2 text-[10px] font-semibold uppercase text-danger">
-                Due
-              </span>
-            )}
-          </p>
-          <p className="text-xs text-fg-subtle">
-            {s.nextDate} · {s.recurrence.toLowerCase()} · {s.account.name}
-            {s.category ? ` · ${s.category.name}` : ""}
-            {s.importRule ? ` · Rule: ${s.importRule.matchText}` : ""}
-          </p>
-          {s.billingUrl ? (
-            <a
-              href={s.billingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-0.5 inline-flex items-center gap-1 text-xs text-accent hover:underline"
-            >
-              Billing <ExternalLink className="size-3" aria-hidden />
-            </a>
-          ) : null}
-        </div>
-        <p className="tabular-nums text-sm font-medium text-fg sm:text-right">
-          {formatMoney(s.amount, budget.currency)}
-        </p>
-      </li>
-    );
-  }
+  const sheetRows: PlannedSheetRow[] = schedules.map((s) => {
+    const status: PlannedSheetRow["status"] = !s.active
+      ? "inactive"
+      : s.nextDate <= today
+        ? "due"
+        : "upcoming";
+    return {
+      id: s.id,
+      accountId: s.accountId,
+      payeeName: s.payee?.name ?? "",
+      categoryId: s.categoryId ?? "",
+      amountAbs: (Math.abs(s.amount) / 100).toFixed(2),
+      isInflow: s.amount > 0,
+      notes: s.notes ?? "",
+      nextDate: s.nextDate,
+      recurrence: s.recurrence,
+      billingUrl: s.billingUrl ?? "",
+      importRuleId: s.importRuleId ?? "",
+      active: s.active,
+      occurrenceCount: s._count.occurrences,
+      status,
+    };
+  });
 
   return (
     <div className={pageStackClass}>
@@ -105,54 +86,25 @@ export default async function PlannedPage({
           Planned payments
         </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Recurring ledger expectations matched on import (not bill scans). See{" "}
-          <code className="text-xs">docs/import-vocabulary.md</code> ·{" "}
+          Recurring ledger expectations matched on import (not bill scans). Edit
+          in the sheet; Hits opens linked transactions.{" "}
           <Link href="/more/schedules" className="text-accent hover:underline">
             Auto-enter schedules
           </Link>
         </p>
       </div>
 
-      <section className={cardCompactClass}>
-        <h2 className="border-b border-rim-subtle px-3 py-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-          Due / overdue ({due.length})
-        </h2>
-        <ul className="divide-y divide-rim-subtle">
-          {due.length === 0 ? (
-            <li className="px-3 py-4 text-center text-sm text-fg-muted">
-              Nothing due
-            </li>
-          ) : (
-            due.map((s) => row(s, "due"))
-          )}
-        </ul>
-      </section>
-
-      <section className={cardCompactClass}>
-        <h2 className="border-b border-rim-subtle px-3 py-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-          Upcoming ({upcoming.length})
-        </h2>
-        <ul className="divide-y divide-rim-subtle">
-          {upcoming.length === 0 ? (
-            <li className="px-3 py-4 text-center text-sm text-fg-muted">
-              No upcoming planned payments
-            </li>
-          ) : (
-            upcoming.map((s) => row(s, "upcoming"))
-          )}
-        </ul>
-      </section>
-
-      {inactive.length > 0 ? (
-        <section className={cardCompactClass}>
-          <h2 className="border-b border-rim-subtle px-3 py-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-            Inactive ({inactive.length})
-          </h2>
-          <ul className="divide-y divide-rim-subtle">
-            {inactive.map((s) => row(s, "inactive"))}
-          </ul>
-        </section>
-      ) : null}
+      <PlannedPaymentsSheet
+        rows={sheetRows}
+        accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
+        groups={groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          categories: g.categories.map((c) => ({ id: c.id, name: c.name })),
+        }))}
+        importRules={importRules}
+        highlightId={highlightId}
+      />
 
       <form
         action={createSchedule}

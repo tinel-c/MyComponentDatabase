@@ -19,7 +19,7 @@ Canonical contract for BNAB long lists (ADR 0005).
 | `/accounts/[id]` | Infinite | Register |
 | `/more/bills` | Infinite | Status chips via `?status=` |
 | `/more/import-history` | Infinite | Batch list + selected-batch items; item filters `?batch=&q=&rule=&planned=&action=` |
-| `/planned` | Short list | Infinite only if needed later |
+| `/planned` | Sheet | Dense editor; infinite only if needed later |
 
 ## Cheap virtualization (`content-visibility`)
 
@@ -41,10 +41,10 @@ Prefer shareable query params + Clear; changing filters resets the infinite curs
 |------|--------|
 | `/accounts` | `q`, `type`, `onBudget`, `closed` |
 | `/accounts/[id]` | `q`, `categoryId`, `dir`, `from`, `to`, `cleared`, `planned` |
-| `/transactions` | `q`, `memo`, `payee`, `accountId`, `categoryId`, `dir`, `from`, `to`, … |
+| `/transactions` | `q`, `memo`, `payee`, `accountId`, `categoryId`, `dir`, `from`, `to`, `planned` (linked schedule id), … |
 | `/plan` | `month`, `empty`, `focus` (`overspent` \| `underfunded`); focus chips live in the month header |
 | `/reflect` | `months`, `month`, `accountId` |
-| `/planned` | `id`, (+ search when present) |
+| `/planned` | `id` (highlight sheet row); sheet edits via Save |
 | `/more/bills` | `status`, `q` |
 | `/more/import-history` | `batch`, `q`, `rule`, `planned`, `action` |
 | `/more/categories` | `q`, `hidden`, `income` |
