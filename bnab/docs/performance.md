@@ -15,6 +15,7 @@ BNAB interaction map and cache contract (ADR 0004).
 | Loader | Tags | API |
 |--------|------|-----|
 | Plan month | `budget:{id}`, `plan:{id}:{month}` | `loadPlanMonthCached` in `src/lib/cache-tags.ts` |
+| Engine tip (prefix) | `budget:{id}` | `loadEngineTipCached` in `src/lib/plan-data.ts` (`continueFrom` / `heldForNext`) |
 | Activity rail | `budget:{id}`, `activity:{id}:{ym}` | `loadAccountActivityCached` |
 
 Mutations should call `invalidateBudgetCaches(budgetId)` (`revalidateTag(..., "max")`) when plan/activity must refresh.

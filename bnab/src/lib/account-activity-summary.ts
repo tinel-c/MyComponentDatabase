@@ -76,6 +76,7 @@ export function uniqueAccountMonograms(
 
 /**
  * Per finance-account activity for the current calendar month (desktop right rail).
+ * Lean selects + groupBy for batches (no nested receiptScans include).
  */
 export async function loadAccountActivitySummaries(
   prisma: PrismaClient,
@@ -97,10 +98,9 @@ export async function loadAccountActivitySummaries(
       : `${y}-${String(m + 1).padStart(2, "0")}-01`;
   const batchFrom = new Date(`${monthStart}T00:00:00.000Z`);
   const batchTo = new Date(`${nextMonth}T00:00:00.000Z`);
-
   const accountIds = accounts.map((a) => a.id);
 
-  const [txns, batches] = await Promise.all([
+  const [txns, scanTxnIds, batchGroups] = await Promise.all([
     prisma.transaction.findMany({
       where: {
         accountId: { in: accountIds },
@@ -108,26 +108,42 @@ export async function loadAccountActivitySummaries(
         isChild: false,
       },
       select: {
+        id: true,
         accountId: true,
         notes: true,
         importBatchId: true,
         importFingerprint: true,
-        receiptScans: { select: { id: true }, take: 1 },
+        isPendingBill: true,
       },
     }),
-    prisma.importBatch.findMany({
+    prisma.receiptScan.findMany({
+      where: {
+        budgetId,
+        transactionId: { not: null },
+        transaction: {
+          accountId: { in: accountIds },
+          date: { gte: monthStart, lt: nextMonth },
+        },
+      },
+      select: { transactionId: true },
+      distinct: ["transactionId"],
+    }),
+    prisma.importBatch.groupBy({
+      by: ["accountId"],
       where: {
         accountId: { in: accountIds },
         createdAt: { gte: batchFrom, lt: batchTo },
       },
-      select: { accountId: true },
+      _count: { _all: true },
     }),
   ]);
 
-  const batchCount = new Map<string, number>();
-  for (const b of batches) {
-    batchCount.set(b.accountId, (batchCount.get(b.accountId) ?? 0) + 1);
-  }
+  const hasScan = new Set(
+    scanTxnIds.map((s) => s.transactionId).filter(Boolean) as string[],
+  );
+  const batchCount = new Map(
+    batchGroups.map((b) => [b.accountId, b._count._all]),
+  );
 
   return accounts.map((a) => {
     const rows = txns.filter((t) => t.accountId === a.id);
@@ -136,14 +152,12 @@ export async function loadAccountActivitySummaries(
     let ingTxnCount = 0;
     for (const t of rows) {
       const billish =
-        isBillImportPendingNotes(t.notes) || t.receiptScans.length > 0;
+        t.isPendingBill ||
+        isBillImportPendingNotes(t.notes) ||
+        hasScan.has(t.id);
       if (billish) billsImported++;
       if (t.importFingerprint) ingTxnCount++;
-      if (
-        !t.importBatchId &&
-        !billish &&
-        !t.importFingerprint
-      ) {
+      if (!t.importBatchId && !billish && !t.importFingerprint) {
         manualEntries++;
       }
     }

@@ -27,6 +27,15 @@ export default async function ImportRulesPage() {
       include: {
         category: { include: { group: true } },
         transferAccount: { select: { id: true, name: true } },
+        schedules: {
+          where: { active: true },
+          select: {
+            id: true,
+            notes: true,
+            payee: { select: { name: true } },
+          },
+          take: 5,
+        },
       },
       orderBy: { sortOrder: "asc" },
     }),
@@ -66,6 +75,10 @@ export default async function ImportRulesPage() {
       : null,
     transferAccountId: rule.transferAccountId,
     transferAccountLabel: rule.transferAccount?.name ?? null,
+    plannedLinks: rule.schedules.map((s) => ({
+      id: s.id,
+      label: s.payee?.name ?? s.notes ?? "Planned payment",
+    })),
   }));
 
   return (
@@ -85,6 +98,8 @@ export default async function ImportRulesPage() {
           <Link href="/more/import" className="text-accent hover:underline">
             Import CSV
           </Link>
+          . Vocabulary: Import rule ≠ Receipt rule ≠ Planned payment (
+          <code className="text-xs">docs/import-vocabulary.md</code>).
         </p>
       </div>
 

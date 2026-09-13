@@ -114,6 +114,51 @@ export async function createTransaction(formData: FormData) {
     });
     if (signed < 0) {
       try {
+        const {
+          findUniquePlannedMatch,
+          advancePlannedDate,
+        } = await import("@/lib/planned-payments");
+        const candidates = await prisma.scheduledTransaction.findMany({
+          where: {
+            budgetId: budget.id,
+            active: true,
+            accountId: account.id,
+          },
+          select: {
+            id: true,
+            accountId: true,
+            amount: true,
+            nextDate: true,
+            active: true,
+            recurrence: true,
+          },
+        });
+        const matchId = findUniquePlannedMatch(
+          {
+            accountId: account.id,
+            amount: signed,
+            date: parsed.data.date,
+          },
+          candidates,
+        );
+        if (matchId) {
+          const sched = candidates.find((c) => c.id === matchId)!;
+          await prisma.transaction.update({
+            where: { id: created.id },
+            data: { scheduledTransactionId: matchId },
+          });
+          await prisma.scheduledTransaction.update({
+            where: { id: matchId },
+            data: {
+              nextDate: advancePlannedDate(sched.nextDate, sched.recurrence),
+              active: sched.recurrence === "ONCE" ? false : true,
+            },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
+      try {
         const { tryAutoLinkPendingScanToTransaction } = await import(
           "@/lib/receipt-ai"
         );
@@ -128,8 +173,11 @@ export async function createTransaction(formData: FormData) {
     }
   }
 
+  const { invalidateBudgetCaches } = await import("@/lib/cache-tags");
+  invalidateBudgetCaches(budget.id);
   revalidatePath("/accounts");
   revalidatePath("/plan");
+  revalidatePath("/planned");
   revalidatePath("/transactions");
   revalidatePath("/reflect");
   revalidatePath("/more/bills");

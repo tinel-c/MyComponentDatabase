@@ -5,6 +5,8 @@ import {
   AppChrome,
 } from "@/components/layout/AppChrome";
 import { loadAccountActivityCached } from "@/lib/cache-tags";
+import { prisma } from "@/lib/prisma";
+import { todayISO } from "@/lib/money";
 
 /** Streams into the desktop activity rail without blocking main chrome. */
 async function AccountActivitySlot({ budgetId }: { budgetId: string }) {
@@ -28,9 +30,17 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const { budget } = await requireBudgetAccess();
+  const plannedDueCount = await prisma.scheduledTransaction.count({
+    where: {
+      budgetId: budget.id,
+      active: true,
+      nextDate: { lte: todayISO() },
+    },
+  });
   return (
     <AppChrome
       budgetName={budget.name}
+      plannedDueCount={plannedDueCount}
       activitySlot={
         <Suspense fallback={<ActivityRailFallback />}>
           <AccountActivitySlot budgetId={budget.id} />

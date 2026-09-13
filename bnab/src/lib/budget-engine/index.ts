@@ -67,6 +67,8 @@ export type MonthResult = {
   totalAssigned: number;
   cashOverspendDebt: number;
   categories: Record<string, CategoryMonthResult>;
+  /** Held amount carried into the next month (for tip-cache continuation). */
+  heldForNext?: number;
 };
 
 function isSavingsAccount(acct: EngineAccount | undefined): boolean {
@@ -83,6 +85,8 @@ function monthOf(date: string): string {
 
 /**
  * Compute plan state from firstMonth through endMonth inclusive.
+ * Pass `continueFrom` (prior month result) to skip replaying history and only
+ * compute from the month after continueFrom.month through endMonth.
  */
 export function computeBudgetMonths(input: {
   firstMonth: string;
@@ -92,6 +96,7 @@ export function computeBudgetMonths(input: {
   transactions: EngineTxn[];
   assigned: EngineAssigned[];
   monthMetas?: MonthMetaInput[];
+  continueFrom?: MonthResult;
 }): MonthResult[] {
   const { firstMonth, endMonth, accounts, categories, transactions, assigned } =
     input;
@@ -130,11 +135,18 @@ export function computeBudgetMonths(input: {
     bucket.push(t);
   }
 
+  const seed = input.continueFrom;
+  let rangeStart = firstMonth;
+  if (seed) {
+    const [y, mo] = seed.month.split("-").map(Number);
+    const d = new Date(y, mo, 1); // next month after seed
+    rangeStart = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+
   const months: string[] = [];
   {
-    // Guard inverted ranges (e.g. viewing a month before budget.firstMonth).
-    const last = endMonth < firstMonth ? firstMonth : endMonth;
-    let m = firstMonth;
+    const last = endMonth < rangeStart ? rangeStart : endMonth;
+    let m = rangeStart;
     while (m <= last) {
       months.push(m);
       const [y, mo] = m.split("-").map(Number);
@@ -147,6 +159,13 @@ export function computeBudgetMonths(input: {
   const results: MonthResult[] = [];
   const prevAvailable = new Map<string, number>();
   let heldFromPrev = 0;
+
+  if (seed) {
+    for (const c of categories) {
+      prevAvailable.set(c.id, seed.categories[c.id]?.available ?? 0);
+    }
+    heldFromPrev = seed.heldForNext ?? 0;
+  }
 
   for (const month of months) {
     const cats: Record<string, CategoryMonthResult> = {};
@@ -305,6 +324,7 @@ export function computeBudgetMonths(input: {
       totalAssigned,
       cashOverspendDebt,
       categories: cats,
+      heldForNext: nextHeld,
     });
 
     for (const c of categories) {

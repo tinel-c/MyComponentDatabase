@@ -291,11 +291,14 @@ export function AppChrome({
   children,
   budgetName,
   activitySlot,
+  plannedDueCount = 0,
 }: {
   children: React.ReactNode;
   budgetName: string;
   /** Desktop activity rail — typically a Suspense-wrapped async server child. */
   activitySlot?: React.ReactNode;
+  /** Active planned payments with nextDate ≤ today. */
+  plannedDueCount?: number;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -362,7 +365,14 @@ export function AppChrome({
                 }`}
               >
                 <Icon className="size-5" />
-                {label}
+                <span className="flex min-w-0 items-center gap-2">
+                  {label}
+                  {href === "/planned" && plannedDueCount > 0 ? (
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-danger-muted px-1.5 text-[10px] font-semibold tabular-nums text-danger-fg">
+                      {plannedDueCount > 99 ? "99+" : plannedDueCount}
+                    </span>
+                  ) : null}
+                </span>
               </Link>
             );
           })}

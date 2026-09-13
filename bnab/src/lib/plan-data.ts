@@ -8,6 +8,8 @@ import {
   type MonthResult,
 } from "@/lib/budget-engine";
 import { computeAccountMonthFlows } from "@/lib/plan-account-flows";
+import { unstable_cache } from "next/cache";
+import { addMonths } from "@/lib/money";
 
 export async function loadPlanMonth(budgetId: string, month: string) {
   const budget = await prisma.budget.findUniqueOrThrow({
@@ -204,9 +206,8 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     };
   });
 
-  const months = computeBudgetMonths({
+  const engineInput = {
     firstMonth: budget.firstMonth,
-    endMonth,
     accounts: engineAccounts,
     categories,
     transactions: engineTxns,
@@ -220,7 +221,35 @@ export async function loadPlanMonth(budgetId: string, month: string) {
       holdForNextMonth: m.holdForNextMonth,
       heldAmount: m.heldAmount,
     })),
-  });
+  };
+
+  // Tip cache: reuse prior months from a tagged cache, recompute only the tip.
+  const prevMonth =
+    endMonth > budget.firstMonth ? addMonths(endMonth, -1) : null;
+  let months: MonthResult[];
+  if (prevMonth) {
+    const prefix = await unstable_cache(
+      async () =>
+        computeBudgetMonths({
+          ...engineInput,
+          endMonth: prevMonth,
+        }),
+      ["engine-prefix", budgetId, prevMonth],
+      { tags: [`budget:${budgetId}`], revalidate: 120 },
+    )();
+    const tip = computeBudgetMonths({
+      ...engineInput,
+      firstMonth: endMonth,
+      endMonth,
+      continueFrom: prefix[prefix.length - 1],
+    });
+    months = [...prefix, ...tip];
+  } else {
+    months = computeBudgetMonths({
+      ...engineInput,
+      endMonth,
+    });
+  }
 
   const emptyPlan = (m: string): MonthResult => ({
     month: m,

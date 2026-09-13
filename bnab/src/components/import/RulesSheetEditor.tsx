@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useDeferredValue,
   useEffect,
@@ -35,6 +36,8 @@ export type RuleRow = {
   categoryLabel: string | null;
   transferAccountId?: string | null;
   transferAccountLabel?: string | null;
+  /** Linked planned payments (ScheduledTransaction via importRuleId). */
+  plannedLinks?: { id: string; label: string }[];
 };
 
 type KindFilter = "all" | "mapped" | "ignore" | "transfer" | "uncategorized";
@@ -343,6 +346,22 @@ export function RulesSheetEditor({
                       minLength={matchMinLength}
                       aria-label="Match substring"
                     />
+                    {rule.plannedLinks && rule.plannedLinks.length > 0 ? (
+                      <p className="mt-0.5 truncate text-[10px] text-fg-subtle">
+                        Planned:{" "}
+                        {rule.plannedLinks.map((p, i) => (
+                          <span key={p.id}>
+                            {i > 0 ? ", " : null}
+                            <Link
+                              href={`/planned?id=${encodeURIComponent(p.id)}`}
+                              className="text-accent hover:underline"
+                            >
+                              {p.label}
+                            </Link>
+                          </span>
+                        ))}
+                      </p>
+                    ) : null}
                   </td>
                   <td className={denseTdClass}>
                     <select

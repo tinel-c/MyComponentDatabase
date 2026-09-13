@@ -116,7 +116,8 @@ export default async function PlannedPage({
           Planned payments
         </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Recurring ledger expectations (not bill scans).{" "}
+          Recurring ledger expectations (not bill scans). See{" "}
+          <code className="text-xs">docs/import-vocabulary.md</code> ·{" "}
           <Link href="/more/schedules" className="text-accent hover:underline">
             Legacy schedules URL
           </Link>

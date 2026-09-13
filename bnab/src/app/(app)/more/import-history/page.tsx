@@ -5,40 +5,17 @@ import {
   buttonCompactClass,
   buttonCompactDangerClass,
   cardCompactClass,
-  denseTdClass,
-  denseThClass,
   inputCompactClass,
   pageStackClass,
   sectionSubheadingClass,
-  tableClass,
 } from "@/components/forms/field-classes";
 import {
   createImportRuleAction,
   reapplyRulesToBatch,
   revertImportBatch,
 } from "../import/actions";
-
-/** Import batch outcomes — docs/import-vocabulary.md */
-const ACTION_LABELS: Record<string, string> = {
-  created: "Created",
-  created_transfer_twin: "Transfer twin",
-  linked_manual: "Linked existing",
-  linked_receipt_scan: "Linked bill scan",
-  skipped_duplicate: "Skipped duplicate",
-};
-
-/** IdentifiedAs — docs/import-vocabulary.md */
-const CLASS_LABELS: Record<string, string> = {
-  new: "New ledger entry",
-  linked_existing: "Linked existing payment",
-  duplicate: "Already imported",
-  rule_category: "Categorized by import rule",
-  rule_transfer: "Transfer by import rule",
-  rule_hybrid: "Income + transfer twin",
-  rule_ignore: "Ignore-rule (RTA excluded)",
-  planned_match: "Matched planned payment",
-  unmatched: "No rule / no plan",
-};
+import { fetchImportBatchItemsChunk } from "@/lib/import-history-items-chunk";
+import { ImportHistoryItemsInfinite } from "@/components/import/ImportHistoryItemsInfinite";
 
 export default async function ImportHistoryPage({
   searchParams,
@@ -62,22 +39,23 @@ export default async function ImportHistoryPage({
   const selected = selectedId
     ? await prisma.importBatch.findFirst({
         where: { id: selectedId, budgetId: budget.id },
-        include: {
-          items: { orderBy: { id: "asc" } },
-        },
       })
+    : null;
+
+  const itemsChunk = selected
+    ? await fetchImportBatchItemsChunk({ batchId: selected.id })
     : null;
 
   const ruleIds = [
     ...new Set(
-      (selected?.items ?? [])
+      (itemsChunk?.items ?? [])
         .map((i) => i.importRuleId)
         .filter((id): id is string => Boolean(id)),
     ),
   ];
   const scheduleIds = [
     ...new Set(
-      (selected?.items ?? [])
+      (itemsChunk?.items ?? [])
         .map((i) => i.scheduledTransactionId)
         .filter((id): id is string => Boolean(id)),
     ),
@@ -145,7 +123,9 @@ export default async function ImportHistoryPage({
           Import history
         </h1>
         <p className={sectionSubheadingClass}>
-          Revert a batch or create rules for leftovers.{" "}
+          Revert a batch or create rules for leftovers. Outcomes use canonical
+          labels (Created, Linked existing, …) from{" "}
+          <code className="text-xs">docs/import-vocabulary.md</code>.{" "}
           <Link href="/more/import" className="text-accent hover:underline">
             New import
           </Link>
@@ -205,54 +185,19 @@ export default async function ImportHistoryPage({
             </p>
           )}
 
-          {selected.items.length > 0 && (
-            <div className="overflow-x-auto">
+          {itemsChunk && itemsChunk.items.length > 0 && (
+            <div>
               <h3 className="mb-2 text-sm font-semibold text-fg">
-                Batch items ({selected.items.length})
+                Batch items
               </h3>
-              <table className={tableClass}>
-                <thead>
-                  <tr>
-                    <th className={denseThClass}>Memo</th>
-                    <th className={denseThClass}>Outcome</th>
-                    <th className={denseThClass}>Rule hit</th>
-                    <th className={denseThClass}>Planned payment</th>
-                    <th className={denseThClass}>Classification</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selected.items.map((item) => (
-                    <tr key={item.id}>
-                      <td
-                        className={`${denseTdClass} max-w-[14rem] truncate font-mono text-[11px] text-fg-muted`}
-                        title={item.memoPreview ?? undefined}
-                      >
-                        {item.memoPreview || "—"}
-                      </td>
-                      <td className={denseTdClass}>
-                        {ACTION_LABELS[item.action] ?? item.action}
-                      </td>
-                      <td className={denseTdClass}>
-                        {item.importRuleId
-                          ? (ruleById.get(item.importRuleId) ?? "Rule hit")
-                          : "—"}
-                      </td>
-                      <td className={denseTdClass}>
-                        {item.scheduledTransactionId
-                          ? (scheduleLabelById.get(item.scheduledTransactionId) ??
-                            "Planned match")
-                          : "—"}
-                      </td>
-                      <td className={denseTdClass}>
-                        {item.classification
-                          ? (CLASS_LABELS[item.classification] ??
-                            item.classification)
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <ImportHistoryItemsInfinite
+                batchId={selected.id}
+                initialItems={itemsChunk.items}
+                initialCursor={itemsChunk.nextCursor}
+                hasMore={itemsChunk.hasMore}
+                ruleById={Object.fromEntries(ruleById)}
+                scheduleLabelById={Object.fromEntries(scheduleLabelById)}
+              />
             </div>
           )}
 
