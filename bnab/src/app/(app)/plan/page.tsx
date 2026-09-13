@@ -175,67 +175,128 @@ export default async function PlanPage({
 
       {/* Income + Savings side-by-side on desktop; Accounts matrix below */}
       <div className="space-y-3">
-        <div className="hidden gap-3 md:grid md:grid-cols-2 md:items-start">
-          <div className="min-w-0 space-y-3">
+        <div className="hidden gap-3 md:grid md:grid-cols-2 md:items-stretch">
+          <div className="flex h-full min-w-0 flex-col gap-3">
             {incomeGroups.length === 0 ? (
               <section
-                className={`${cardClass} px-4 py-6 text-center text-sm text-fg-muted`}
+                className={`${cardClass} flex h-full flex-col overflow-hidden`}
               >
-                No income categories yet. Add an Income group under More →
-                Categories.
+                <div
+                  className="border-b border-rim-subtle px-4 py-2.5"
+                  style={{
+                    borderLeft: "4px solid var(--ok)",
+                    background:
+                      "color-mix(in oklch, var(--ok) 12%, transparent)",
+                  }}
+                >
+                  <h3 className="text-sm font-semibold text-fg">Income</h3>
+                  <p className="mt-0.5 text-[11px] text-fg-subtle">
+                    Activity this month · counts toward Ready to Assign
+                  </p>
+                </div>
+                <div className="flex flex-1 items-center justify-center px-4 py-6 text-center text-sm text-fg-muted">
+                  No income categories yet. Add an Income group under More →
+                  Categories.
+                </div>
               </section>
             ) : (
-              incomeGroups.map((group) => (
-                <section key={group.id} className={`${cardClass} overflow-hidden`}>
-                  <h3
-                    className="border-b border-rim-subtle px-4 py-3 text-sm font-semibold text-fg"
-                    style={{
-                      borderLeft: `4px solid ${groupAccent(group.name)}`,
-                      background:
-                        "color-mix(in oklch, var(--ok) 12%, transparent)",
-                    }}
+              incomeGroups.map((group) => {
+                const groupActivity = group.categories.reduce(
+                  (s, c) => s + (plan.categories[c.id]?.activity ?? 0),
+                  0,
+                );
+                return (
+                  <section
+                    key={group.id}
+                    className={`${cardClass} flex h-full flex-col overflow-hidden`}
                   >
-                    {group.name}
-                  </h3>
-                  <ul className="divide-y divide-rim-subtle/60">
-                    {group.categories.map((cat) => {
-                      const activity = plan.categories[cat.id]?.activity ?? 0;
-                      return (
-                        <li
-                          key={cat.id}
-                          className="flex items-center justify-between gap-3 px-3 py-2.5"
-                        >
-                          <div className="flex min-w-0 items-center gap-2.5">
-                            <CategoryIcon
-                              name={cat.name}
-                              groupName={group.name}
-                            />
-                            <p className="min-w-0 truncate text-sm font-medium text-fg">
-                              {cat.name}
-                            </p>
-                          </div>
-                          <Link
-                            href={`/transactions?categoryId=${encodeURIComponent(cat.id)}&month=${encodeURIComponent(month)}`}
-                            prefetch
-                            className={`shrink-0 text-sm font-semibold underline-offset-2 hover:underline ${moneyClass} ${
-                              activity > 0 ? "text-ok" : "text-fg-muted"
-                            }`}
-                            title="View transactions that make up this activity"
-                          >
-                            {formatMoney(activity, currency)}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              ))
+                    <div
+                      className="border-b border-rim-subtle px-4 py-2.5"
+                      style={{
+                        borderLeft: `4px solid ${groupAccent(group.name)}`,
+                        background:
+                          "color-mix(in oklch, var(--ok) 12%, transparent)",
+                      }}
+                    >
+                      <h3 className="text-sm font-semibold text-fg">
+                        {group.name}
+                      </h3>
+                      <p className="mt-0.5 text-[11px] text-fg-subtle">
+                        Activity this month · counts toward Ready to Assign
+                      </p>
+                    </div>
+                    <div className="flex-1 overflow-x-auto">
+                      <table className="w-full min-w-[16rem] text-sm">
+                        <thead>
+                          <tr className="border-b border-rim-subtle text-left text-[11px] uppercase tracking-wide text-fg-subtle">
+                            <th className="px-3 py-2 font-medium">Category</th>
+                            <th className="px-3 py-2 text-right font-medium">
+                              Activity
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-rim-subtle/60">
+                          {group.categories.map((cat) => {
+                            const activity =
+                              plan.categories[cat.id]?.activity ?? 0;
+                            return (
+                              <tr key={cat.id}>
+                                <td className="px-3 py-2">
+                                  <span className="flex min-w-0 items-center gap-2 text-fg">
+                                    <CategoryIcon
+                                      name={cat.name}
+                                      groupName={group.name}
+                                    />
+                                    <span className="min-w-0 truncate font-medium">
+                                      {cat.name}
+                                    </span>
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  <Link
+                                    href={`/transactions?categoryId=${encodeURIComponent(cat.id)}&month=${encodeURIComponent(month)}`}
+                                    prefetch
+                                    className={`font-semibold underline-offset-2 hover:underline ${moneyClass} ${
+                                      activity > 0
+                                        ? "text-ok"
+                                        : "text-fg-muted"
+                                    }`}
+                                    title="View transactions that make up this activity"
+                                  >
+                                    {formatMoney(activity, currency)}
+                                  </Link>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          <tr className="border-t border-rim-subtle bg-overlay/30">
+                            <td className="px-3 py-2">
+                              <span className="font-medium text-fg">
+                                Total income
+                              </span>
+                            </td>
+                            <td
+                              className={`px-3 py-2 text-right font-semibold ${moneyClass} ${
+                                groupActivity > 0 ? "text-ok" : "text-fg-muted"
+                              }`}
+                            >
+                              {formatMoney(groupActivity, currency)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                );
+              })
             )}
           </div>
 
-          <div className="min-w-0">
+          <div className="flex h-full min-w-0 flex-col">
             {savingsAccounts.length > 0 ? (
-              <section className={`${cardClass} overflow-hidden`}>
+              <section
+                className={`${cardClass} flex h-full flex-col overflow-hidden`}
+              >
                 <div
                   className="border-b border-rim-subtle px-4 py-2.5"
                   style={{
@@ -249,7 +310,7 @@ export default async function PlanPage({
                     Transfers in reduce Ready to Assign · not counted as income
                   </p>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="flex-1 overflow-x-auto">
                   <table className="w-full min-w-[16rem] text-sm">
                     <thead>
                       <tr className="border-b border-rim-subtle text-left text-[11px] uppercase tracking-wide text-fg-subtle">
@@ -341,7 +402,28 @@ export default async function PlanPage({
                   </table>
                 </div>
               </section>
-            ) : null}
+            ) : (
+              <section
+                className={`${cardClass} flex h-full flex-col overflow-hidden`}
+              >
+                <div
+                  className="border-b border-rim-subtle px-4 py-2.5"
+                  style={{
+                    borderLeft: "4px solid var(--accent)",
+                    background:
+                      "color-mix(in oklch, var(--accent-muted) 35%, transparent)",
+                  }}
+                >
+                  <h3 className="text-sm font-semibold text-fg">Savings</h3>
+                  <p className="mt-0.5 text-[11px] text-fg-subtle">
+                    Transfers in reduce Ready to Assign · not counted as income
+                  </p>
+                </div>
+                <div className="flex flex-1 items-center justify-center px-4 py-6 text-center text-sm text-fg-muted">
+                  No savings accounts yet.
+                </div>
+              </section>
+            )}
           </div>
         </div>
 

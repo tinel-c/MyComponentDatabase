@@ -1,5 +1,19 @@
 # BNAB changelog
 
+## 1.3.1 — 2026-09-13
+
+Plan desktop Income / Savings cards share one visual contract.
+
+### Highlights
+
+- Equal-height stretch (`md:items-stretch`), matching header chrome + subtitle
+- Income table columns **Category | Activity** aligned with Savings thead/row density
+- Income **Total income** footer mirrors Savings total row
+
+### Docs
+
+`features.md` Plan layout note.
+
 ## 1.3.0 — 2026-09-13
 
 Salt Edge Partners AIS scaffold for ING Romania bank sync (API **v6**; Pending Fake OAuth validated).
