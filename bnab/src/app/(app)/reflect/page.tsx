@@ -1,8 +1,15 @@
 import { requireBudgetAccess } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { addMonths, currentMonth, formatMoney } from "@/lib/money";
+import { addMonths, currentMonth, formatMoney, monthLabel } from "@/lib/money";
+import { loadPlanMonth } from "@/lib/plan-data";
+import {
+  buildBudgetVsActualRows,
+  buildReflectOpportunities,
+} from "@/lib/reflect-insights";
 import { cardCompactClass, tableClass, thClass, tdClass, pageStackClass } from "@/components/forms/field-classes";
 import { ReflectChartsLazy as ReflectCharts } from "@/components/reflect/ReflectChartsLazy";
+import { ReflectInsightsPanel } from "@/components/reflect/ReflectInsightsPanel";
+import { ReflectBudgetVsActual } from "@/components/reflect/ReflectBudgetVsActual";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { BarChart3 } from "lucide-react";
 import Link from "next/link";
@@ -101,7 +108,7 @@ function netWorthByMonth(
 export default async function ReflectPage({
   searchParams,
 }: {
-  searchParams: Promise<{ months?: string }>;
+  searchParams: Promise<{ months?: string; month?: string }>;
 }) {
   const { budget } = await requireBudgetAccess();
   const sp = await searchParams;
@@ -110,84 +117,145 @@ export default async function ReflectPage({
   const start = addMonths(end, -(span - 1));
   const rangeFrom = `${start}-01`;
   const rangeTo = `${end}-31`;
+  const focusMonth =
+    sp.month && /^\d{4}-\d{2}$/.test(sp.month) && sp.month >= start && sp.month <= end
+      ? sp.month
+      : addMonths(end, -1) >= start
+        ? addMonths(end, -1)
+        : end;
+  const nextMonth = addMonths(focusMonth, 1);
 
-  const [accounts, categories, transactions, allTx, receiptLines, detailedParentIds] =
-    await Promise.all([
-      prisma.financeAccount.findMany({
-        where: { budgetId: budget.id },
-        select: { id: true, type: true, onBudget: true, name: true },
-      }),
-      prisma.category.findMany({
-        where: { group: { budgetId: budget.id } },
-        select: { id: true, name: true, isIncome: true },
-      }),
-      prisma.transaction.findMany({
-        where: {
-          account: { budgetId: budget.id },
-          isParent: false,
-          date: { gte: rangeFrom, lte: rangeTo },
-        },
-        select: {
-          id: true,
-          date: true,
-          amount: true,
-          categoryId: true,
-          transferTwinId: true,
-          isStartingBalance: true,
-          notes: true,
-          payee: { select: { name: true } },
-          category: { select: { name: true } },
-          account: { select: { onBudget: true } },
-        },
-      }),
-      prisma.transaction.findMany({
-        where: {
-          account: { budgetId: budget.id },
-          isChild: false,
-          date: { lte: rangeTo },
-        },
-        select: { accountId: true, date: true, amount: true },
-      }),
-      prisma.receiptScanLine.findMany({
-        where: {
-          scan: {
-            budgetId: budget.id,
-            status: { in: ["ok", "preview"] },
-            transaction: {
-              date: { gte: rangeFrom, lte: rangeTo },
-            },
-          },
-          amountCents: { gt: 0 },
-        },
-        select: {
-          id: true,
-          description: true,
-          amountCents: true,
-          categoryHint: true,
-          matchedRule: {
-            select: {
-              ignore: true,
-              category: { select: { name: true } },
-            },
-          },
-          scan: { select: { transactionId: true } },
-        },
-        take: 500,
-      }),
-      prisma.receiptScan.findMany({
-        where: {
+  const [
+    accounts,
+    categories,
+    transactions,
+    allTx,
+    receiptLines,
+    detailedParentIds,
+    unlinkedScans,
+    planPack,
+  ] = await Promise.all([
+    prisma.financeAccount.findMany({
+      where: { budgetId: budget.id },
+      select: { id: true, type: true, onBudget: true, name: true },
+    }),
+    prisma.category.findMany({
+      where: { group: { budgetId: budget.id } },
+      select: {
+        id: true,
+        name: true,
+        isIncome: true,
+        group: { select: { name: true } },
+      },
+    }),
+    prisma.transaction.findMany({
+      where: {
+        account: { budgetId: budget.id },
+        isParent: false,
+        date: { gte: rangeFrom, lte: rangeTo },
+      },
+      select: {
+        id: true,
+        date: true,
+        amount: true,
+        categoryId: true,
+        transferTwinId: true,
+        isStartingBalance: true,
+        notes: true,
+        payee: { select: { name: true } },
+        category: { select: { name: true } },
+        account: { select: { onBudget: true } },
+      },
+    }),
+    prisma.transaction.findMany({
+      where: {
+        account: { budgetId: budget.id },
+        isChild: false,
+        date: { lte: rangeTo },
+      },
+      select: { accountId: true, date: true, amount: true },
+    }),
+    prisma.receiptScanLine.findMany({
+      where: {
+        scan: {
           budgetId: budget.id,
-          status: "ok",
-          transaction: { date: { gte: rangeFrom, lte: rangeTo } },
+          status: { in: ["ok", "preview", "needs_mapping"] },
+          OR: [
+            {
+              transaction: {
+                date: { gte: rangeFrom, lte: rangeTo },
+              },
+            },
+            {
+              transactionId: null,
+              createdAt: {
+                gte: new Date(`${rangeFrom}T00:00:00.000Z`),
+                lte: new Date(`${rangeTo}T23:59:59.999Z`),
+              },
+            },
+          ],
         },
-        select: { transactionId: true },
-        distinct: ["transactionId"],
-      }),
-    ]);
+        amountCents: { gt: 0 },
+      },
+      select: {
+        id: true,
+        description: true,
+        amountCents: true,
+        categoryHint: true,
+        matchedRule: {
+          select: {
+            ignore: true,
+            category: { select: { name: true } },
+          },
+        },
+        scan: {
+          select: {
+            transactionId: true,
+            rawJson: true,
+            createdAt: true,
+            transaction: { select: { date: true } },
+          },
+        },
+      },
+      take: 800,
+    }),
+    prisma.receiptScan.findMany({
+      where: {
+        budgetId: budget.id,
+        status: "ok",
+        transaction: { date: { gte: rangeFrom, lte: rangeTo } },
+      },
+      select: { transactionId: true },
+      distinct: ["transactionId"],
+    }),
+    prisma.receiptScan.count({
+      where: {
+        budgetId: budget.id,
+        transactionId: null,
+        status: { in: ["ok", "needs_mapping"] },
+      },
+    }),
+    loadPlanMonth(budget.id, end),
+  ]);
 
   const catById = new Map(categories.map((c) => [c.id, c]));
   const months: string[] = [];
   for (let i = 0; i < span; i++) months.push(addMonths(start, i));
+
+  const catMeta = categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    groupName: c.group.name,
+    isIncome: c.isIncome,
+  }));
+  const engineMonths = planPack.months.filter(
+    (m) => m.month >= start && m.month <= end,
+  );
+  const bvaRows = buildBudgetVsActualRows({
+    months: engineMonths,
+    categories: catMeta,
+    focusMonth,
+  });
 
   const spendByCat = new Map<string, number>();
   const spendByPayee = new Map<string, number>();
@@ -287,6 +355,27 @@ export default async function ReflectPage({
   }[] = [];
   for (const line of receiptLines) {
     if (line.matchedRule?.ignore) continue;
+    // Prefer linked txn date; else rawJson purchase date; else createdAt
+    let lineMonth: string | null = null;
+    if (line.scan.transaction?.date) {
+      lineMonth = line.scan.transaction.date.slice(0, 7);
+    } else {
+      try {
+        const raw = line.scan.rawJson
+          ? (JSON.parse(line.scan.rawJson) as { date?: string })
+          : null;
+        if (raw?.date && /^\d{4}-\d{2}-\d{2}$/.test(raw.date)) {
+          lineMonth = raw.date.slice(0, 7);
+        }
+      } catch {
+        /* ignore */
+      }
+      if (!lineMonth && line.scan.createdAt) {
+        lineMonth = line.scan.createdAt.toISOString().slice(0, 7);
+      }
+    }
+    if (lineMonth && (lineMonth < start || lineMonth > end)) continue;
+
     const cat =
       line.matchedRule?.category?.name ||
       line.categoryHint ||
@@ -298,7 +387,7 @@ export default async function ReflectPage({
       amount: line.amountCents / 100,
       href: line.scan.transactionId
         ? `/transactions/${line.scan.transactionId}`
-        : undefined,
+        : "/more/bills",
     });
     topReceiptItems.push({
       description: line.description,
@@ -315,10 +404,19 @@ export default async function ReflectPage({
     }))
     .sort((a, b) => b.value - a.value);
 
+  const opportunitiesWithReceipt = buildReflectOpportunities({
+    months: engineMonths,
+    categories: catMeta,
+    focusMonth,
+    nextMonth,
+    unlinkedBillCount: unlinkedScans,
+    receiptByCategory: receiptByCat,
+  });
+
   const spanLinks = [3, 6, 12].map((n) => (
     <Link
       key={n}
-      href={`/reflect?months=${n}`}
+      href={`/reflect?months=${n}&month=${focusMonth}`}
       className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
         span === n
           ? "bg-accent-muted text-accent"
@@ -332,7 +430,8 @@ export default async function ReflectPage({
   const hasAnyData =
     spendingData.length > 0 ||
     incomeExpense.some((r) => r.income > 0 || r.expense > 0) ||
-    receiptCatRows.length > 0;
+    receiptCatRows.length > 0 ||
+    opportunitiesWithReceipt.length > 0;
 
   return (
     <div className={pageStackClass}>
@@ -340,15 +439,33 @@ export default async function ReflectPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-fg">Reflect</h1>
           <p className="mt-1 text-sm text-fg-muted">
-            Last {span} months · {formatMoney(totalSpend, budget.currency)} spending
-            in top categories
+            Review {monthLabel(focusMonth)} · plan {monthLabel(nextMonth)} ·{" "}
+            last {span} months · {formatMoney(totalSpend, budget.currency)}{" "}
+            spending in top categories
             {detailedParentIds.length > 0
               ? ` · ${detailedParentIds.length} receipt-detailed`
               : ""}
+            {unlinkedScans > 0 ? ` · ${unlinkedScans} unlinked bills` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">{spanLinks}</div>
       </div>
+
+      {hasAnyData ? (
+        <>
+          <ReflectInsightsPanel
+            opportunities={opportunitiesWithReceipt}
+            nextMonth={nextMonth}
+            focusMonth={focusMonth}
+            currency={budget.currency}
+          />
+          <ReflectBudgetVsActual
+            rows={bvaRows}
+            nextMonth={nextMonth}
+            currency={budget.currency}
+          />
+        </>
+      ) : null}
 
       {!hasAnyData ? (
         <EmptyState

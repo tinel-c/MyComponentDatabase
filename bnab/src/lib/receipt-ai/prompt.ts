@@ -20,6 +20,7 @@ Rules:
 - Romania SGR bottle deposit lines (0.50 × N) may be omitted or tagged categoryHint "Unknown".
 - Strip noise prefixes like PM_, BUC_, PV_ and trailing SKU digits when describing items.
 - categoryHint MUST be one of: ${cats}
+- Never invent a new category name. If unsure, use Unknown or Groceries.
 - Prefer fine categories: Clothing (trening, chiloti), Pets (Whiskas, silicat), Education (caiet, creioane), Household Goods (detergent, zewa, fairy), Tools (manusi nitril), Look&Feel (periuta), Presents (buchet), else Groceries for food.
 - Even if the bank labeled the whole purchase Groceries, still split clothing/pets/education/household separately.
 ${

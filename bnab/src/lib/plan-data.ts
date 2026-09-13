@@ -26,7 +26,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     assigned,
     transactions,
     monthMetas,
-    balanceRows,
+    pendingBillParents,
     ignoreRules,
   ] = await Promise.all([
     prisma.financeAccount.findMany({
@@ -84,6 +84,8 @@ export async function loadPlanMonth(budgetId: string, month: string) {
         transferTwinId: true,
         isStartingBalance: true,
         notes: true,
+        importFingerprint: true,
+        parentId: true,
       },
     }),
     prisma.monthMeta.findMany({
@@ -94,13 +96,15 @@ export async function loadPlanMonth(budgetId: string, month: string) {
         heldAmount: true,
       },
     }),
-    prisma.transaction.groupBy({
-      by: ["accountId"],
+    prisma.transaction.findMany({
       where: {
         account: { budgetId },
         date: { lte: dateTo },
+        isChild: false,
+        importFingerprint: null,
+        notes: { contains: "Bill import" },
       },
-      _sum: { amount: true },
+      select: { id: true },
     }),
     prisma.importCategoryRule.findMany({
       where: { budgetId, ignore: true },
@@ -109,6 +113,36 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     }),
   ]);
 
+  const pendingParentIds = new Set(pendingBillParents.map((p) => p.id));
+  // Also treat in-range parents with pending notes as pending (fingerprint null).
+  for (const t of transactions) {
+    if (
+      !t.isChild &&
+      !t.importFingerprint &&
+      t.notes?.toLowerCase().includes("bill import")
+    ) {
+      pendingParentIds.add(t.id);
+    }
+  }
+
+  const balanceRows = await prisma.transaction.groupBy({
+    by: ["accountId"],
+    where: {
+      account: { budgetId },
+      date: { lte: dateTo },
+      ...(pendingParentIds.size > 0
+        ? {
+            NOT: {
+              OR: [
+                { id: { in: [...pendingParentIds] } },
+                { parentId: { in: [...pendingParentIds] } },
+              ],
+            },
+          }
+        : {}),
+    },
+    _sum: { amount: true },
+  });
   const balanceMap = new Map(
     balanceRows.map((b) => [b.accountId, b._sum.amount ?? 0]),
   );
@@ -148,18 +182,23 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     return ignorePatterns.some((p) => memoMatchesImportRule(notes, p));
   };
 
-  const engineTxns: EngineTxn[] = transactions.map((t) => ({
-    id: t.id,
-    accountId: t.accountId,
-    date: t.date,
-    amount: t.amount,
-    categoryId: t.categoryId,
-    isParent: t.isParent,
-    isChild: t.isChild,
-    transferTwinId: t.transferTwinId,
-    isStartingBalance: t.isStartingBalance,
-    excludeFromRta: notesMatchIgnore(t.notes),
-  }));
+  const engineTxns: EngineTxn[] = transactions.map((t) => {
+    const pendingParent =
+      pendingParentIds.has(t.id) ||
+      (t.parentId != null && pendingParentIds.has(t.parentId));
+    return {
+      id: t.id,
+      accountId: t.accountId,
+      date: t.date,
+      amount: t.amount,
+      categoryId: t.categoryId,
+      isParent: t.isParent,
+      isChild: t.isChild,
+      transferTwinId: t.transferTwinId,
+      isStartingBalance: t.isStartingBalance,
+      excludeFromRta: pendingParent || notesMatchIgnore(t.notes),
+    };
+  });
 
   const months = computeBudgetMonths({
     firstMonth: budget.firstMonth,
@@ -249,6 +288,7 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     toSavingsByAccount,
     groups,
     plan,
+    months,
     currency: budget.currency,
   };
 }

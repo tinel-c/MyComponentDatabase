@@ -43,6 +43,16 @@ export function isBillImportPendingNotes(notes: string | null | undefined): bool
   return notes.toLowerCase().includes("bill import");
 }
 
+/** Pending bill ledger row: stamped notes and not yet linked to a statement fingerprint. */
+export function isPendingBillImportTxn(params: {
+  notes: string | null | undefined;
+  importFingerprint: string | null | undefined;
+}): boolean {
+  return (
+    !params.importFingerprint && isBillImportPendingNotes(params.notes)
+  );
+}
+
 /**
  * Classify one applied ING row against fingerprints already on the account and
  * unfingerprinted manual rows (including bill imports awaiting statement link).

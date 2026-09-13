@@ -205,3 +205,7 @@ export {
   createTransactionFromBillScan,
 } from "./scan-import";
 export { findTransactionsForReceipt } from "./match-transactions";
+export {
+  findPendingReceiptScanForTransaction,
+  tryAutoLinkPendingScanToTransaction,
+} from "./auto-link-scan";

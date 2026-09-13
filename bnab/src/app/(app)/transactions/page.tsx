@@ -234,8 +234,9 @@ export default async function TransactionsPage({
     .map((t) => t.transferTwinId)
     .filter((id): id is string => Boolean(id));
   const txnIds = transactions.map((t) => t.id);
+  const parentIds = transactions.filter((t) => t.isParent).map((t) => t.id);
 
-  const [twins, receiptLines] = await Promise.all([
+  const [twins, receiptLines, children, linkedScans] = await Promise.all([
     twinIds.length > 0
       ? prisma.transaction.findMany({
           where: { id: { in: twinIds } },
@@ -255,8 +256,51 @@ export default async function TransactionsPage({
           },
         })
       : Promise.resolve([]),
+    parentIds.length > 0
+      ? prisma.transaction.findMany({
+          where: { parentId: { in: parentIds } },
+          select: {
+            id: true,
+            parentId: true,
+            amount: true,
+            notes: true,
+            category: { select: { name: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        })
+      : Promise.resolve([]),
+    txnIds.length > 0
+      ? prisma.receiptScan.findMany({
+          where: { transactionId: { in: txnIds } },
+          select: { id: true, transactionId: true, rawJson: true },
+        })
+      : Promise.resolve([]),
   ]);
   const twinById = new Map(twins.map((t) => [t.id, t]));
+  const childrenByParent = new Map<string, typeof children>();
+  for (const c of children) {
+    if (!c.parentId) continue;
+    const list = childrenByParent.get(c.parentId) ?? [];
+    list.push(c);
+    childrenByParent.set(c.parentId, list);
+  }
+  const scanByTxn = new Map(
+    linkedScans
+      .filter((s) => s.transactionId)
+      .map((s) => [s.transactionId as string, s]),
+  );
+
+  function merchantFromRaw(rawJson: string | null): string | null {
+    if (!rawJson) return null;
+    try {
+      const obj = JSON.parse(rawJson) as { merchant?: unknown };
+      return typeof obj.merchant === "string" && obj.merchant.trim()
+        ? obj.merchant.trim()
+        : null;
+    } catch {
+      return null;
+    }
+  }
 
   const receiptRulesByTxn = new Map<
     string,
@@ -297,6 +341,21 @@ export default async function TransactionsPage({
         ? findFirstMatchingImportRule(notes, importRules, t.accountId)
         : null;
     const receiptMatches = receiptRulesByTxn.get(t.id) ?? [];
+    const kids = childrenByParent.get(t.id) ?? [];
+    const scan = scanByTxn.get(t.id);
+    const billGroup =
+      kids.length > 0
+        ? {
+            merchant: merchantFromRaw(scan?.rawJson ?? null),
+            scanId: scan?.id ?? null,
+            splits: kids.map((c) => ({
+              id: c.id,
+              categoryName: c.category?.name ?? "—",
+              amountDisplay: (Math.abs(c.amount) / 100).toFixed(2),
+              notes: c.notes,
+            })),
+          }
+        : null;
     return {
       id: t.id,
       accountId: t.accountId,
@@ -322,6 +381,7 @@ export default async function TransactionsPage({
         ...r,
         href: ruleHref("/more/receipt-rules", r),
       })),
+      billGroup,
     };
   });
 

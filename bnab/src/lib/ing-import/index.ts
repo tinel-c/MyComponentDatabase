@@ -15,6 +15,7 @@ export {
   classifyIngImportPreview,
   classifyIngRowAgainstLedger,
   isBillImportPendingNotes,
+  isPendingBillImportTxn,
   planIngConfirmAction,
   previewStatsFromRows,
 } from "./overlap";

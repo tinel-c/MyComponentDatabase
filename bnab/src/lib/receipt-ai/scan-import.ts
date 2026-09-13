@@ -435,16 +435,13 @@ export async function createTransactionFromBillScan(params: {
     .join(" — ")
     .slice(0, 240);
 
-  const singleCategory =
-    proposedSplits.length === 1 ? proposedSplits[0].categoryId : null;
-
   const txn = await params.prisma.transaction.create({
     data: {
       accountId: account.id,
       date,
       amount: -Math.abs(totalCents),
       payeeId,
-      categoryId: proposedSplits.length === 1 ? singleCategory : null,
+      categoryId: null,
       notes,
       cleared: false,
       // no importFingerprint — ING import will link later

@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { formatMoney } from "@/lib/money";
 import { accountTypeMeta } from "@/lib/ui-accents";
 import {
+  excludePendingBillImportsWhere,
+  findPendingBillImportParentIds,
+} from "@/lib/ing-import/pending-bill-balance";
+import {
   buttonPrimaryClass,
   cardCompactClass,
   inputClass,
@@ -23,11 +27,14 @@ export default async function AccountsPage() {
     orderBy: [{ closed: "asc" }, { sortOrder: "asc" }],
   });
 
+  const accountIds = accounts.map((a) => a.id);
+  const pendingIds = await findPendingBillImportParentIds(prisma, accountIds);
   const balances = await prisma.transaction.groupBy({
     by: ["accountId"],
     where: {
-      accountId: { in: accounts.map((a) => a.id) },
+      accountId: { in: accountIds },
       isChild: false,
+      ...excludePendingBillImportsWhere(pendingIds),
     },
     _sum: { amount: true },
   });

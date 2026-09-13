@@ -101,7 +101,7 @@ export async function createTransaction(formData: FormData) {
       categoryId,
     );
     const signed = isInflow ? Math.abs(abs) : -Math.abs(abs);
-    await prisma.transaction.create({
+    const created = await prisma.transaction.create({
       data: {
         accountId: account.id,
         date: parsed.data.date,
@@ -112,11 +112,27 @@ export async function createTransaction(formData: FormData) {
         cleared: parsed.data.cleared === "on" || parsed.data.cleared === "1",
       },
     });
+    if (signed < 0) {
+      try {
+        const { tryAutoLinkPendingScanToTransaction } = await import(
+          "@/lib/receipt-ai"
+        );
+        await tryAutoLinkPendingScanToTransaction({
+          prisma,
+          budgetId: budget.id,
+          transactionId: created.id,
+        });
+      } catch {
+        // Non-fatal — leave scan for manual mapping
+      }
+    }
   }
 
   revalidatePath("/accounts");
   revalidatePath("/plan");
   revalidatePath("/transactions");
+  revalidatePath("/reflect");
+  revalidatePath("/more/bills");
   redirect(`/accounts/${account.id}`);
 }
 

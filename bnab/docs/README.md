@@ -70,7 +70,7 @@ Put real ING CSV exports only under **`bnab/ING/`** (gitignored). Never commit s
 | `/plan` | Month envelopes, RTA, assign, quick cover/release |
 | `/accounts`, `/accounts/[id]` | Balances, register, adjust-to-statement, delete txn |
 | `/transactions` | Excel-style global register |
-| `/reflect` | Spending / income / net worth |
+| `/reflect` | Review spend, budget gaps, plan next month |
 | `/more/import` | ING CSV preview + confirm (ignored → ledger; transfer rules → twin pair; unmatched rules clear siblings on save) |
 | `/more/import-rules` | Memo → category / ignore / transfer account (substring anywhere) |
 | `/more/import-history` | Batches, revert, snapshots |

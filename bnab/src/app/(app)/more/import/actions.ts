@@ -16,6 +16,7 @@ import {
 import { classifyIngRowAgainstLedger, planIngConfirmAction } from "@/lib/ing-import/overlap";
 import { createDbSnapshot } from "@/lib/ing-import/snapshot";
 import { resolveImportRuleMode } from "@/lib/ing-import/rule-mode";
+import { tryAutoLinkPendingScanToTransaction } from "@/lib/receipt-ai";
 
 export type PreviewRow = AppliedRow & {
   categoryName: string | null;
@@ -248,6 +249,7 @@ export async function confirmIngImport(formData: FormData): Promise<
     fingerprint: string;
     memoPreview: string;
   }[] = [];
+  const outflowIdsForReceiptLink: string[] = [];
 
   for (const row of applied) {
     const memoPreview = row.memo.slice(0, 160);
@@ -285,6 +287,9 @@ export async function confirmIngImport(formData: FormData): Promise<
     }
 
     if (plan.kind === "link") {
+      const childCount = await prisma.transaction.count({
+        where: { parentId: plan.manualMatchId },
+      });
       await prisma.transaction.update({
         where: { id: plan.manualMatchId },
         data: {
@@ -293,8 +298,8 @@ export async function confirmIngImport(formData: FormData): Promise<
           importBatchId: batch.id,
           cleared: true,
           date: row.date,
-          // Keep bill splits; clear category when ignore rule matched the ING memo
-          ...(row.ignored ? { categoryId: null } : {}),
+          // Keep bill splits; never restore a parent category when children exist
+          ...(row.ignored || childCount > 0 ? { categoryId: null } : {}),
         },
       });
       await prisma.transaction.updateMany({
@@ -304,6 +309,7 @@ export async function confirmIngImport(formData: FormData): Promise<
       existingByFp.set(row.fingerprint, plan.manualMatchId);
       linked++;
       if (row.ignored) ignored++;
+      if (row.amount < 0) outflowIdsForReceiptLink.push(plan.manualMatchId);
       batchItems.push({
         batchId: batch.id,
         action: "linked_manual",
@@ -429,6 +435,7 @@ export async function confirmIngImport(formData: FormData): Promise<
     existingByFp.set(row.fingerprint, txn.id);
     created++;
     if (row.ignored) ignored++;
+    if (row.amount < 0) outflowIdsForReceiptLink.push(txn.id);
     batchItems.push({
       batchId: batch.id,
       action: "created",
@@ -436,6 +443,27 @@ export async function confirmIngImport(formData: FormData): Promise<
       fingerprint: row.fingerprint,
       memoPreview,
     });
+  }
+
+  for (const txnId of outflowIdsForReceiptLink) {
+    try {
+      const linkedScan = await tryAutoLinkPendingScanToTransaction({
+        prisma,
+        budgetId: budget.id,
+        transactionId: txnId,
+      });
+      if (linkedScan) {
+        batchItems.push({
+          batchId: batch.id,
+          action: "linked_receipt_scan",
+          transactionId: txnId,
+          fingerprint: linkedScan,
+          memoPreview: "Auto-linked pending bill scan",
+        });
+      }
+    } catch {
+      // Non-fatal — leave scan unlinked for manual mapping
+    }
   }
 
   if (batchItems.length > 0) {
@@ -451,9 +479,11 @@ export async function confirmIngImport(formData: FormData): Promise<
 
   revalidatePath("/more/import");
   revalidatePath("/more/import-history");
+  revalidatePath("/more/bills");
   revalidatePath("/transactions");
   revalidatePath("/accounts");
   revalidatePath("/plan");
+  revalidatePath("/reflect");
   return { ok: true, batchId: batch.id, created };
 }
 

@@ -107,7 +107,7 @@ function mapImportResult(
     ok: true,
     phase: needsMapping ? "mapping" : "preview",
     message: needsMapping
-      ? "Bill scanned. Match a bank transaction or create a new entry."
+      ? "Bill scanned. Saved for Reflect — map a payment, create a pending entry, or finish."
       : "Bill matched to a bank transaction. Review splits and confirm.",
     scanId: result.scanId,
     merchant: result.merchant,
@@ -204,6 +204,66 @@ export async function importBillMapAction(
       message: msg,
       phase: "mapping",
     };
+  }
+}
+
+/**
+ * Finish after scan without creating a ledger entry (Reflect-first / scan-only).
+ * Keeps ReceiptScan + lines; status becomes ok with no transactionId.
+ */
+export async function importBillFinishScanAction(
+  _prev: BillImportActionState,
+  formData: FormData,
+): Promise<BillImportActionState> {
+  try {
+    const { budget } = await requireBudgetAccess();
+    const scanId = String(formData.get("scanId") ?? "");
+    if (!scanId) {
+      return {
+        ok: false,
+        error: "Missing scan",
+        message: "Missing scan",
+        phase: "upload",
+      };
+    }
+    const scan = await prisma.receiptScan.findFirst({
+      where: { id: scanId, budgetId: budget.id },
+      include: { lines: { orderBy: { sortOrder: "asc" } } },
+    });
+    if (!scan) {
+      return {
+        ok: false,
+        error: "Scan not found",
+        message: "Scan not found",
+        phase: "upload",
+      };
+    }
+    if (!scan.transactionId) {
+      await prisma.receiptScan.update({
+        where: { id: scan.id },
+        data: { status: "ok" },
+      });
+    }
+    revalidatePath("/reflect");
+    revalidatePath("/more/bills");
+    return {
+      ok: true,
+      phase: "done",
+      message:
+        "Bill saved for Reflect. Map it to a payment later, or wait for ING / manual entry auto-link.",
+      scanId: scan.id,
+      transactionId: scan.transactionId,
+      createdAsNew: false,
+      lines: scan.lines.map((l) => ({
+        description: l.description,
+        amountCents: l.amountCents,
+        categoryName: l.categoryHint,
+        ignored: false,
+      })),
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Could not save scan";
+    return { ok: false, error: msg, message: msg, phase: "mapping" };
   }
 }
 

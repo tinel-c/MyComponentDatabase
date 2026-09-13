@@ -1,3 +1,4 @@
+import { resolveCategoryForHint } from "./map-lines";
 import { buildReceiptSystemPrompt } from "./prompt";
 import type { GeminiReceiptResult, ReceiptLineParsed } from "./types";
 
@@ -119,7 +120,10 @@ export async function parseReceiptWithGemini(params: {
   if (!text) throw new Error("Gemini returned an empty response");
 
   const parsed = extractJsonObject(text) as Record<string, unknown>;
-  const lines = normalizeLines(parsed);
+  const lines = coerceHintsToExistingCategories(
+    normalizeLines(parsed),
+    params.categoryNames,
+  );
 
   return {
     merchant: typeof parsed.merchant === "string" ? parsed.merchant : undefined,
@@ -131,4 +135,31 @@ export async function parseReceiptWithGemini(params: {
     rawText: text,
     model,
   };
+}
+
+/** Rewrite invalid Gemini categoryHints to the closest existing budget name. */
+function coerceHintsToExistingCategories(
+  lines: ReceiptLineParsed[],
+  categoryNames: string[],
+): ReceiptLineParsed[] {
+  if (categoryNames.length === 0) return lines;
+  const byName = new Map(
+    categoryNames.map((name) => [name, { id: name, name }]),
+  );
+  return lines.map((line) => {
+    if (!line.categoryHint) {
+      return {
+        ...line,
+        categoryHint:
+          categoryNames.find((n) => n === "Unknown") ??
+          categoryNames.find((n) => n === "Groceries") ??
+          categoryNames[0],
+      };
+    }
+    const resolved = resolveCategoryForHint(line.categoryHint, byName);
+    return {
+      ...line,
+      categoryHint: resolved?.name ?? line.categoryHint,
+    };
+  });
 }

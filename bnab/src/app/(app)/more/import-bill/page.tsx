@@ -29,8 +29,8 @@ export default async function ImportBillPage() {
           Import bill
         </h1>
         <p className="mt-1 text-sm text-fg-muted">
-          Photo → categories now. Match an existing ING row, or create a new
-          entry and link it when the statement arrives.{" "}
+          Photo → categories for Reflect. Map an existing payment when ready, or
+          optionally create a pending ledger entry to link on ING import.{" "}
           <Link href="/more/bills" className="text-accent hover:underline">
             View imported bills
           </Link>

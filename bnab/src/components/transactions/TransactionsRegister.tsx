@@ -37,6 +37,16 @@ export type RegisterRow = {
   transferLabel: string | null;
   matchedImportRule?: MatchedRuleLink | null;
   matchedReceiptRules?: MatchedRuleLink[];
+  billGroup?: {
+    merchant: string | null;
+    scanId: string | null;
+    splits: {
+      id: string;
+      categoryName: string;
+      amountDisplay: string;
+      notes: string | null;
+    }[];
+  } | null;
 };
 
 function MappingLinks({
@@ -139,10 +149,17 @@ function RegisterRowCells({
       ? `Transfer: ${row.transferLabel}`
       : "Transfer"
     : row.isSplit
-      ? row.payee || "Split"
+      ? row.payee || row.billGroup?.merchant || "Bill"
       : row.payee;
 
+  const categoryLabel = row.billGroup
+    ? row.billGroup.merchant
+      ? `Bill · ${row.billGroup.merchant}`
+      : "Bill"
+    : null;
+
   return (
+    <>
     <tr
       className={`transition-colors ${
         pending
@@ -241,7 +258,7 @@ function RegisterRowCells({
           </select>
         ) : (
           <span className="block truncate px-1 py-1.5 text-[11px] text-fg-muted sm:text-xs">
-            {row.isSplit ? "Split" : "—"}
+            {categoryLabel ?? (row.isSplit ? "Split" : "—")}
           </span>
         )}
       </td>
@@ -255,6 +272,16 @@ function RegisterRowCells({
           className={sheetCellInput}
           onBlur={() => save()}
         />
+        {row.billGroup ? (
+          <Link
+            href={`/transactions/${row.id}`}
+            className="mt-1 block text-[10px] text-accent hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Bill · {row.billGroup.splits.length} categor
+            {row.billGroup.splits.length === 1 ? "y" : "ies"}
+          </Link>
+        ) : null}
         <MappingLinks
           importRule={row.matchedImportRule}
           receiptRules={row.matchedReceiptRules}
@@ -322,6 +349,44 @@ function RegisterRowCells({
         </div>
       </td>
     </tr>
+    {row.billGroup?.splits.map((split) => (
+      <tr
+        key={`${row.id}-split-${split.id}`}
+        className="bg-accent-muted/15 text-fg-muted"
+      >
+        <td
+          className={`${sheetCell} sticky left-0 z-[1] bg-inherit shadow-[2px_0_6px_-2px_color-mix(in_oklch,var(--rim)_50%,transparent)]`}
+        />
+        <td className={sheetCell} colSpan={2} />
+        <td className={sheetCell}>
+          <span className="block border-l-2 border-accent-muted pl-2 text-[11px] text-fg-subtle">
+            {split.notes ? (
+              <span className="block truncate" title={split.notes}>
+                {split.notes}
+              </span>
+            ) : null}
+          </span>
+        </td>
+        <td className={sheetCell}>
+          <span className="block truncate border-l-2 border-transparent pl-2 text-[11px] font-medium text-fg sm:text-xs">
+            {split.categoryName}
+          </span>
+        </td>
+        <td className={`${sheetCell} hidden sm:table-cell`}>
+          <span className="block truncate px-1 text-[10px] text-fg-subtle">
+            {split.notes ?? ""}
+          </span>
+        </td>
+        <td className={sheetCell}>
+          <span className="block truncate px-1.5 py-2 text-right text-xs font-mono tabular-nums text-fg-muted sm:text-sm">
+            {split.amountDisplay}
+          </span>
+        </td>
+        <td className={sheetCell} />
+        <td className={sheetCell} />
+      </tr>
+    ))}
+    </>
   );
 }
 
@@ -363,13 +428,16 @@ export function TransactionsRegister({
               ? `Transfer: ${row.transferLabel}`
               : "Transfer"
             : row.isSplit
-              ? row.payee || "Split"
+              ? row.payee || row.billGroup?.merchant || "Bill"
               : row.payee || "—";
-          const catName =
-            groups
-              .flatMap((g) => g.categories)
-              .find((c) => c.id === row.categoryId)?.name ??
-            (row.isSplit ? "Split" : row.isTransfer ? "—" : "RTA");
+          const catName = row.billGroup
+            ? row.billGroup.merchant
+              ? `Bill · ${row.billGroup.merchant}`
+              : "Bill"
+            : groups
+                .flatMap((g) => g.categories)
+                .find((c) => c.id === row.categoryId)?.name ??
+              (row.isSplit ? "Split" : row.isTransfer ? "—" : "RTA");
           return (
             <li key={row.id} className="px-3 py-3">
               <a
@@ -381,7 +449,6 @@ export function TransactionsRegister({
                     <p className="truncate font-medium text-fg">{payeeDisplay}</p>
                     <p className="truncate text-xs text-fg-muted">
                       {row.date} · {row.accountName} · {catName}
-                      {row.isSplit ? " · split" : ""}
                     </p>
                   </div>
                   <p
@@ -394,6 +461,26 @@ export function TransactionsRegister({
                   </p>
                 </div>
               </a>
+              {row.billGroup && row.billGroup.splits.length > 0 ? (
+                <ul className="mt-2 space-y-1 border-l-2 border-accent-muted pl-3">
+                  {row.billGroup.splits.map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex justify-between gap-2 text-xs text-fg-muted"
+                    >
+                      <span className="min-w-0 truncate">
+                        {s.categoryName}
+                        {s.notes ? (
+                          <span className="text-fg-subtle"> · {s.notes}</span>
+                        ) : null}
+                      </span>
+                      <span className="shrink-0 tabular-nums">
+                        {s.amountDisplay}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <MappingLinks
                 importRule={row.matchedImportRule}
                 receiptRules={row.matchedReceiptRules}

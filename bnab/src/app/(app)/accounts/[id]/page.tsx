@@ -18,6 +18,10 @@ import {
   toggleAccountClosed,
 } from "@/app/(app)/plan/actions";
 import { reconcileAccount } from "@/app/(app)/transactions/actions";
+import {
+  excludePendingBillImportsWhere,
+  findPendingBillImportParentIds,
+} from "@/lib/ing-import/pending-bill-balance";
 import { ClearToggle } from "@/components/accounts/ClearToggle";
 import { AdjustBalanceForm } from "@/components/accounts/AdjustBalanceForm";
 import { DeleteTransactionButton } from "@/components/transactions/DeleteTransactionButton";
@@ -44,9 +48,14 @@ export default async function AccountDetailPage({
   const pageNum = Math.max(1, Number(sp.page ?? "1") || 1);
   const skip = (pageNum - 1) * PAGE_SIZE;
 
+  const pendingIds = await findPendingBillImportParentIds(prisma, [id]);
   const [sumAgg, transactions, count, balanceAdjustments] = await Promise.all([
     prisma.transaction.aggregate({
-      where: { accountId: id, isChild: false },
+      where: {
+        accountId: id,
+        isChild: false,
+        ...excludePendingBillImportsWhere(pendingIds),
+      },
       _sum: { amount: true },
     }),
     prisma.transaction.findMany({

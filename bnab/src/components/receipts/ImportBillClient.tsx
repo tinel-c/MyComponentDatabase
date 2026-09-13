@@ -15,12 +15,14 @@ import {
 import {
   importBillConfirmAction,
   importBillCreateAction,
+  importBillFinishScanAction,
   importBillMapAction,
   importBillScanAction,
   type BillImportActionState,
 } from "@/app/(app)/more/receipts/actions";
 import {
   buttonPrimaryClass,
+  buttonSecondaryClass,
   cardClass,
   inputClass,
   labelClass,
@@ -183,10 +185,15 @@ export function ImportBillClient({
     importBillCreateAction,
     initial,
   );
+  const [finishedScan, finishScanAction, finishPending] = useActionState(
+    importBillFinishScanAction,
+    initial,
+  );
   const [confirmed, confirmAction, confirmPending] = useActionState(
     importBillConfirmAction,
     initial,
   );
+  const [createPendingLedger, setCreatePendingLedger] = useState(false);
 
   const scanTouched = Boolean(scan.ok || scan.error || scan.scanId);
   const finished =
@@ -196,11 +203,14 @@ export function ImportBillClient({
       : created.phase === "done" &&
           (!scanTouched || created.scanId === scan.scanId)
         ? created
-        : null;
+        : finishedScan.phase === "done" &&
+            (!scanTouched || finishedScan.scanId === scan.scanId)
+          ? finishedScan
+          : null;
 
   // Prefer the most recently failed action that belongs to the current scan
   const failure = (() => {
-    const candidates = [confirmed, created, mapped, scan].filter(
+    const candidates = [confirmed, created, finishedScan, mapped, scan].filter(
       (s) => s.error && !s.ok,
     );
     if (candidates.length === 0) return null;
@@ -218,13 +228,17 @@ export function ImportBillClient({
       : scan);
 
   useEffect(() => {
-    if (finished?.transactionId) {
+    if (finished?.ok) {
       router.refresh();
     }
-  }, [finished?.transactionId, router]);
+  }, [finished?.ok, finished?.transactionId, router]);
 
   const pending =
-    scanPending || mapPending || confirmPending || createPending;
+    scanPending ||
+    mapPending ||
+    confirmPending ||
+    createPending ||
+    finishPending;
   const defaultAccountId = accounts[0]?.id ?? "";
 
   const statusBanner = (() => {
@@ -236,13 +250,17 @@ export function ImportBillClient({
           title={
             finished.createdAsNew
               ? "Bill import succeeded"
-              : "Bill detailing succeeded"
+              : finished.transactionId
+                ? "Bill detailing succeeded"
+                : "Bill saved for Reflect"
           }
           detail={
             finished.message ??
             (finished.createdAsNew
               ? "Entry created from the bill."
-              : "Splits applied to the bank transaction.")
+              : finished.transactionId
+                ? "Splits applied to the bank transaction."
+                : "Scan kept without a ledger entry.")
           }
           transactionId={finished.transactionId}
           showBillsLink
@@ -286,9 +304,9 @@ export function ImportBillClient({
           <div>
             <h2 className="text-sm font-semibold text-fg">Upload a bill</h2>
             <p className="mt-1 text-sm text-fg-muted">
-              Gemini reads merchant, date, total, and lines. Match an existing
-              ING row, or create a new entry now and link it when you import the
-              statement.
+              Gemini reads lines and assigns existing categories. The scan
+              enriches Reflect first — map a payment when it appears, or
+              optionally create a pending ledger entry.
             </p>
           </div>
         </div>
@@ -401,72 +419,48 @@ export function ImportBillClient({
           <div className={`${cardClass} space-y-3 p-3`}>
             <div>
               <h2 className="text-sm font-semibold text-fg">
-                Map or create entry
+                Bill scanned
               </h2>
               <p className="mt-1 text-sm text-fg-muted">
-                Link an existing bank outflow, or create a categorized entry now
-                — ING import will offer to link it later.
+                Categories are ready for Reflect. Map an existing outflow,
+                finish without a ledger entry, or optionally create a pending
+                entry to link on ING import later.
               </p>
             </div>
 
-            <form
-              action={createAction}
-              className="space-y-3 rounded-xl border border-accent/30 bg-accent-muted/20 p-3"
-            >
+            {state.lines && state.lines.length > 0 ? (
+              <ul className="max-h-48 divide-y divide-rim-subtle overflow-y-auto rounded-lg border border-rim-subtle text-sm">
+                {state.lines
+                  .filter((l) => !l.ignored)
+                  .map((l, i) => (
+                    <li
+                      key={`${l.description}-${i}`}
+                      className="flex justify-between gap-2 px-3 py-1.5"
+                    >
+                      <span className="min-w-0 truncate text-fg">
+                        {l.description}
+                        <span className="text-fg-subtle">
+                          {" "}
+                          · {l.categoryName ?? "—"}
+                        </span>
+                      </span>
+                      <span className="shrink-0 tabular-nums text-fg-muted">
+                        {formatMoney(l.amountCents, currency)}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            ) : null}
+
+            <form action={finishScanAction}>
               <input type="hidden" name="scanId" value={state.scanId} />
-              <input
-                type="hidden"
-                name="merchant"
-                value={state.merchant ?? ""}
-              />
-              <input
-                type="hidden"
-                name="receiptTotalCents"
-                value={state.receiptTotalCents ?? ""}
-              />
-              <p className="text-sm font-medium text-fg">Create new entry</p>
-              <label className={labelClass}>
-                Account
-                <select
-                  name="accountId"
-                  className={inputClass}
-                  required
-                  defaultValue={defaultAccountId}
-                >
-                  {accounts.length === 0 ? (
-                    <option value="">No on-budget accounts</option>
-                  ) : (
-                    accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </label>
-              <label className={labelClass}>
-                Date
-                <input
-                  name="date"
-                  type="date"
-                  className={inputClass}
-                  defaultValue={state.receiptDate ?? ""}
-                  required
-                />
-              </label>
               <button
                 type="submit"
-                disabled={pending || accounts.length === 0}
+                disabled={pending}
                 className={`${buttonPrimaryClass} w-full`}
               >
-                {createPending
-                  ? "Creating…"
-                  : "Create entry & apply categories"}
+                {finishPending ? "Saving…" : "Done — keep for Reflect"}
               </button>
-              <p className="text-xs text-fg-subtle">
-                Saves merchant, date, total, and category splits. Left uncleared
-                until an ING CSV import links the statement line.
-              </p>
             </form>
 
             <TxnPickList
@@ -485,12 +479,79 @@ export function ImportBillClient({
               action={mapAction}
               pending={pending}
             />
-            {(state.candidates?.length ?? 0) === 0 &&
-            (state.nearby?.length ?? 0) === 0 ? (
-              <p className="text-sm text-fg-muted">
-                No bank outflows to map yet — create a new entry above, then
-                import the ING CSV when it arrives.
-              </p>
+
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-fg">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={createPendingLedger}
+                onChange={(e) => setCreatePendingLedger(e.target.checked)}
+              />
+              <span>
+                Also create as pending ledger entry
+                <span className="mt-0.5 block text-xs text-fg-muted">
+                  Writes a categorized transaction now; ING import can link it
+                  later. Off by default — Reflect does not need this.
+                </span>
+              </span>
+            </label>
+
+            {createPendingLedger ? (
+              <form
+                action={createAction}
+                className="space-y-3 rounded-xl border border-rim bg-overlay/40 p-3"
+              >
+                <input type="hidden" name="scanId" value={state.scanId} />
+                <input
+                  type="hidden"
+                  name="merchant"
+                  value={state.merchant ?? ""}
+                />
+                <input
+                  type="hidden"
+                  name="receiptTotalCents"
+                  value={state.receiptTotalCents ?? ""}
+                />
+                <p className="text-sm font-medium text-fg">Create pending entry</p>
+                <label className={labelClass}>
+                  Account
+                  <select
+                    name="accountId"
+                    className={inputClass}
+                    required
+                    defaultValue={defaultAccountId}
+                  >
+                    {accounts.length === 0 ? (
+                      <option value="">No on-budget accounts</option>
+                    ) : (
+                      accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </label>
+                <label className={labelClass}>
+                  Date
+                  <input
+                    name="date"
+                    type="date"
+                    className={inputClass}
+                    defaultValue={state.receiptDate ?? ""}
+                    required
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={pending || accounts.length === 0}
+                  className={`${buttonSecondaryClass} w-full`}
+                >
+                  {createPending
+                    ? "Creating…"
+                    : "Create pending entry & apply categories"}
+                </button>
+              </form>
             ) : null}
           </div>
         ) : null}

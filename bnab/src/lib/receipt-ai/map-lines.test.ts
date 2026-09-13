@@ -10,6 +10,7 @@ describe("mapReceiptLines", () => {
     ["Groceries", { id: "g", name: "Groceries" }],
     ["Clothing", { id: "c", name: "Clothing" }],
     ["Pets", { id: "p", name: "Pets" }],
+    ["Household Goods", { id: "h", name: "Household Goods" }],
     ["Unknown", { id: "u", name: "Unknown" }],
   ]);
 
@@ -63,5 +64,39 @@ describe("mapReceiptLines", () => {
     assert.ok(splits.some((s) => s.categoryName === "Pets"));
     const sum = splits.reduce((s, x) => s + x.amountCents, 0);
     assert.equal(sum, 11357);
+  });
+
+  it("coerces fuzzy hints and invented names to existing categories", () => {
+    const mapped = mapReceiptLines({
+      lines: [
+        { description: "Detergent", amount: 10, categoryHint: "Household" },
+        { description: "Chips", amount: 5, categoryHint: "Snacks" },
+        { description: "No hint", amount: 3 },
+      ],
+      rules: [],
+      categoriesByName,
+      unknownCategoryId: "u",
+      unknownCategoryName: "Unknown",
+    });
+    assert.equal(mapped[0].categoryName, "Household Goods");
+    assert.equal(mapped[1].categoryName, "Groceries");
+    assert.equal(mapped[2].categoryName, "Unknown");
+    assert.ok(mapped.every((l) => l.ignored || l.categoryId));
+  });
+
+  it("falls back to Groceries when Unknown is absent", () => {
+    const cats = new Map([
+      ["Groceries", { id: "g", name: "Groceries" }],
+      ["Clothing", { id: "c", name: "Clothing" }],
+    ]);
+    const mapped = mapReceiptLines({
+      lines: [{ description: "Mystery", amount: 9.99, categoryHint: "Widgets" }],
+      rules: [],
+      categoriesByName: cats,
+      unknownCategoryId: null,
+      unknownCategoryName: "Unknown",
+    });
+    assert.equal(mapped[0].categoryName, "Groceries");
+    assert.equal(mapped[0].categoryId, "g");
   });
 });
