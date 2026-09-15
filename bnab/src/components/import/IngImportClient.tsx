@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   buttonCompactClass,
   buttonPrimaryClass,
@@ -64,6 +65,7 @@ function ImportMatchedRuleLabel({ row }: { row: PreviewRow }) {
 }
 
 export function IngImportClient({ accounts, categories, currency }: Props) {
+  const router = useRouter();
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [sourceLabel, setSourceLabel] = useState("paste");
   const [csv, setCsv] = useState("");
@@ -167,6 +169,7 @@ export function IngImportClient({ accounts, categories, currency }: Props) {
         setError(res.error);
         return;
       }
+      router.refresh();
       setMessage(`Imported ${res.created} transactions (batch ${res.batchId}).`);
       setRows(null);
       setStats(null);

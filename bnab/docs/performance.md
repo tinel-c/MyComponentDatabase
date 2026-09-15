@@ -26,7 +26,8 @@ Mutations that change money, categories, or ledger structure **must** call `inva
 
 - **Tags** refresh plan / activity / register first-page / tip caches.
 - **`revalidatePath`** for non-tagged surfaces: `/transactions`, `/accounts`, `/planned`, `/more/bills`, import history, forms.
-- Avoid redundant `/plan` + `/reflect` path fans when tags already cover those loaders.
+- Also **`revalidatePath("/plan")`** after import confirm / revert / reapply and bank sync — tag bust alone does not refresh a warm client Router Cache for `/plan` after soft navigation.
+- Avoid redundant `/reflect` path fans when tags already cover those loaders.
 
 ### Mutation safety (avoid double-click / no-op UI)
 

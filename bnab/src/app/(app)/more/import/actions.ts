@@ -699,6 +699,7 @@ export async function confirmIngImport(formData: FormData): Promise<
   revalidatePath("/more/bills");
   revalidatePath("/transactions");
   revalidatePath("/accounts");
+  revalidatePath("/plan");
   return { ok: true, batchId: batch.id, created };
 }
 
@@ -966,6 +967,7 @@ export async function revertImportBatch(formData: FormData) {
   revalidatePath("/transactions");
   revalidatePath("/accounts");
   revalidatePath("/more/bills");
+  revalidatePath("/plan");
 }
 
 export async function reapplyRulesToBatch(formData: FormData) {
@@ -1015,4 +1017,5 @@ export async function reapplyRulesToBatch(formData: FormData) {
   await invalidateBudgetCaches(budget.id);
   revalidatePath("/more/import-history");
   revalidatePath("/transactions");
+  revalidatePath("/plan");
 }

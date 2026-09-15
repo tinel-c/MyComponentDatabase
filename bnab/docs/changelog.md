@@ -1,5 +1,15 @@
 # BNAB changelog
 
+## 1.3.4 — 2026-09-15
+
+Plan refreshes after ING import (and related import history actions).
+
+### Highlights
+
+- Import confirm / revert / reapply call `revalidatePath("/plan")` so soft navigation does not keep a stale Plan RSC payload
+- ING import client calls `router.refresh()` after a successful confirm
+- Docs: `performance.md` notes when `/plan` path revalidation is required alongside tagged cache bust
+
 ## 1.3.3 — 2026-09-13
 
 Reflect analysis layer: Trends view, KPIs, and receipt drill-down.
