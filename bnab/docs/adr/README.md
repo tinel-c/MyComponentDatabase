@@ -15,6 +15,8 @@ BNAB agent memory. **Before implementing a feature that changes how subsystems i
 | [0009](./0009-budget-preference-cookie.md) | Multi-budget preference cookie | Accepted |
 | [0010](./0010-durable-engine-month-tips.md) | Durable engine month tips | Accepted |
 | [0011](./0011-salt-edge-partners-ais.md) | Salt Edge Partners AIS for bank sync | Proposed |
+| [0012](./0012-anaf-import-proposals.md) | ANAF taxpayer lookup for Import rule proposals | Accepted |
+| [0013](./0013-client-only-encryption-deferred.md) | Client-only database encryption | Proposed (deferred) |
 
 ## Template
 

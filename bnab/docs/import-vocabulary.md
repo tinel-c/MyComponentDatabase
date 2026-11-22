@@ -70,6 +70,7 @@ Preview status `ignored` ≠ “not imported”.
 | **Rule hit** | First matching `ImportCategoryRule` (by sortOrder) whose `matchText` is a substring of the memo |
 | **No rule hit** | No rule matched |
 | **Rule mode** | `ignore` \| `category` \| `transfer` \| `category_transfer` |
+| **Import proposal** | Suggested match substring + optional category for an **unmatched** preview row (ANAF CAEN when CUI present, else heuristic). Never auto-saved as an Import rule — user confirms (ADR 0012) |
 
 ---
 

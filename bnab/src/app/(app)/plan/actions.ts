@@ -275,6 +275,61 @@ export async function coverOverspend(formData: FormData) {
   return moveMoney(fd);
 }
 
+/**
+ * For every non-income category with Available < 0 in `month`, raise Assigned
+ * so Available ≥ 0 (funded from RTA). Same math as quickAdjustAssigned cover.
+ */
+export async function coverAllOverspend(formData: FormData): Promise<{
+  ok: boolean;
+  count: number;
+  totalCovered: number;
+}> {
+  const { budget } = await requireBudgetAccess();
+  const month = String(formData.get("month") ?? "");
+  if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, count: 0, totalCovered: 0 };
+
+  const { loadPlanMonth } = await import("@/lib/plan-data");
+  const { plan } = await loadPlanMonth(budget.id, month);
+
+  const spendingCats = await prisma.category.findMany({
+    where: { group: { budgetId: budget.id }, isIncome: false },
+    select: { id: true },
+  });
+  const spendingIds = new Set(spendingCats.map((c) => c.id));
+
+  const upserts: { categoryId: string; assigned: number }[] = [];
+  let totalCovered = 0;
+  for (const [categoryId, row] of Object.entries(plan.categories)) {
+    if (!spendingIds.has(categoryId)) continue;
+    if (row.available >= 0) continue;
+    const next = row.assigned - row.available;
+    if (next === row.assigned) continue;
+    upserts.push({ categoryId, assigned: next });
+    totalCovered += next - row.assigned;
+  }
+
+  if (upserts.length > 0) {
+    await prisma.$transaction(
+      upserts.map(({ categoryId, assigned }) =>
+        prisma.monthlyCategoryBudget.upsert({
+          where: { categoryId_month: { categoryId, month } },
+          create: { categoryId, month, assigned },
+          update: { assigned },
+        }),
+      ),
+    );
+  }
+
+  revalidatePath("/plan");
+  await invalidateBudgetCaches(budget.id);
+  return { ok: true, count: upserts.length, totalCovered };
+}
+
+/** Form-action wrapper for Plan banner. */
+export async function coverAllOverspendAction(formData: FormData) {
+  await coverAllOverspend(formData);
+}
+
 const accountSchema = z.object({
   name: z.string().min(1).max(80),
   type: z.enum([

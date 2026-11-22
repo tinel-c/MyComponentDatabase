@@ -1,5 +1,16 @@
 # BNAB changelog
 
+## 1.3.5 — 2026-11-22
+
+ANAF-backed Import proposals, Cover all overspend, Nov 2026 CSV ops tooling.
+
+### Highlights
+
+- Unmatched ING preview: ANAF PlatitorTvaRest v9 when memo has a CUI (CAEN → category hint); heuristic otherwise — suggestions only (ADR 0012)
+- Plan banner **Cover all overspend** raises Assigned until Available ≥ 0 for every spending category
+- Ops scripts: `scripts/ops-ing-import.ts`, `ops-cover-overspend.ts`, `ops-verify-import.ts` + `deploy/bnab/ops_ing_import_nov2026.py`
+- Client-only DB encryption deferred (ADR 0013)
+
 ## 1.3.4 — 2026-09-15
 
 Plan refreshes after ING import (and related import history actions).

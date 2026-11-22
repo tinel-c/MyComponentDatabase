@@ -511,8 +511,10 @@ function UnmatchedRuleCard({
     transferAccountId: string,
   ) => void;
 }) {
-  const [matchText, setMatchText] = useState(row.suggestedSubstring);
-  const [categoryId, setCategoryId] = useState("");
+  const [matchText, setMatchText] = useState(
+    row.proposal?.matchText || row.suggestedSubstring,
+  );
+  const [categoryId, setCategoryId] = useState(row.proposal?.categoryId ?? "");
   const [transferAccountId, setTransferAccountId] = useState("");
   const [ignore, setIgnore] = useState(false);
 
@@ -528,6 +530,14 @@ function UnmatchedRuleCard({
       <p className="line-clamp-2 font-mono text-xs text-fg-muted" title={row.memo}>
         {row.memo}
       </p>
+      {row.proposal ? (
+        <p className="text-xs text-accent">
+          Proposal ({row.proposal.source}): {row.proposal.reason}
+          {row.proposal.categoryName
+            ? ` → ${row.proposal.categoryName}`
+            : ""}
+        </p>
+      ) : null}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <label className={labelClass}>
           Match substring

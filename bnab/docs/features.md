@@ -37,6 +37,7 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Move money between categories (desktop)
 - [x] Cover overspending / release available / assign all RTA (**Quick** +, −, =) with **PlanWorkspace** optimistic AJAX (uncached plan reads on mutate)
 - [x] **Assign from planned** for the viewed month (YEARLY = amount ÷ 12 sinking fund)
+- [x] **Cover all overspend** for the viewed month (raise Assigned until Available ≥ 0 on every spending category)
 - [x] Monthly carryover of Available
 - [x] Targets: monthly spending, needed by date, weekly, savings balance
 - [x] Category icons by name/group
@@ -64,6 +65,7 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
   - Preview unmatched / matched / ignored / duplicates
   - Confirm creates batch + fingerprints (**ignored rows are inserted**, excluded from RTA/Activity via notes); writes batched in `$transaction`
   - Mapping rules CRUD + create-from-unmatched (match = substring **anywhere** in memo, case-insensitive; saving clears sibling unmatched rows)
+  - **Import proposals** on unmatched rows: ANAF PlatitorTvaRest v9 when memo has a CUI (CAEN → category hint); else heuristic substring — user must Save rule
   - **Transfer mappings**: rule picks the other account → confirm creates linked `transferTwinId` pair (CSV sign on statement account, opposite on the other)
   - Ignore patterns (e.g. credit-line covers) excluded from RTA & Activity without skipping ledger insert
   - Import history: batch + item infinite scroll, enrichment fields, revert, DB snapshots

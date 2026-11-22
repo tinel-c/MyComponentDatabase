@@ -1,6 +1,9 @@
 import { formatMoney } from "@/lib/money";
 import { moneyClass } from "@/components/forms/field-classes";
-import { assignFromPlannedAction } from "@/app/(app)/plan/actions";
+import {
+  assignFromPlannedAction,
+  coverAllOverspendAction,
+} from "@/app/(app)/plan/actions";
 
 type Props = {
   rta: number;
@@ -92,16 +95,28 @@ export function PlanSummaryBanner({
             </span>
           </p>
           {month ? (
-            <form action={assignFromPlannedAction} className="mt-1.5">
-              <input type="hidden" name="month" value={month} />
-              <button
-                type="submit"
-                title="Set Assigned to at least this month’s planned payment totals"
-                className="font-medium text-accent hover:underline"
-              >
-                Assign from planned
-              </button>
-            </form>
+            <div className="mt-1.5 flex flex-col items-end gap-0.5">
+              <form action={assignFromPlannedAction}>
+                <input type="hidden" name="month" value={month} />
+                <button
+                  type="submit"
+                  title="Set Assigned to at least this month’s planned payment totals"
+                  className="font-medium text-accent hover:underline"
+                >
+                  Assign from planned
+                </button>
+              </form>
+              <form action={coverAllOverspendAction}>
+                <input type="hidden" name="month" value={month} />
+                <button
+                  type="submit"
+                  title="Raise Assigned on every overspent category until Available ≥ 0"
+                  className="font-medium text-accent hover:underline"
+                >
+                  Cover all overspend
+                </button>
+              </form>
+            </div>
           ) : null}
         </div>
       </div>

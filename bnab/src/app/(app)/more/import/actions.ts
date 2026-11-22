@@ -24,6 +24,10 @@ import {
   findUniquePlannedMatch,
   type PlannedCandidate,
 } from "@/lib/planned-payments";
+import {
+  buildImportProposals,
+  type ImportCategoryProposal,
+} from "@/lib/anaf";
 
 type PlannedScheduleCandidate = PlannedCandidate & { recurrence: string };
 
@@ -130,6 +134,8 @@ function pushBatchItem(
 export type PreviewRow = AppliedRow & {
   categoryName: string | null;
   transferAccountName: string | null;
+  /** Suggestion only — never auto-applied (ADR 0003). */
+  proposal?: ImportCategoryProposal | null;
 };
 
 export type PreviewResult = {
@@ -225,22 +231,38 @@ export async function previewIngImport(formData: FormData): Promise<PreviewResul
     payeeName: m.payee?.name ?? null,
   }));
 
-  const rows: PreviewRow[] = appliedRows.map((r) => {
+  const classified = appliedRows.map((r) => {
     const { status, manualMatchId } = classifyIngRowAgainstLedger(
       r,
       existingSet,
       manualLedger,
     );
-    return {
-      ...r,
-      status,
-      manualMatchId,
-      categoryName: r.categoryId ? nameById.get(r.categoryId) ?? null : null,
-      transferAccountName: r.transferAccountId
-        ? accountNameById.get(r.transferAccountId) ?? null
-        : null,
-    };
+    return { ...r, status, manualMatchId };
   });
+
+  const unmatchedForProposal = classified.filter((r) => r.status === "unmatched");
+  const proposalCats = cats.map((c) => ({ id: c.id, name: c.name }));
+  const proposals =
+    unmatchedForProposal.length > 0
+      ? await buildImportProposals({
+          rows: unmatchedForProposal.map((r) => ({
+            fingerprint: r.fingerprint,
+            memo: r.memo,
+            date: r.date,
+          })),
+          categories: proposalCats,
+        })
+      : new Map();
+
+  const rows: PreviewRow[] = classified.map((r) => ({
+    ...r,
+    categoryName: r.categoryId ? nameById.get(r.categoryId) ?? null : null,
+    transferAccountName: r.transferAccountId
+      ? accountNameById.get(r.transferAccountId) ?? null
+      : null,
+    proposal:
+      r.status === "unmatched" ? proposals.get(r.fingerprint) ?? null : null,
+  }));
 
   const stats = {
     total: rows.length,
