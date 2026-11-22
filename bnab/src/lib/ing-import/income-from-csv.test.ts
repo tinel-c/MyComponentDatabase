@@ -191,7 +191,7 @@ describe("CSV monthly income vs Plan display", () => {
       const plan = months.find((m) => m.month === bucket.month);
       assert.ok(plan, `Plan month ${bucket.month}`);
       for (const [catId, csvAmount] of Object.entries(bucket.byCategoryId)) {
-        const displayed = plan!.categories[catId]?.activity ?? 0;
+        const displayed: number = plan!.categories[catId]?.activity ?? 0;
         assert.equal(
           displayed,
           csvAmount,

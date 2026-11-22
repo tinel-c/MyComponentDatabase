@@ -96,7 +96,13 @@ async function seedLocal(prisma: PrismaClient) {
       data: {
         budgetId: budget.id,
         name: a.name,
-        type: a.type as "CHECKING" | "SAVINGS" | "CASH" | "CREDIT",
+        type: a.type as
+          | "CHECKING"
+          | "SAVINGS"
+          | "CASH"
+          | "CREDIT_CARD"
+          | "TRACKING_ASSET"
+          | "TRACKING_LIABILITY",
         onBudget: true,
         sortOrder: sort++,
       },
