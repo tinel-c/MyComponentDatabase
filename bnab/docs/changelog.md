@@ -1,5 +1,14 @@
 # BNAB changelog
 
+## 1.3.6 — 2026-11-22
+
+Plan Income no longer stuck on one month after soft navigation.
+
+### Highlights
+
+- `loadPlanMonthCached` passes `budgetId`/`month` as `unstable_cache` arguments so the Data Cache key differs per month
+- Plan route `dynamic = "force-dynamic"`
+
 ## 1.3.5 — 2026-11-22
 
 ANAF-backed Import proposals, Cover all overspend, Nov 2026 CSV ops tooling.

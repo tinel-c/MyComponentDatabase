@@ -53,17 +53,21 @@ export async function invalidateBudgetCaches(budgetId: string): Promise<void> {
   await clearEngineMonthTips(budgetId);
 }
 
-/** Per-request memoization of plan month. */
+/**
+ * Per-request memoization of plan month.
+ * Pass budgetId/month as unstable_cache *arguments* (not only keyParts/closure)
+ * so the Data Cache invocation key differs per month — closure-only keys have
+ * served the same Plan Income/activity for every selected month in production.
+ */
 export const loadPlanMonthCached = cache(async (budgetId: string, month: string) => {
-  const cached = unstable_cache(
-    () => loadPlanMonthUncached(budgetId, month),
-    [`plan-month`, budgetId, month],
+  return unstable_cache(
+    async (bid: string, m: string) => loadPlanMonthUncached(bid, m),
+    ["plan-month"],
     {
       tags: [budgetTag(budgetId), planMonthTag(budgetId, month)],
       revalidate: 60,
     },
-  );
-  return cached();
+  )(budgetId, month);
 });
 
 export const loadAccountActivityCached = cache(async (budgetId: string) => {

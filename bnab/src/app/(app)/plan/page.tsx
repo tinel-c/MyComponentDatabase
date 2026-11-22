@@ -20,6 +20,9 @@ import {
   planHref,
 } from "@/lib/plan-url";
 
+/** Month is a searchParam; never serve a static/full-route cache of another month. */
+export const dynamic = "force-dynamic";
+
 export default async function PlanPage({
   searchParams,
 }: {
