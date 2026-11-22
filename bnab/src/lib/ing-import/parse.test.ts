@@ -2,17 +2,20 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
   applyRules,
+  detectIngCsvColumns,
   importFingerprint,
   memoMatchesImportRule,
   parseIngAmount,
   parseIngCsv,
   parseIngDate,
+  splitCsvLine,
   suggestMatchSubstring,
 } from "./parse";
 
+/** Legacy HomeBank layout: Debit=6, Credit=8 (header aligned with data). */
 const SAMPLE = `Titular cont: DL Test,,,,,,,,,
 CNP: 123,,,,,,,,,
-,Data,,,Detalii tranzactie,,,Debit,,Credit
+,Data,,,Detalii tranzactie,,Debit,,Credit
 01 septembrie 2026,,,Cumparare POS,,,"114,17",,,
 ,,,Data finalizarii (decontarii): 01-09-2026,,,,,,
 ,,,Numar card:**** 1234,,,,,,
@@ -23,6 +26,34 @@ CNP: 123,,,,,,,,,
 ,,,Din contul:999904927930,,,,,,
 02 august 2026,,,Cumparare POS,,,"1.820,88",,,
 ,,,Terminal:MOL 91426 Constanta 1  RO  Constanta,,,,,,
+`;
+
+/**
+ * Current HomeBank compact layout: Debit=4, Credit=6, Balanta=7.
+ * Includes multi-month Paycheck / Other income for Plan income tests.
+ */
+const SAMPLE_COMPACT = `Titular cont: DL Test,,,,,,,
+CNP: 123,,,,,,,
+Data,,,Detalii tranzactie,Debit,,Credit,Balanta
+05 noiembrie 2026,,,Incasare,,,"22.246,00","1.000,00"
+,,,Data: 05-11-2026,,,,
+,,,Ordonator:SCHAEFFLER MOTION TECHNOLOGIES,,,,
+,,,Din contul:RO51INGB0002008200238921,,,,
+,,,Detalii:Salariu octombrie,,,,
+05 octombrie 2026,,,Incasare,,,"21.000,00","500,00"
+,,,Data: 05-10-2026,,,,
+,,,Ordonator:SCHAEFFLER MOTION TECHNOLOGIES,,,,
+,,,Din contul:RO51INGB0002008200238921,,,,
+,,,Detalii:Salariu septembrie,,,,
+12 octombrie 2026,,,Incasare,,,"1.000,00","1.500,00"
+,,,Data: 12-10-2026,,,,
+,,,Ordonator:Constantin Bogza,,,,
+,,,Din contul:RO18INGB0000999904165476,,,,
+01 septembrie 2026,,,Cumparare POS,"114,17",,,"386,00"
+,,,Tranzactie la:LIDL RO 0207  RO  Eforie Nord,,,,
+01 septembrie 2026,,,Suma transferata din linia de credit,,,"114,17","500,17"
+,,,Data: 01-09-2026,,,,
+,,,Din contul:999904927930,,,,
 `;
 
 describe("ING parser", () => {
@@ -236,5 +267,33 @@ describe("ING parser", () => {
       true,
     );
     assert.equal(memoMatchesImportRule("AAA BBB CCC", "zzz"), false);
+  });
+
+  it("detects compact Debit=4 / Credit=6 from header", () => {
+    const cols = splitCsvLine(
+      "Data,,,Detalii tranzactie,Debit,,Credit,Balanta",
+    );
+    const map = detectIngCsvColumns(cols);
+    assert.equal(map.debit, 4);
+    assert.equal(map.credit, 6);
+  });
+
+  it("parses compact CSV with income as positive credits", () => {
+    const rows = parseIngCsv(SAMPLE_COMPACT);
+    const salaryNov = rows.find((r) => r.memo.includes("Salariu octombrie"));
+    assert.ok(salaryNov);
+    assert.equal(salaryNov!.date, "2026-11-05");
+    assert.equal(salaryNov!.amount, 2_224_600);
+    assert.equal(salaryNov!.inflowMinor, 2_224_600);
+
+    const lidl = rows.find((r) => r.memo.includes("LIDL"));
+    assert.ok(lidl);
+    assert.equal(lidl!.amount, -11_417);
+
+    const creditLine = rows.find((r) =>
+      r.memo.includes("transferata din linia de credit"),
+    );
+    assert.ok(creditLine);
+    assert.equal(creditLine!.amount, 11_417);
   });
 });

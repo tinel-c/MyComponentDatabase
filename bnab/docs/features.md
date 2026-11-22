@@ -38,6 +38,7 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
 - [x] Cover overspending / release available / assign all RTA (**Quick** +, −, =) with **PlanWorkspace** optimistic AJAX (uncached plan reads on mutate)
 - [x] **Assign from planned** for the viewed month (YEARLY = amount ÷ 12 sinking fund)
 - [x] **Cover all overspend** for the viewed month (raise Assigned until Available ≥ 0 on every spending category)
+- [x] **Assign to activity** for the viewed month (set Assigned = −Activity on every spending category)
 - [x] Monthly carryover of Available
 - [x] Targets: monthly spending, needed by date, weekly, savings balance
 - [x] Category icons by name/group
@@ -68,6 +69,8 @@ Inspired by [YNAB](https://www.ynab.com/features) (Plan / Accounts / Reflect) an
   - **Import proposals** on unmatched rows: ANAF PlatitorTvaRest v9 when memo has a CUI (CAEN → category hint); else heuristic substring — user must Save rule
   - **Transfer mappings**: rule picks the other account → confirm creates linked `transferTwinId` pair (CSV sign on statement account, opposite on the other)
   - Ignore patterns (e.g. credit-line covers) excluded from RTA & Activity without skipping ledger insert
+  - HomeBank CSV: auto-detect Debit/Credit columns (compact 4/6 vs legacy 6/8)
+  - **CSV↔Plan income tests**: monthly Paycheck/Other income from file+rules must match Plan activity (`income-from-csv.test.ts`); local DB harness `npm run test:income-local`; ops `deploy/bnab/ops_verify_income_csv.py`
   - Import history: batch + item infinite scroll, enrichment fields, revert, DB snapshots
   - Import rules UI shows linked planned payments
 - [x] **Admin Data tools** (`/more/data`): export/import SQLite, selective erase (default keep mappings)

@@ -1,0 +1,1924 @@
+{
+  "accounts": [
+    {
+      "name": "Tinel's account",
+      "type": "CHECKING"
+    },
+    {
+      "name": "Cash",
+      "type": "CASH"
+    },
+    {
+      "name": "Monica's account",
+      "type": "CHECKING"
+    },
+    {
+      "name": "Rainy Day Funds",
+      "type": "SAVINGS"
+    },
+    {
+      "name": "Saving Goals",
+      "type": "SAVINGS"
+    },
+    {
+      "name": "Round up Monica",
+      "type": "SAVINGS"
+    }
+  ],
+  "incomeCategories": [
+    "Paycheck",
+    "Other income"
+  ],
+  "rules": [
+    {
+      "matchText": "Din contul:RO46INGB0000999907373538",
+      "ignore": false,
+      "sortOrder": 0.0,
+      "categoryName": "Paycheck",
+      "transferAccountName": "Round up Monica"
+    },
+    {
+      "matchText": "Din contul:RO18INGB0000999904165476",
+      "ignore": false,
+      "sortOrder": 1.0,
+      "categoryName": "Paycheck",
+      "transferAccountName": "Saving Goals"
+    },
+    {
+      "matchText": "Din contul:RO97INGB0000999903905258",
+      "ignore": false,
+      "sortOrder": 2.0,
+      "categoryName": "Paycheck",
+      "transferAccountName": "Rainy Day Funds"
+    },
+    {
+      "matchText": "In contul:RO46INGB0000999907373538",
+      "ignore": false,
+      "sortOrder": 3.0,
+      "categoryName": null,
+      "transferAccountName": "Round up Monica"
+    },
+    {
+      "matchText": "In contul:RO97INGB0000999903905258",
+      "ignore": false,
+      "sortOrder": 4.0,
+      "categoryName": null,
+      "transferAccountName": "Rainy Day Funds"
+    },
+    {
+      "matchText": "In contul:RO18INGB0000999904165476",
+      "ignore": false,
+      "sortOrder": 5.0,
+      "categoryName": null,
+      "transferAccountName": "Saving Goals"
+    },
+    {
+      "matchText": "Detalii: Christmas",
+      "ignore": false,
+      "sortOrder": 6.0,
+      "categoryName": "Christmas",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Detalii: Birthdays",
+      "ignore": false,
+      "sortOrder": 7.0,
+      "categoryName": "Birthdays",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Detalii: Domains",
+      "ignore": false,
+      "sortOrder": 8.0,
+      "categoryName": "Domains",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Detalii: Car replacement",
+      "ignore": false,
+      "sortOrder": 9.0,
+      "categoryName": "Car replacement",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Detalii: Vacation",
+      "ignore": false,
+      "sortOrder": 10.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Detalii: Car Repairs",
+      "ignore": false,
+      "sortOrder": 11.0,
+      "categoryName": "Car Repairs",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Detalii: Home maintanance",
+      "ignore": false,
+      "sortOrder": 12.0,
+      "categoryName": "Home Maintanance",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Detalii: Car Insurance",
+      "ignore": false,
+      "sortOrder": 13.0,
+      "categoryName": "Car Insurance",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Scoala Primara EuroEd",
+      "ignore": false,
+      "sortOrder": 14.0,
+      "categoryName": "Kindergarden&School",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "EON GAZ FURNZARE",
+      "ignore": false,
+      "sortOrder": 15.0,
+      "categoryName": "EON",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "WWW.EON.RO/MYLINE",
+      "ignore": false,
+      "sortOrder": 16.0,
+      "categoryName": "EON",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "E.ON",
+      "ignore": false,
+      "sortOrder": 17.0,
+      "categoryName": "EON",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "AS. DE LOCATARI FRUMOASA II",
+      "ignore": false,
+      "sortOrder": 18.0,
+      "categoryName": "Asociatie",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "WWW.ORANGE.RO/YOXO",
+      "ignore": false,
+      "sortOrder": 19.0,
+      "categoryName": "Phone",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "myorangefix",
+      "ignore": false,
+      "sortOrder": 20.0,
+      "categoryName": "Internet",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ORANGE ROMANIA",
+      "ignore": false,
+      "sortOrder": 21.0,
+      "categoryName": "Internet",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "RO92INGB0000999905926537",
+      "ignore": false,
+      "sortOrder": 22.0,
+      "categoryName": "Bona",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "HBO",
+      "ignore": false,
+      "sortOrder": 23.0,
+      "categoryName": "Streaming",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "RCS AND RDS SA",
+      "ignore": false,
+      "sortOrder": 24.0,
+      "categoryName": "RCS/RDS",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "NETFLIX",
+      "ignore": false,
+      "sortOrder": 25.0,
+      "categoryName": "Streaming",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Amazon Video",
+      "ignore": false,
+      "sortOrder": 26.0,
+      "categoryName": "Streaming",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Google Payment",
+      "ignore": false,
+      "sortOrder": 27.0,
+      "categoryName": "Google Play",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "YouTubePremium",
+      "ignore": false,
+      "sortOrder": 28.0,
+      "categoryName": "Streaming",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BANGGOOD",
+      "ignore": false,
+      "sortOrder": 29.0,
+      "categoryName": "Atelier",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ALIEXPRES",
+      "ignore": false,
+      "sortOrder": 30.0,
+      "categoryName": "Atelier",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PAYPAL *PATREONIREL",
+      "ignore": false,
+      "sortOrder": 31.0,
+      "categoryName": "Games",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PAYPAL *KINGUINDIGI",
+      "ignore": false,
+      "sortOrder": 32.0,
+      "categoryName": "Games",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PAYPAL *2CO.COM",
+      "ignore": false,
+      "sortOrder": 33.0,
+      "categoryName": "Games",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PAYPAL *DIGITALRIVE",
+      "ignore": false,
+      "sortOrder": 34.0,
+      "categoryName": "Games",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CARREFOUR",
+      "ignore": false,
+      "sortOrder": 35.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MPN LOGISTICS",
+      "ignore": false,
+      "sortOrder": 36.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Zig Delivero",
+      "ignore": false,
+      "sortOrder": 37.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "GILCA MIHAI FITNESS",
+      "ignore": false,
+      "sortOrder": 38.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Pantiru Mihai PFA",
+      "ignore": false,
+      "sortOrder": 39.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "LIDL",
+      "ignore": false,
+      "sortOrder": 40.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Lidl Discount",
+      "ignore": false,
+      "sortOrder": 41.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PICO MAG DEP",
+      "ignore": false,
+      "sortOrder": 42.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CRISNIC MARKET",
+      "ignore": false,
+      "sortOrder": 43.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Glovo GLOVO PRIME",
+      "ignore": false,
+      "sortOrder": 44.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Auchan",
+      "ignore": false,
+      "sortOrder": 45.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Terminal: Livrator  RO",
+      "ignore": false,
+      "sortOrder": 46.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MARYO S EAST ",
+      "ignore": false,
+      "sortOrder": 47.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PENNY ",
+      "ignore": false,
+      "sortOrder": 48.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MCS STORE",
+      "ignore": false,
+      "sortOrder": 49.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MY EVENTS SRL",
+      "ignore": false,
+      "sortOrder": 50.0,
+      "categoryName": "Office food",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SALAD BOX",
+      "ignore": false,
+      "sortOrder": 51.0,
+      "categoryName": "Office food",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MADO",
+      "ignore": false,
+      "sortOrder": 52.0,
+      "categoryName": "Office food",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "OSPATUL ZEILOR",
+      "ignore": false,
+      "sortOrder": 53.0,
+      "categoryName": "Office food",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SIMIGERIA PETRU",
+      "ignore": false,
+      "sortOrder": 54.0,
+      "categoryName": "Office food",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BLACK DOT COFFEE",
+      "ignore": false,
+      "sortOrder": 55.0,
+      "categoryName": "Office food",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "NEATA CAFE",
+      "ignore": false,
+      "sortOrder": 56.0,
+      "categoryName": "Office food",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "EMAG SHOWR",
+      "ignore": false,
+      "sortOrder": 57.0,
+      "categoryName": "Household Goods",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "DM FIL",
+      "ignore": false,
+      "sortOrder": 58.0,
+      "categoryName": "Household Goods",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ALTEX",
+      "ignore": false,
+      "sortOrder": 59.0,
+      "categoryName": "Household Goods",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "DM DROGERIE MARKT SRL",
+      "ignore": false,
+      "sortOrder": 60.0,
+      "categoryName": "Household Goods",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MOBILPAY*HAIRCARE",
+      "ignore": false,
+      "sortOrder": 61.0,
+      "categoryName": "Household Goods",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MOL",
+      "ignore": false,
+      "sortOrder": 62.0,
+      "categoryName": "Fuel",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "OMV",
+      "ignore": false,
+      "sortOrder": 63.0,
+      "categoryName": "Fuel",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "IASI ETAX",
+      "ignore": false,
+      "sortOrder": 64.0,
+      "categoryName": "Impozite",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ING Gold",
+      "ignore": false,
+      "sortOrder": 65.0,
+      "categoryName": "Impozite",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MUNICIPIUL IASI SNEP  RO",
+      "ignore": false,
+      "sortOrder": 66.0,
+      "categoryName": "Impozite",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ETAX",
+      "ignore": false,
+      "sortOrder": 67.0,
+      "categoryName": "Impozite",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ARCADIA",
+      "ignore": false,
+      "sortOrder": 68.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ARTIMA",
+      "ignore": false,
+      "sortOrder": 69.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "HELP NET FARMA",
+      "ignore": false,
+      "sortOrder": 70.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SMILE DENT SRL",
+      "ignore": false,
+      "sortOrder": 71.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "FITERMAN",
+      "ignore": false,
+      "sortOrder": 72.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SENSIBLU",
+      "ignore": false,
+      "sortOrder": 73.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "D.D.I. RADIOLOGIE",
+      "ignore": false,
+      "sortOrder": 74.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "FARMACIA FLORA",
+      "ignore": false,
+      "sortOrder": 75.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "FARMACIA DONA",
+      "ignore": false,
+      "sortOrder": 76.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ASKLEPIOS-RO",
+      "ignore": false,
+      "sortOrder": 77.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ROPHARMA",
+      "ignore": false,
+      "sortOrder": 78.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "LARA FARM",
+      "ignore": false,
+      "sortOrder": 79.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ANA PHARM",
+      "ignore": false,
+      "sortOrder": 80.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MARELBO",
+      "ignore": false,
+      "sortOrder": 81.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "KOTON",
+      "ignore": false,
+      "sortOrder": 82.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "TAKKO",
+      "ignore": false,
+      "sortOrder": 83.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ZARA",
+      "ignore": false,
+      "sortOrder": 84.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "H&M",
+      "ignore": false,
+      "sortOrder": 85.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "INA IULIUS MALL",
+      "ignore": false,
+      "sortOrder": 86.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SIA SOF",
+      "ignore": false,
+      "sortOrder": 87.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CCC PALAS",
+      "ignore": false,
+      "sortOrder": 88.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MELI MELO FASHION",
+      "ignore": false,
+      "sortOrder": 89.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ELEGANT PRICOP",
+      "ignore": false,
+      "sortOrder": 90.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ART TRADITIE",
+      "ignore": false,
+      "sortOrder": 91.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SOPORAN RAVECA",
+      "ignore": false,
+      "sortOrder": 92.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ROUMASPORT",
+      "ignore": false,
+      "sortOrder": 93.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "HM Hennes",
+      "ignore": false,
+      "sortOrder": 94.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Zara.com",
+      "ignore": false,
+      "sortOrder": 95.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SAMEDAY.RO",
+      "ignore": false,
+      "sortOrder": 96.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MAXI PET IASI ",
+      "ignore": false,
+      "sortOrder": 97.0,
+      "categoryName": "Pets",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MPVET IASI",
+      "ignore": false,
+      "sortOrder": 98.0,
+      "categoryName": "Pets",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SEDCOMLIBRIS",
+      "ignore": false,
+      "sortOrder": 99.0,
+      "categoryName": "Library",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PASTICCERIA MONTECAT",
+      "ignore": false,
+      "sortOrder": 100.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PREMIER RESTAURANTS",
+      "ignore": false,
+      "sortOrder": 101.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MOO CAFE PALAS DEP",
+      "ignore": false,
+      "sortOrder": 102.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MAMMA MIA",
+      "ignore": false,
+      "sortOrder": 103.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "TUFFLI DEP RO",
+      "ignore": false,
+      "sortOrder": 104.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "KFC",
+      "ignore": false,
+      "sortOrder": 105.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "VENETO RESTAURANT SRL",
+      "ignore": false,
+      "sortOrder": 106.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "VO CHEF SRL",
+      "ignore": false,
+      "sortOrder": 107.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "EVERTOGETHER SRL",
+      "ignore": false,
+      "sortOrder": 108.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "N BEES",
+      "ignore": false,
+      "sortOrder": 109.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PASTRY CASA DULCE",
+      "ignore": false,
+      "sortOrder": 110.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "NOODLE PACK",
+      "ignore": false,
+      "sortOrder": 111.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CASA TRADITIEI",
+      "ignore": false,
+      "sortOrder": 112.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "FRATELLI RISTORANTE",
+      "ignore": false,
+      "sortOrder": 113.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BRIO GROUP",
+      "ignore": false,
+      "sortOrder": 114.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "GRAPIC ARTISAN BAKERY",
+      "ignore": false,
+      "sortOrder": 115.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "COLUMBUS OPERATIONAL",
+      "ignore": false,
+      "sortOrder": 116.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "YOYOUGURT",
+      "ignore": false,
+      "sortOrder": 117.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BETTY ICE",
+      "ignore": false,
+      "sortOrder": 118.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CORSINI PASTICCERI",
+      "ignore": false,
+      "sortOrder": 119.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "STRONGMNDCORP.SR",
+      "ignore": false,
+      "sortOrder": 120.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "DONUTERIE",
+      "ignore": false,
+      "sortOrder": 121.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BIO BOX SRL",
+      "ignore": false,
+      "sortOrder": 122.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Dinah  Aliment",
+      "ignore": false,
+      "sortOrder": 123.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Veranda  RO",
+      "ignore": false,
+      "sortOrder": 124.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ABI CONCEPT SAPTE",
+      "ignore": false,
+      "sortOrder": 125.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CARTOFISSERIE",
+      "ignore": false,
+      "sortOrder": 126.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SMART BUSINESS",
+      "ignore": false,
+      "sortOrder": 127.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Glovo",
+      "ignore": false,
+      "sortOrder": 128.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Iasi 6 Bucium",
+      "ignore": false,
+      "sortOrder": 129.0,
+      "categoryName": "Unknown",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "DISTRIBUTION SERVICES",
+      "ignore": false,
+      "sortOrder": 130.0,
+      "categoryName": "Unknown",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "COSTACHE M. IONUT",
+      "ignore": false,
+      "sortOrder": 131.0,
+      "categoryName": "Unknown",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Beneficiar:De Basm",
+      "ignore": false,
+      "sortOrder": 132.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "EUROSERVICE TECHNOLOGY",
+      "ignore": false,
+      "sortOrder": 133.0,
+      "categoryName": "Washing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "UBER",
+      "ignore": false,
+      "sortOrder": 134.0,
+      "categoryName": "Taxi",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Unorthodox Roa",
+      "ignore": false,
+      "sortOrder": 135.0,
+      "categoryName": "Presents",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "AMZNMktplace  GB",
+      "ignore": false,
+      "sortOrder": 136.0,
+      "categoryName": "Presents",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "DON SERAFIM",
+      "ignore": false,
+      "sortOrder": 137.0,
+      "categoryName": "Presents",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "EP*bilet.ro",
+      "ignore": false,
+      "sortOrder": 138.0,
+      "categoryName": "Presents",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PAYU*IABILET",
+      "ignore": false,
+      "sortOrder": 139.0,
+      "categoryName": "Presents",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "GOPAY  *BAVIXO.RO",
+      "ignore": false,
+      "sortOrder": 140.0,
+      "categoryName": "Presents",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Super Entertaining SRL",
+      "ignore": false,
+      "sortOrder": 141.0,
+      "categoryName": "Presents",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "EASYBOX STEFAN",
+      "ignore": false,
+      "sortOrder": 142.0,
+      "categoryName": "Presents",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BOAVISTA SPORT HOTEL",
+      "ignore": false,
+      "sortOrder": 143.0,
+      "categoryName": "Hotels",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PRITAX INVEST",
+      "ignore": false,
+      "sortOrder": 144.0,
+      "categoryName": "Hotels",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "LAVA&CUCE",
+      "ignore": false,
+      "sortOrder": 145.0,
+      "categoryName": "Curatenie & Ironing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "IULIUS MANAGEMENT CENTER",
+      "ignore": false,
+      "sortOrder": 146.0,
+      "categoryName": "Parcare",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "IULIUS PALAS7A ENT",
+      "ignore": false,
+      "sortOrder": 147.0,
+      "categoryName": "Parcare",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ATTRIUS DEVELOPMENTS",
+      "ignore": false,
+      "sortOrder": 148.0,
+      "categoryName": "Parcare",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BLISS BEAUTY",
+      "ignore": false,
+      "sortOrder": 149.0,
+      "categoryName": "Look&Feel",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PROZ.COM",
+      "ignore": false,
+      "sortOrder": 150.0,
+      "categoryName": "Carti",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MOBILPAY*EDITURA-ART",
+      "ignore": false,
+      "sortOrder": 151.0,
+      "categoryName": "Carti",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Kindle Svcs",
+      "ignore": false,
+      "sortOrder": 152.0,
+      "categoryName": "Carti",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "NORIEL TOYS",
+      "ignore": false,
+      "sortOrder": 153.0,
+      "categoryName": "Toys",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CINEMA CITY",
+      "ignore": false,
+      "sortOrder": 154.0,
+      "categoryName": "Cinema",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "LEROY MERLIN ROMANIA SRL",
+      "ignore": false,
+      "sortOrder": 155.0,
+      "categoryName": "Home Maintanance",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "KITCHEN SHOP",
+      "ignore": false,
+      "sortOrder": 156.0,
+      "categoryName": "Home Maintanance",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "DEDEMAN",
+      "ignore": false,
+      "sortOrder": 157.0,
+      "categoryName": "Home Maintanance",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ARABESQUE",
+      "ignore": false,
+      "sortOrder": 158.0,
+      "categoryName": "Home Maintanance",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PAYU*EMAG.RO",
+      "ignore": false,
+      "sortOrder": 159.0,
+      "categoryName": "Home Maintanance",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Support Auto",
+      "ignore": false,
+      "sortOrder": 160.0,
+      "categoryName": "Car Repairs",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "GLOBEHOSTIN",
+      "ignore": false,
+      "sortOrder": 161.0,
+      "categoryName": "Site-uri",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Retragere numerar",
+      "ignore": false,
+      "sortOrder": 162.0,
+      "categoryName": "Retragere",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Allianz-Tiriac",
+      "ignore": false,
+      "sortOrder": 163.0,
+      "categoryName": "Asigurari",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ALENTEJO",
+      "ignore": false,
+      "sortOrder": 164.0,
+      "categoryName": "Pocket Money Monica",
+      "transferAccountName": null
+    },
+    {
+      "matchText": " asigurare de viata",
+      "ignore": false,
+      "sortOrder": 165.0,
+      "categoryName": "Health Insurance",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "WALLET",
+      "ignore": false,
+      "sortOrder": 166.0,
+      "categoryName": "Software",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Scribd",
+      "ignore": false,
+      "sortOrder": 167.0,
+      "categoryName": "Software",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Realimentare Extra",
+      "ignore": true,
+      "sortOrder": 168.0,
+      "categoryName": null,
+      "transferAccountName": null
+    },
+    {
+      "matchText": "transferata din linia de credit",
+      "ignore": true,
+      "sortOrder": 169.0,
+      "categoryName": null,
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Detalii tranzactie",
+      "ignore": true,
+      "sortOrder": 170.0,
+      "categoryName": null,
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Google CLOUD J5M5ZC",
+      "ignore": false,
+      "sortOrder": 171.0,
+      "categoryName": "Internet",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "EXCLUSIV HAPPY MXI",
+      "ignore": false,
+      "sortOrder": 172.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "LA ANDREI EXPRES",
+      "ignore": false,
+      "sortOrder": 173.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "LUKOIL",
+      "ignore": false,
+      "sortOrder": 174.0,
+      "categoryName": "Fuel",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BRIZA MARII NEGRE",
+      "ignore": false,
+      "sortOrder": 175.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CORNER PIZZA 1",
+      "ignore": false,
+      "sortOrder": 176.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "AQUALAND SA",
+      "ignore": false,
+      "sortOrder": 177.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MARIMAR UNIC",
+      "ignore": false,
+      "sortOrder": 178.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "KOSOVARI BAKERY SR",
+      "ignore": false,
+      "sortOrder": 179.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Mag 2418 Eforie",
+      "ignore": false,
+      "sortOrder": 180.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "DRM EFORIE NORD",
+      "ignore": false,
+      "sortOrder": 181.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Transfer Home'Bank Data",
+      "ignore": false,
+      "sortOrder": 182.0,
+      "categoryName": null,
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MCD 85 BRAILA",
+      "ignore": false,
+      "sortOrder": 183.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "FARMACIA ADRIANA",
+      "ignore": false,
+      "sortOrder": 184.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "cinemacity.ro",
+      "ignore": false,
+      "sortOrder": 185.0,
+      "categoryName": "Cinema",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CORIOLAN AUR SMARALD",
+      "ignore": false,
+      "sortOrder": 186.0,
+      "categoryName": "Birthdays",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PALAS RO IASI",
+      "ignore": false,
+      "sortOrder": 187.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Autopay Mobility PL",
+      "ignore": false,
+      "sortOrder": 188.0,
+      "categoryName": "Fuel",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "STAN MIHAIL MIHAELA",
+      "ignore": false,
+      "sortOrder": 189.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "LUPIISTORE 63 SRL",
+      "ignore": false,
+      "sortOrder": 190.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Farmacia TEI Constanta",
+      "ignore": false,
+      "sortOrder": 191.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "NORIEL MARITIMO CONSTA",
+      "ignore": false,
+      "sortOrder": 192.0,
+      "categoryName": "Toys",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MARIAN SI CICI",
+      "ignore": false,
+      "sortOrder": 193.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "HESPEROS SRL",
+      "ignore": false,
+      "sortOrder": 194.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MAROMA BEACH",
+      "ignore": false,
+      "sortOrder": 195.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "TIMES NEWSPAPERS LTD",
+      "ignore": false,
+      "sortOrder": 196.0,
+      "categoryName": "Carti",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BOLT.EUO2609041228 EE TALLINN",
+      "ignore": false,
+      "sortOrder": 197.0,
+      "categoryName": "Taxi",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BOLT.EUO2609040843 EE TALLINN",
+      "ignore": false,
+      "sortOrder": 198.0,
+      "categoryName": "Taxi",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PayU*eMAG.ro/Market",
+      "ignore": false,
+      "sortOrder": 199.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Pago*Digi(RCS RDS)",
+      "ignore": false,
+      "sortOrder": 200.0,
+      "categoryName": "Internet",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "WWW.ORANGE.RO CONTUL-M",
+      "ignore": false,
+      "sortOrder": 201.0,
+      "categoryName": "Phone",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Rata Credit Data",
+      "ignore": false,
+      "sortOrder": 202.0,
+      "categoryName": "Personal Loan Payment",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PRODAN NICOS-GABRIEL INT",
+      "ignore": false,
+      "sortOrder": 203.0,
+      "categoryName": "Presents",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PayU*bolt.eu/RO",
+      "ignore": false,
+      "sortOrder": 204.0,
+      "categoryName": "Taxi",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PayU*eMAG.ro",
+      "ignore": false,
+      "sortOrder": 205.0,
+      "categoryName": "Household Goods",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BOLT.EUO2609071009 EE TALLINN",
+      "ignore": false,
+      "sortOrder": 206.0,
+      "categoryName": "Taxi",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "LIBRARIILE COMPAS",
+      "ignore": false,
+      "sortOrder": 207.0,
+      "categoryName": "Carti",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PHARMALIFE MED SRL",
+      "ignore": false,
+      "sortOrder": 208.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "COFETARIA LA ROSA",
+      "ignore": false,
+      "sortOrder": 209.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "mpy*art-educational",
+      "ignore": false,
+      "sortOrder": 210.0,
+      "categoryName": "Carti",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "GOOGLE *Google Play",
+      "ignore": false,
+      "sortOrder": 211.0,
+      "categoryName": "Cinema",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Din contul:999904927930",
+      "ignore": false,
+      "sortOrder": 212.0,
+      "categoryName": "Other income",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "In contul:999904927930",
+      "ignore": false,
+      "sortOrder": 213.0,
+      "categoryName": "Extra'ROL",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "In contul:RO11INGB0000999915462513",
+      "ignore": false,
+      "sortOrder": 214.0,
+      "categoryName": "Card credit",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "In contul:RO84INGB0000999903883376",
+      "ignore": false,
+      "sortOrder": 215.0,
+      "categoryName": null,
+      "transferAccountName": "Monica's account"
+    },
+    {
+      "matchText": "FARMACIA HEDERA",
+      "ignore": false,
+      "sortOrder": 216.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "In contul:RO22RNCB0175172888610001",
+      "ignore": false,
+      "sortOrder": 217.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "In contul:RO15INGB0000999901294718",
+      "ignore": false,
+      "sortOrder": 218.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "In contul:RO72INGB0000999911822557",
+      "ignore": false,
+      "sortOrder": 219.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "In contul:RO74INGB0000999904056119",
+      "ignore": false,
+      "sortOrder": 220.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Detalii:Salariu",
+      "ignore": false,
+      "sortOrder": 221.0,
+      "categoryName": "Paycheck",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Din contul:RO38INGB0000999912002328",
+      "ignore": false,
+      "sortOrder": 222.0,
+      "categoryName": "Paycheck",
+      "transferAccountName": "Saving Goals"
+    },
+    {
+      "matchText": "Beneficiar:Constantin Bogza In contul:RO38INGB0000999912002328",
+      "ignore": false,
+      "sortOrder": 223.0,
+      "categoryName": "Bani buni",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "LINGUISTIC GUIDE SRL Din contul:RO94BTRLRONCRT0340204901",
+      "ignore": false,
+      "sortOrder": 224.0,
+      "categoryName": "Paycheck",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Cafe+Co AT 280330",
+      "ignore": false,
+      "sortOrder": 225.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PREMIER INN DE",
+      "ignore": false,
+      "sortOrder": 226.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "RA AEROPORTUL IASI",
+      "ignore": false,
+      "sortOrder": 227.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "www.iabilet.ro",
+      "ignore": false,
+      "sortOrder": 228.0,
+      "categoryName": "Cinema",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Agip Service-Station DE",
+      "ignore": false,
+      "sortOrder": 229.0,
+      "categoryName": "Fuel",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PRALIO",
+      "ignore": false,
+      "sortOrder": 230.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PayU*carturesti.ro",
+      "ignore": false,
+      "sortOrder": 231.0,
+      "categoryName": "Carti",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "REF 2026",
+      "ignore": false,
+      "sortOrder": 232.0,
+      "categoryName": "Pocket Money Tinel",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MUNICIPIUL BRASOV ACTIVI",
+      "ignore": false,
+      "sortOrder": 233.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "DINO PARC -",
+      "ignore": false,
+      "sortOrder": 234.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "HCR SRL",
+      "ignore": false,
+      "sortOrder": 235.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PESTERA VALEA CETATI",
+      "ignore": false,
+      "sortOrder": 236.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CHEF ALEX OPREA",
+      "ignore": false,
+      "sortOrder": 237.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "TRANSILVANIA TRAIN",
+      "ignore": false,
+      "sortOrder": 238.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "STEFANESCU ANDRA-MARIA PE",
+      "ignore": false,
+      "sortOrder": 239.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "AMERICAN RESTAURANT SYST",
+      "ignore": false,
+      "sortOrder": 240.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "ABACUS.AI US ABACUS.AI",
+      "ignore": false,
+      "sortOrder": 241.0,
+      "categoryName": "Software",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Incasare Ordonator:Elena Loredana",
+      "ignore": false,
+      "sortOrder": 242.0,
+      "categoryName": "Pocket Money Tinel",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Selgros SG155 IASI",
+      "ignore": false,
+      "sortOrder": 243.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CHEILE GRADISTEI",
+      "ignore": false,
+      "sortOrder": 244.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "KAYA BUSINESS",
+      "ignore": false,
+      "sortOrder": 245.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PROFI BRASOV CALEA",
+      "ignore": false,
+      "sortOrder": 246.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Din contul:RO50INGB0000999904165482",
+      "ignore": false,
+      "sortOrder": 247.0,
+      "categoryName": "Paycheck",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Hotel at Booking.com",
+      "ignore": false,
+      "sortOrder": 248.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "MCD 19 MIHAI",
+      "ignore": false,
+      "sortOrder": 249.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SIMPLEP*ematrica HU Budapest",
+      "ignore": false,
+      "sortOrder": 250.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SPAR MAGYARORSZA'G KFT",
+      "ignore": false,
+      "sortOrder": 251.0,
+      "categoryName": "Vacation",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Recalculari aferente creditului",
+      "ignore": false,
+      "sortOrder": 252.0,
+      "categoryName": "Personal Loan Payment",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "VA'RBAZA'R PARKOLO' HU",
+      "ignore": false,
+      "sortOrder": 253.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "HELOPAY*GIFTS OF BP",
+      "ignore": false,
+      "sortOrder": 254.0,
+      "categoryName": "Fuel",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "PAYPAL *PATREON MEMBERSH",
+      "ignore": false,
+      "sortOrder": 255.0,
+      "categoryName": "Site-uri",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CARACOSTEA SRL",
+      "ignore": false,
+      "sortOrder": 256.0,
+      "categoryName": "Restaurante",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "CURSOR, AI POWERED",
+      "ignore": false,
+      "sortOrder": 257.0,
+      "categoryName": "Software",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "www.eventbook.ro",
+      "ignore": false,
+      "sortOrder": 258.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "WWW.APAVITAL.RO",
+      "ignore": false,
+      "sortOrder": 259.0,
+      "categoryName": "Water",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Ordonator:A.N.P.C.D.E.F.P Din contul:RO15BACX000000135",
+      "ignore": false,
+      "sortOrder": 260.0,
+      "categoryName": "Paycheck",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "TEUXDEUX.COM US TEUXDEUX.COM",
+      "ignore": false,
+      "sortOrder": 261.0,
+      "categoryName": "Software",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "SOC DE PRODUCERE A ENERG RO BUCUERSTI",
+      "ignore": false,
+      "sortOrder": 262.0,
+      "categoryName": "Electricity",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "NICIMAN SA",
+      "ignore": false,
+      "sortOrder": 263.0,
+      "categoryName": "Groceries",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Incasare Data: 06-09-2026",
+      "ignore": false,
+      "sortOrder": 264.0,
+      "categoryName": "Paycheck",
+      "transferAccountName": "Saving Goals"
+    },
+    {
+      "matchText": "BRAVASTOM SRL-FARMACIE",
+      "ignore": false,
+      "sortOrder": 265.0,
+      "categoryName": "Medical",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BOLT.EUO2609151625 EE TALLINN",
+      "ignore": false,
+      "sortOrder": 266.0,
+      "categoryName": "Taxi",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "sin-say.com/ro/ro/",
+      "ignore": false,
+      "sortOrder": 267.0,
+      "categoryName": "Clothing",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "BOLT.EUO2609151158 EE TALLINN",
+      "ignore": false,
+      "sortOrder": 268.0,
+      "categoryName": "Taxi",
+      "transferAccountName": null
+    },
+    {
+      "matchText": "Beneficiar:APCCN Costache Negruzzi",
+      "ignore": false,
+      "sortOrder": 269.0,
+      "categoryName": "Education",
+      "transferAccountName": null
+    }
+  ]
+}

@@ -1,9 +1,15 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { formatMoney } from "@/lib/money";
 import { moneyClass } from "@/components/forms/field-classes";
 import {
   assignFromPlannedAction,
+  assignToActivityAction,
   coverAllOverspendAction,
 } from "@/app/(app)/plan/actions";
+import { usePlanWorkspaceOptional } from "@/components/plan/PlanWorkspace";
 
 type Props = {
   rta: number;
@@ -24,6 +30,21 @@ export function PlanSummaryBanner({
   currency,
   month,
 }: Props) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const workspace = usePlanWorkspaceOptional();
+
+  const runBannerAction = (action: (fd: FormData) => Promise<unknown>) => {
+    if (!month) return;
+    start(async () => {
+      const fd = new FormData();
+      fd.set("month", month);
+      workspace?.allowServerSync();
+      await action(fd);
+      router.refresh();
+    });
+  };
+
   const state = rta === 0 ? "zero" : rta < 0 ? "over" : "ready";
 
   const tint =
@@ -96,26 +117,33 @@ export function PlanSummaryBanner({
           </p>
           {month ? (
             <div className="mt-1.5 flex flex-col items-end gap-0.5">
-              <form action={assignFromPlannedAction}>
-                <input type="hidden" name="month" value={month} />
-                <button
-                  type="submit"
-                  title="Set Assigned to at least this month’s planned payment totals"
-                  className="font-medium text-accent hover:underline"
-                >
-                  Assign from planned
-                </button>
-              </form>
-              <form action={coverAllOverspendAction}>
-                <input type="hidden" name="month" value={month} />
-                <button
-                  type="submit"
-                  title="Raise Assigned on every overspent category until Available ≥ 0"
-                  className="font-medium text-accent hover:underline"
-                >
-                  Cover all overspend
-                </button>
-              </form>
+              <button
+                type="button"
+                disabled={pending}
+                title="Set Assigned to at least this month’s planned payment totals"
+                className="font-medium text-accent hover:underline disabled:opacity-50"
+                onClick={() => runBannerAction(assignFromPlannedAction)}
+              >
+                Assign from planned
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                title="Set Assigned = −Activity on every spending category (match Spent)"
+                className="font-medium text-accent hover:underline disabled:opacity-50"
+                onClick={() => runBannerAction(assignToActivityAction)}
+              >
+                Assign to activity
+              </button>
+              <button
+                type="button"
+                disabled={pending}
+                title="Raise Assigned on every overspent category until Available ≥ 0"
+                className="font-medium text-accent hover:underline disabled:opacity-50"
+                onClick={() => runBannerAction(coverAllOverspendAction)}
+              >
+                Cover all overspend
+              </button>
             </div>
           ) : null}
         </div>

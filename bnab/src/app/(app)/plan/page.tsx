@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight, PiggyBank, Wallet } from "lucide-react";
 import { requireBudgetAccess } from "@/lib/authz";
 import { loadPlanMonthCached } from "@/lib/cache-tags";
@@ -30,8 +31,20 @@ export default async function PlanPage({
 }) {
   const { budget } = await requireBudgetAccess();
   const sp = await searchParams;
-  const month =
+  const requested =
     sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : currentMonth();
+  // Months before the budget start render an empty plan (Income/Spent 0) —
+  // snap back so Prev cannot walk into a blank ledger.
+  if (requested < budget.firstMonth) {
+    redirect(
+      planHref({
+        month: budget.firstMonth,
+        empty: parsePlanEmpty(sp.empty),
+        focus: parsePlanFocus(sp.focus),
+      }),
+    );
+  }
+  const month = requested;
   const showEmpty = parsePlanEmpty(sp.empty);
   const focus = parsePlanFocus(sp.focus);
 
@@ -46,6 +59,7 @@ export default async function PlanPage({
   } = await loadPlanMonthCached(budget.id, month);
   const prev = addMonths(month, -1);
   const next = addMonths(month, 1);
+  const canGoPrev = prev >= budget.firstMonth;
 
   const incomeGroups = groups.filter((g) => g.isIncome);
   const spendingGroups = groups.filter((g) => !g.isIncome);
@@ -104,13 +118,23 @@ export default async function PlanPage({
   return (
     <div className="space-y-4 md:space-y-5">
       <div className="flex items-center justify-between gap-2">
-        <Link
-          href={planHref({ month: prev, empty: showEmpty, focus })}
-          className="shrink-0 rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
-          aria-label="Previous month"
-        >
-          <ChevronLeft className="size-5" />
-        </Link>
+        {canGoPrev ? (
+          <Link
+            href={planHref({ month: prev, empty: showEmpty, focus })}
+            className="shrink-0 rounded-full border border-rim p-2 text-fg-muted transition-colors hover:bg-overlay hover:text-fg active:scale-95"
+            aria-label="Previous month"
+          >
+            <ChevronLeft className="size-5" />
+          </Link>
+        ) : (
+          <span
+            className="shrink-0 rounded-full border border-rim-subtle p-2 text-fg-subtle opacity-40"
+            aria-disabled="true"
+            title={`Budget starts ${monthLabel(budget.firstMonth)}`}
+          >
+            <ChevronLeft className="size-5" />
+          </span>
+        )}
         <div className="min-w-0 flex-1 flex flex-col items-center gap-1">
           <h1 className="text-center text-xl font-semibold tracking-tight text-fg">
             {monthLabel(month)}

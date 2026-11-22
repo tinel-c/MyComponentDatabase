@@ -30,6 +30,8 @@ type PlanWorkspaceValue = {
     categoryId: string,
     assigned: number,
   ) => void;
+  /** Allow next RSC props to replace local optimistic state (after bulk actions). */
+  allowServerSync: () => void;
 };
 
 const PlanWorkspaceContext = createContext<PlanWorkspaceValue | null>(null);
@@ -120,6 +122,10 @@ export function PlanWorkspace({
     [],
   );
 
+  const allowServerSync = useCallback(() => {
+    localDirty.current = false;
+  }, []);
+
   const value = useMemo(
     () => ({
       month,
@@ -129,6 +135,7 @@ export function PlanWorkspace({
       totalAssigned,
       applyPatch,
       setCategoryAssignedLocal,
+      allowServerSync,
     }),
     [
       month,
@@ -138,6 +145,7 @@ export function PlanWorkspace({
       totalAssigned,
       applyPatch,
       setCategoryAssignedLocal,
+      allowServerSync,
     ],
   );
 

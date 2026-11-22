@@ -18,7 +18,7 @@ import {
 
 const SAMPLE = `Titular cont: DL Test,,,,,,,,,
 CNP: 123,,,,,,,,,
-,Data,,,Detalii tranzactie,,,Debit,,Credit
+,Data,,,Detalii tranzactie,,Debit,,Credit
 01 septembrie 2026,,,Cumparare POS,,,"114,17",,,
 ,,,Data finalizarii (decontarii): 01-09-2026,,,,,,
 ,,,Numar card:**** 1234,,,,,,

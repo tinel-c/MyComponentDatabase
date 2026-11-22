@@ -1,5 +1,22 @@
 # BNAB changelog
 
+## 1.3.8 — 2026-11-22
+
+CSV↔Plan income verification + HomeBank compact column fix.
+
+### Also
+
+- Plan banner **Assign to activity** sets Assigned = −Activity on every spending category for the viewed month
+- Plan Prev month clamped to `firstMonth` (avoids empty Income/Spent months)
+
+### Highlights
+
+- `parseIngCsv` auto-detects Debit/Credit columns (compact Debit=4/Credit=6 vs legacy 6/8) so current HomeBank exports no longer flip income to outflows
+- `monthlyIncomeFromAppliedRows` + tests assert CSV Paycheck/Other income per month matches Plan engine activity
+- Local harness: `npm run test:income-local` imports Downloads CSVs into `prisma/income-test.db` and asserts monthly Paycheck matches CSV+rules
+- Ops: `deploy/bnab/ops_verify_income_csv.py` compares Downloads CSVs + prod rules to site Income
+- Prod data: credit-line ignore restored; duplicate / cross-account Paycheck rows removed from Sept
+
 ## 1.3.7 — 2026-11-22
 
 Plan Income (Paycheck / Other income) follows the selected month for real.

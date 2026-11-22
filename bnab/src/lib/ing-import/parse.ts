@@ -69,6 +69,53 @@ const CLEAN_MARKERS: { col: number; text: string }[] = [
   { col: 0, text: "Eliberat pentru" },
 ];
 
+/** Column indices for HomeBank ING CSV layouts. */
+export type IngCsvColumnMap = {
+  date: number;
+  details: number;
+  debit: number;
+  credit: number;
+};
+
+/** Older HomeBank export: Debit=6, Credit=8. */
+export const ING_CSV_COLUMNS_LEGACY: IngCsvColumnMap = {
+  date: 0,
+  details: 3,
+  debit: 6,
+  credit: 8,
+};
+
+/** Current HomeBank export: Debit=4, Credit=6, Balanta=7. */
+export const ING_CSV_COLUMNS_COMPACT: IngCsvColumnMap = {
+  date: 0,
+  details: 3,
+  debit: 4,
+  credit: 6,
+};
+
+/**
+ * Detect Debit/Credit column indices from a header row.
+ * Date/details stay at 0/3 (data rows); only Debit/Credit shift between
+ * compact (4/6) and legacy (6/8) HomeBank exports.
+ */
+export function detectIngCsvColumns(headerCols: string[]): IngCsvColumnMap {
+  const norm = headerCols.map((c) => c.trim().toLowerCase());
+  const debitIdx = norm.findIndex((c) => c === "debit");
+  const creditIdx = norm.findIndex((c) => c === "credit");
+  if (debitIdx < 0 || creditIdx < 0) return ING_CSV_COLUMNS_LEGACY;
+  return {
+    date: 0,
+    details: 3,
+    debit: debitIdx,
+    credit: creditIdx,
+  };
+}
+
+function isIngCsvHeaderRow(cols: string[]): boolean {
+  const joined = cols.map((c) => c.trim().toLowerCase()).join("|");
+  return joined.includes("debit") && joined.includes("credit");
+}
+
 /** Parse Romanian amount "1.820,88" or "114,17" → minor units. */
 export function parseIngAmount(raw: string): number {
   const s = raw.trim().replace(/\s/g, "").replace(/"/g, "");
@@ -207,7 +254,8 @@ export function splitCsvLine(line: string): string[] {
 
 /**
  * Parse raw HomeBank ING CSV into collapsed transaction rows.
- * Columns: Date=0, Details=3, Debit=6, Credit=8.
+ * Debit/Credit column indices are detected from the header when present
+ * (compact Debit=4/Credit=6 vs legacy Debit=6/Credit=8).
  */
 function pushCollapsed(
   results: ParsedIngRow[],
@@ -236,7 +284,7 @@ function pushCollapsed(
 
 /**
  * Parse raw HomeBank ING CSV into collapsed transaction rows.
- * Columns: Date=0, Details=3, Debit=6, Credit=8.
+ * Auto-detects Debit/Credit columns from the header row.
  */
 export function parseIngCsv(csvText: string): ParsedIngRow[] {
   const lines = csvText.split(/\r?\n/);
@@ -248,20 +296,35 @@ export function parseIngCsv(csvText: string): ParsedIngRow[] {
   };
   let current: Acc | null = null;
   const results: ParsedIngRow[] = [];
+  let columns: IngCsvColumnMap = ING_CSV_COLUMNS_LEGACY;
+  let columnsDetected = false;
 
   for (const line of lines) {
     if (!line.trim()) continue;
     const cols = splitCsvLine(line);
-    while (cols.length < 9) cols.push("");
+
+    if (!columnsDetected && isIngCsvHeaderRow(cols)) {
+      columns = detectIngCsvColumns(cols);
+      columnsDetected = true;
+      continue;
+    }
+
+    const width =
+      Math.max(columns.date, columns.details, columns.debit, columns.credit) +
+      1;
+    while (cols.length < width) cols.push("");
 
     if (shouldSkipCsvRow(cols)) continue;
 
-    const dateCell = (cols[0] ?? "").trim();
-    const details = (cols[3] ?? "").trim();
-    const debit = (cols[6] ?? "").trim();
-    const credit = (cols[8] ?? "").trim();
+    const dateCell = (cols[columns.date] ?? "").trim();
+    const details = (cols[columns.details] ?? "").trim();
+    const debit = (cols[columns.debit] ?? "").trim();
+    const credit = (cols[columns.credit] ?? "").trim();
 
     if (dateCell.includes("Sold ini")) break;
+
+    // Compact header uses "Data" at col 0 — skip that label row if undated.
+    if (dateCell === "Data" || dateCell === "Date") continue;
 
     if (dateCell) {
       if (current) pushCollapsed(results, current);

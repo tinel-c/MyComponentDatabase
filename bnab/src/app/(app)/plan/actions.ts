@@ -7,6 +7,7 @@ import { invalidateBudgetCaches } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { parseMoneyInput } from "@/lib/money";
 import { plannedMonthlyAssign } from "@/lib/planned-payments";
+import { assignedMatchingActivity } from "@/lib/assign-to-activity";
 
 /**
  * For the viewed month, raise Assigned to at least |plannedMonthlyAssign|
@@ -328,6 +329,57 @@ export async function coverAllOverspend(formData: FormData): Promise<{
 /** Form-action wrapper for Plan banner. */
 export async function coverAllOverspendAction(formData: FormData) {
   await coverAllOverspend(formData);
+}
+
+/**
+ * For every non-income category in `month`, set Assigned = −Activity
+ * (0 when Activity ≥ 0). Matches the Spent column into Assigned for all fields.
+ */
+export async function assignToActivity(formData: FormData): Promise<{
+  ok: boolean;
+  count: number;
+}> {
+  const { budget } = await requireBudgetAccess();
+  const month = String(formData.get("month") ?? "");
+  if (!/^\d{4}-\d{2}$/.test(month)) return { ok: false, count: 0 };
+
+  const { loadPlanMonth } = await import("@/lib/plan-data");
+  const { plan } = await loadPlanMonth(budget.id, month);
+
+  const spendingCats = await prisma.category.findMany({
+    where: { group: { budgetId: budget.id }, isIncome: false },
+    select: { id: true },
+  });
+  const spendingIds = new Set(spendingCats.map((c) => c.id));
+
+  const upserts: { categoryId: string; assigned: number }[] = [];
+  for (const [categoryId, row] of Object.entries(plan.categories)) {
+    if (!spendingIds.has(categoryId)) continue;
+    const next = assignedMatchingActivity(row.activity);
+    if (next === row.assigned) continue;
+    upserts.push({ categoryId, assigned: next });
+  }
+
+  if (upserts.length > 0) {
+    await prisma.$transaction(
+      upserts.map(({ categoryId, assigned }) =>
+        prisma.monthlyCategoryBudget.upsert({
+          where: { categoryId_month: { categoryId, month } },
+          create: { categoryId, month, assigned },
+          update: { assigned },
+        }),
+      ),
+    );
+  }
+
+  revalidatePath("/plan");
+  await invalidateBudgetCaches(budget.id);
+  return { ok: true, count: upserts.length };
+}
+
+/** Form-action wrapper for Plan banner. */
+export async function assignToActivityAction(formData: FormData) {
+  await assignToActivity(formData);
 }
 
 const accountSchema = z.object({
