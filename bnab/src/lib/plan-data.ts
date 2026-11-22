@@ -276,15 +276,24 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     });
     months = [...priorParsed, ...tip];
   } else if (prevMonth) {
-    const prefix = await unstable_cache(
-      async () =>
-        computeBudgetMonths({
-          ...engineInput,
-          endMonth: prevMonth,
-        }),
-      ["engine-prefix", budgetId, prevMonth],
-      { tags: [`budget:${budgetId}`], revalidate: 120 },
-    )();
+    // unstable_cache needs a Next request; CLI/ops scripts fall back to direct compute.
+    let prefix: MonthResult[];
+    try {
+      prefix = await unstable_cache(
+        async () =>
+          computeBudgetMonths({
+            ...engineInput,
+            endMonth: prevMonth,
+          }),
+        ["engine-prefix", budgetId, prevMonth],
+        { tags: [`budget:${budgetId}`], revalidate: 120 },
+      )();
+    } catch {
+      prefix = computeBudgetMonths({
+        ...engineInput,
+        endMonth: prevMonth,
+      });
+    }
     const tip = computeBudgetMonths({
       ...engineInput,
       firstMonth: endMonth,

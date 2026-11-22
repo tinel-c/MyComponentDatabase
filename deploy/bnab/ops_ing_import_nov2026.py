@@ -83,14 +83,17 @@ def main() -> None:
     sftp.close()
 
     # List accounts then import (names matched loosely)
+    # Prefer local node_modules/.bin/tsx (non-interactive). Fallback: npx --yes.
     base = (
         "ACTIVE=$(tr -d '[:space:]' </opt/bnab/active_slot); "
         "cd /opt/bnab/$ACTIVE/bnab; "
         "set -a; . /opt/bnab/shared/.env; set +a; "
         "export DATABASE_URL=file:/opt/bnab/shared/bnab.db; "
+        "TSX=./node_modules/.bin/tsx; "
+        "if [ ! -x \"$TSX\" ]; then TSX='npx --yes tsx'; fi; "
     )
 
-    rc = run(client, base + "npx tsx scripts/ops-ing-import.ts --list-accounts")
+    rc = run(client, base + "$TSX scripts/ops-ing-import.ts --list-accounts")
     if rc != 0:
         sys.exit(rc)
 
@@ -103,7 +106,7 @@ def main() -> None:
         rc = run(
             client,
             base
-            + f'npx tsx scripts/ops-ing-import.ts --account "{needle}" '
+            + f'$TSX scripts/ops-ing-import.ts --account "{needle}" '
             + f"--csv {remote_dir}/{csv_name} --label {label}",
             timeout=1200,
         )
@@ -113,13 +116,13 @@ def main() -> None:
 
     rc = run(
         client,
-        base + "npx tsx scripts/ops-cover-overspend.ts --month 2026-11",
+        base + "$TSX scripts/ops-cover-overspend.ts --month 2026-11",
         timeout=600,
     )
     if rc != 0:
         sys.exit(rc)
 
-    rc = run(client, base + "npx tsx scripts/ops-verify-import.ts", timeout=300)
+    rc = run(client, base + "$TSX scripts/ops-verify-import.ts", timeout=300)
     client.close()
     if rc != 0:
         sys.exit(rc)
