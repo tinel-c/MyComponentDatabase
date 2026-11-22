@@ -163,6 +163,7 @@ export default async function PlanPage({
       </div>
 
       <PlanWorkspace
+        key={month}
         month={month}
         currency={currency}
         initialRows={workspaceRows}
@@ -225,7 +226,7 @@ export default async function PlanPage({
                         {group.name}
                       </h3>
                       <p className="mt-0.5 text-[11px] text-fg-subtle">
-                        Activity this month · counts toward Ready to Assign
+                        Activity · {monthLabel(month)} · Ready to Assign
                       </p>
                     </div>
                     <div className="flex-1 overflow-x-auto">

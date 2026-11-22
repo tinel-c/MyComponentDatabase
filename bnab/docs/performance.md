@@ -41,7 +41,7 @@ Do **not** import `cache-tags` from `plan-data` (circular). Tip L1 cache lives n
 
 Until Next.js Cache Components / full PPR is enabled, **`loadPlanMonthCached` + `invalidateBudgetCaches`** remain the production bridge:
 
-- Reads: tagged `unstable_cache` inside `React.cache` (`cache-tags.ts`). Pass varying inputs (`month`, filter hash) as **function arguments** to `unstable_cache`, not only closures/`keyParts` — otherwise Plan can show one month’s Income/activity for every selected month.
+- Reads: Plan month uses **`React.cache` only** (no `unstable_cache`) — Data Cache repeatedly returned the wrong month’s Income/activity. Register first-page / activity still use tagged `unstable_cache`. Durable tips remain the cross-request Plan CPU optimization.
 - Writes: `invalidateBudgetCaches` from plan / import / transaction / more / receipt / data actions
 - ADR: [0004](./adr/0004-tagged-data-cache.md); Phase 2 enablement: [0008](./adr/0008-cache-components-phase2.md) (**blocked** on auth prerender shells)
 

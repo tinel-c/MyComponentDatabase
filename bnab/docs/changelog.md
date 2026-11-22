@@ -1,13 +1,18 @@
 # BNAB changelog
 
-## 1.3.6 — 2026-11-22
+## 1.3.7 — 2026-11-22
 
-Plan Income no longer stuck on one month after soft navigation.
+Plan Income (Paycheck / Other income) follows the selected month for real.
 
 ### Highlights
 
-- `loadPlanMonthCached` passes `budgetId`/`month` as `unstable_cache` arguments so the Data Cache key differs per month
-- Plan route `dynamic = "force-dynamic"`
+- Dropped `unstable_cache` on `loadPlanMonthCached` and engine-prefix (Data Cache still served one month’s activity everywhere)
+- Plan picks the exact viewed month only (no fallback to another month’s result)
+- Income card shows the active month label; `PlanWorkspace` remounts on month change
+
+## 1.3.6 — 2026-11-22
+
+Plan Income cache key attempt + `force-dynamic` on `/plan`.
 
 ## 1.3.5 — 2026-11-22
 

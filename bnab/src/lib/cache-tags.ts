@@ -55,20 +55,15 @@ export async function invalidateBudgetCaches(budgetId: string): Promise<void> {
 
 /**
  * Per-request memoization of plan month.
- * Pass budgetId/month as unstable_cache *arguments* (not only keyParts/closure)
- * so the Data Cache invocation key differs per month — closure-only keys have
- * served the same Plan Income/activity for every selected month in production.
+ *
+ * Do **not** wrap this in `unstable_cache`: Next Data Cache has repeatedly served
+ * one month’s Income/activity for every selected month in production (key/closure
+ * collisions). Durable tips (ADR 0010) already cover cross-request plan CPU.
+ * Callers that mutate money must still `invalidateBudgetCaches` (clears tips).
  */
-export const loadPlanMonthCached = cache(async (budgetId: string, month: string) => {
-  return unstable_cache(
-    async (bid: string, m: string) => loadPlanMonthUncached(bid, m),
-    ["plan-month"],
-    {
-      tags: [budgetTag(budgetId), planMonthTag(budgetId, month)],
-      revalidate: 60,
-    },
-  )(budgetId, month);
-});
+export const loadPlanMonthCached = cache(
+  async (budgetId: string, month: string) => loadPlanMonthUncached(budgetId, month),
+);
 
 export const loadAccountActivityCached = cache(async (budgetId: string) => {
   const ym = new Date().toISOString().slice(0, 7);

@@ -8,7 +8,6 @@ import {
   type MonthResult,
 } from "@/lib/budget-engine";
 import { computeAccountMonthFlows } from "@/lib/plan-account-flows";
-import { unstable_cache } from "next/cache";
 import { addMonths } from "@/lib/money";
 import {
   loadEngineMonthTip,
@@ -276,24 +275,12 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     });
     months = [...priorParsed, ...tip];
   } else if (prevMonth) {
-    // unstable_cache needs a Next request; CLI/ops scripts fall back to direct compute.
-    let prefix: MonthResult[];
-    try {
-      prefix = await unstable_cache(
-        async () =>
-          computeBudgetMonths({
-            ...engineInput,
-            endMonth: prevMonth,
-          }),
-        ["engine-prefix", budgetId, prevMonth],
-        { tags: [`budget:${budgetId}`], revalidate: 120 },
-      )();
-    } catch {
-      prefix = computeBudgetMonths({
-        ...engineInput,
-        endMonth: prevMonth,
-      });
-    }
+    // Direct prefix walk (no unstable_cache): Data Cache previously collided across
+    // months when keying only on prevMonth while closing over different txn sets.
+    const prefix = computeBudgetMonths({
+      ...engineInput,
+      endMonth: prevMonth,
+    });
     const tip = computeBudgetMonths({
       ...engineInput,
       firstMonth: endMonth,
@@ -335,11 +322,13 @@ export async function loadPlanMonth(budgetId: string, month: string) {
     ),
   });
 
+  // Prefer exact viewed month only — never fall back to another month’s result
+  // (that made Paycheck/Other income look identical when changing months).
   const plan =
     months.find((m) => m.month === month) ??
-    months.find((m) => m.month === endMonth) ??
-    months[months.length - 1] ??
-    emptyPlan(endMonth);
+    (month === endMonth
+      ? (months.find((m) => m.month === endMonth) ?? emptyPlan(endMonth))
+      : emptyPlan(month));
 
   const accountOnBudget = new Map(accounts.map((a) => [a.id, a.onBudget]));
   const accountType = new Map(accounts.map((a) => [a.id, a.type]));
